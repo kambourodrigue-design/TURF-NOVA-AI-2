@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Longueur — Pronostics hippiques par intelligence artificielle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green-deep:#0B3D2E;
+    --green-mid:#145C3F;
+    --cream:#F5F1E8;
+    --paper:#FBF8F1;
+    --ink:#12181A;
+    --gold:#C9A227;
+    --gold-light:#E4C566;
+    --rust:#C1440E;
+    --line:rgba(18,24,26,.12);
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit; text-decoration:none;}
+  img,svg{display:block;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; letter-spacing:-0.01em; color:var(--green-deep);}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--rust); font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  }
+  .eyebrow::before{content:""; width:16px; height:2px; background:var(--rust); display:inline-block;}
+  button, .btn{font-family:var(--font-body); cursor:pointer; border:none;}
+
+  /* ---------- Ticker ---------- */
+  .ticker-bar{
+    background:var(--ink); color:var(--gold-light); overflow:hidden; white-space:nowrap;
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em; border-bottom:1px solid var(--gold);
+  }
+  .ticker-track{display:inline-block; padding:9px 0; animation:scroll-left 32s linear infinite;}
+  .ticker-track span{margin:0 28px;}
+  .ticker-track span b{color:#fff; font-weight:600;}
+  @keyframes scroll-left{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(-50%);}
+  }
+
+  /* ---------- Header ---------- */
+  .site-header{
+    position:sticky; top:0; z-index:50; background:var(--green-deep);
+    border-bottom:1px solid rgba(201,162,39,.35);
+  }
+  .site-header .wrap{display:flex; align-items:center; justify-content:space-between; height:74px;}
+  .logo{
+    font-family:var(--font-display); font-size:24px; font-weight:700; color:#fff; letter-spacing:.01em;
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .logo .dot{color:var(--gold);}
+  nav.main-nav{display:flex; gap:32px; font-size:14.5px; font-weight:500;}
+  nav.main-nav a{color:#EDE7D6; opacity:.85; transition:opacity .2s;}
+  nav.main-nav a:hover{opacity:1;}
+  .header-actions{display:flex; align-items:center; gap:18px;}
+  .link-muted{color:#EDE7D6; font-size:14px; opacity:.8;}
+  .btn-gold{
+    background:var(--gold); color:var(--ink); font-weight:600; font-size:14px;
+    padding:11px 20px; border-radius:3px; transition:background .2s, transform .2s;
+  }
+  .btn-gold:hover{background:var(--gold-light); transform:translateY(-1px);}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:88px 0 96px; position:relative; overflow:hidden;}
+  .hero::before{
+    content:""; position:absolute; top:-120px; right:-160px; width:520px; height:520px;
+    background:radial-gradient(circle, rgba(201,162,39,.14) 0%, rgba(201,162,39,0) 70%);
+    pointer-events:none;
+  }
+  .hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:64px; align-items:center;}
+  .hero h1{font-size:52px; line-height:1.06; margin-bottom:22px;}
+  .hero h1 em{font-style:italic; color:var(--rust);}
+  .hero p.lead{font-size:17.5px; color:#3A4442; max-width:480px; margin-bottom:32px;}
+  .hero-actions{display:flex; gap:14px; align-items:center;}
+  .btn-outline{
+    border:1.5px solid var(--green-deep); color:var(--green-deep); font-weight:600; font-size:14.5px;
+    padding:12px 22px; border-radius:3px; background:transparent; transition:background .2s;
+  }
+  .btn-outline:hover{background:rgba(11,61,46,.06);}
+  .hero-note{font-family:var(--font-mono); font-size:12px; color:#6b756f; margin-top:18px; letter-spacing:.03em;}
+
+  /* Featured race card */
+  .feature-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:6px; overflow:hidden;
+    box-shadow:0 24px 48px -20px rgba(11,61,46,.28);
+  }
+  .feature-card__head{
+    background:var(--green-deep); color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .feature-card__head .tag{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; color:var(--gold-light);}
+  .feature-card__head .live{
+    font-family:var(--font-mono); font-size:11px; color:#fff; background:var(--rust); padding:3px 8px; border-radius:2px;
+    letter-spacing:.08em;
+  }
+  .feature-card__body{padding:24px 22px 22px;}
+  .feature-card__race{font-family:var(--font-display); font-size:21px; color:var(--green-deep); margin-bottom:2px;}
+  .feature-card__meta{font-size:13px; color:#6b756f; margin-bottom:18px;}
+  .pick-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line);}
+  .silk{width:30px; height:30px; border-radius:4px; flex-shrink:0; border:1px solid rgba(0,0,0,.15);}
+  .pick-name{font-weight:600; font-size:14.5px; color:var(--ink);}
+  .pick-sub{font-family:var(--font-mono); font-size:11.5px; color:#6b756f;}
+  .pick-odds{margin-left:auto; font-family:var(--font-mono); font-weight:600; font-size:15px; color:var(--rust);}
+
+  .flap{
+    background:var(--ink); border-radius:4px; padding:14px 18px; margin-top:16px;
+    display:flex; align-items:center; justify-content:space-between; position:relative;
+  }
+  .flap::after{content:""; position:absolute; left:14px; right:14px; top:50%; height:1px; background:rgba(255,255,255,.14);}
+  .flap-label{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:#9BA79F;}
+  .flap-value{
+    font-family:var(--font-mono); font-weight:700; font-size:30px; color:var(--gold-light);
+    text-shadow:0 0 14px rgba(228,197,102,.35);
+  }
+
+  /* ---------- Section shells ---------- */
+  section{padding:88px 0;}
+  .section-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:44px; gap:24px; flex-wrap:wrap;}
+  .section-head h2{font-size:34px;}
+  .section-head p{color:#5C665F; max-width:420px; font-size:14.5px;}
+
+  /* ---------- Courses du jour ---------- */
+  .courses{background:var(--paper); border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .race-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+  .race-card{
+    background:#fff; border:1px solid var(--line); border-radius:6px; padding:20px; transition:transform .2s, box-shadow .2s;
+  }
+  .race-card:hover{transform:translateY(-3px); box-shadow:0 16px 30px -18px rgba(11,61,46,.35);}
+  .race-card__top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;}
+  .race-code{
+    font-family:var(--font-mono); font-weight:700; font-size:13px; color:#fff; background:var(--green-deep);
+    padding:4px 9px; border-radius:3px; letter-spacing:.04em;
+  }
+  .race-time{font-family:var(--font-mono); font-size:13px; color:var(--rust); font-weight:600;}
+  .race-card h3{font-size:17.5px; margin-bottom:3px;}
+  .race-meta{font-size:12.5px; color:#6b756f; margin-bottom:14px;}
+  .race-pick{display:flex; align-items:center; gap:10px; padding-top:12px; border-top:1px dashed var(--line);}
+  .race-pick .name{font-size:13.5px; font-weight:600;}
+  .race-pick .conf{
+    margin-left:auto; font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--green-mid);
+  }
+  .conf-bar{height:4px; background:var(--line); border-radius:2px; margin-top:10px; overflow:hidden;}
+  .conf-bar i{display:block; height:100%; background:linear-gradient(90deg,var(--gold),var(--green-mid));}
+  .race-pick .odds{margin-left:auto; font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--rust);}
+  .live-flag{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; padding:3px 9px; border-radius:20px;
+    border:1px solid var(--green-mid); color:var(--green-mid); margin-left:10px;
+  }
+  .live-flag.demo{border-color:#b7ad86; color:#8a7f52;}
+
+  /* ---------- Comment fonctionne l'IA ---------- */
+  .how-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:0; position:relative;}
+  .how-grid::before{
+    content:""; position:absolute; top:23px; left:5%; right:5%; height:1px; background:var(--line); z-index:0;
+  }
+  .how-step{position:relative; padding-right:20px; z-index:1;}
+  .how-step .num{
+    width:46px; height:46px; border-radius:50%; background:var(--paper); border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700;
+    color:var(--green-deep); margin-bottom:20px;
+  }
+  .how-step h3{font-size:16.5px; margin-bottom:8px;}
+  .how-step p{font-size:13.5px; color:#5C665F;}
+
+  /* ---------- Stats ---------- */
+  .stats{background:var(--green-deep); color:#fff;}
+  .stats .wrap{display:grid; grid-template-columns:repeat(4,1fr); gap:24px; text-align:left;}
+  .stat b{
+    font-family:var(--font-mono); font-size:40px; color:var(--gold-light); display:block; margin-bottom:6px; font-weight:700;
+  }
+  .stat span{font-size:13px; color:#C7D2CB;}
+
+  /* ---------- Pricing ---------- */
+  .pricing-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  .plan{
+    border:1px solid var(--line); border-radius:8px; padding:32px 26px; background:#fff; display:flex; flex-direction:column;
+  }
+  .plan.featured{border-color:var(--gold); box-shadow:0 20px 40px -22px rgba(201,162,39,.5); position:relative;}
+  .plan.featured::before{
+    content:"Le plus choisi"; position:absolute; top:-13px; left:26px; background:var(--rust); color:#fff;
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; padding:4px 10px; border-radius:3px;
+  }
+  .plan .enclos{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--rust); margin-bottom:10px;}
+  .plan h3{font-size:24px; margin-bottom:6px;}
+  .plan .price{font-family:var(--font-mono); font-size:32px; font-weight:700; color:var(--green-deep); margin:12px 0 20px;}
+  .plan .price span{font-size:13px; font-weight:500; color:#6b756f;}
+  .plan ul{list-style:none; margin-bottom:26px; flex-grow:1;}
+  .plan li{font-size:13.5px; color:#3A4442; padding:8px 0; border-top:1px solid var(--line); display:flex; gap:9px;}
+  .plan li::before{content:"—"; color:var(--gold);}
+  .plan .btn-outline, .plan .btn-gold{width:100%; text-align:center;}
+
+  /* ---------- CTA final ---------- */
+  .cta-final{text-align:center;}
+  .cta-final h2{font-size:36px; margin-bottom:14px;}
+  .cta-final p{color:#5C665F; margin-bottom:30px;}
+
+  /* ---------- Testimonials / piste ---------- */
+  .testimonials{
+    position:relative; background:linear-gradient(180deg,#0B3D2E 0%, #0A2C21 62%, #081F19 100%);
+    color:#fff; overflow:hidden; padding:100px 0 0;
+  }
+  .testimonials .section-head p{color:#B7C4BC;}
+  .testimonials .eyebrow{color:var(--gold-light);}
+  .testimonials .eyebrow::before{background:var(--gold-light);}
+  .testimonials .section-head h2{color:#fff;}
+
+  .quote-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; position:relative; z-index:2;}
+  .quote-card{
+    background:rgba(251,248,241,.06); border:1px solid rgba(228,197,102,.22); border-radius:8px;
+    padding:26px 24px; backdrop-filter:blur(2px);
+  }
+  .quote-mark{font-family:var(--font-display); font-size:44px; color:var(--gold); line-height:1; margin-bottom:6px;}
+  .quote-card p.quote-text{font-size:14.5px; color:#E7EBE6; margin-bottom:22px; min-height:76px;}
+  .quote-person{display:flex; align-items:center; gap:12px;}
+  .avatar{
+    width:44px; height:44px; border-radius:50%; flex-shrink:0; position:relative;
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+    font-weight:700; font-size:16px; color:#fff; border:2px solid var(--gold);
+  }
+  .avatar.a1{background:conic-gradient(from 210deg,#C1440E,#0B3D2E);}
+  .avatar.a2{background:conic-gradient(from 90deg,#145C3F,#C9A227);}
+  .avatar.a3{background:conic-gradient(from 30deg,#0B3D2E,#8a1f1f);}
+  .quote-person .who b{display:block; font-size:13.5px; font-weight:600;}
+  .quote-person .who span{font-size:12px; color:#9BA79F; font-family:var(--font-mono);}
+
+  /* Illustrated dusk racetrack scene */
+  .track-scene{
+    position:relative; height:220px; margin-top:64px; overflow:hidden;
+    border-top:1px solid rgba(228,197,102,.25);
+  }
+  .track-scene svg{position:absolute; bottom:0; left:0; width:100%; height:100%;}
+  .track-caption{
+    position:absolute; left:32px; bottom:20px; z-index:3; font-family:var(--font-mono);
+    font-size:11.5px; letter-spacing:.08em; color:var(--gold-light); text-transform:uppercase;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{background:var(--ink); color:#C7D2CB; padding:64px 0 28px;}
+  .footer-grid{display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:32px; margin-bottom:44px;}
+  footer .logo{color:#fff;}
+  footer .brand-desc{font-size:13.5px; color:#8B958E; margin-top:14px; max-width:280px;}
+  footer h4{font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#8B958E; margin-bottom:16px;}
+  footer ul{list-style:none;}
+  footer li{margin-bottom:10px; font-size:13.5px;}
+  footer a:hover{color:var(--gold-light);}
+  .legal-note{
+    border-top:1px solid rgba(255,255,255,.1); padding-top:24px; font-size:12px; color:#697268; line-height:1.7;
+  }
+  .legal-note b{color:#9BA79F;}
+
+  @media (max-width:960px){
+    .hero .wrap{grid-template-columns:1fr;}
+    .hero h1{font-size:40px;}
+    nav.main-nav{display:none;}
+    .race-grid{grid-template-columns:repeat(2,1fr);}
+    .how-grid{grid-template-columns:repeat(2,1fr); row-gap:36px;}
+    .how-grid::before{display:none;}
+    .stats .wrap{grid-template-columns:repeat(2,1fr); row-gap:28px;}
+    .pricing-grid{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width:600px){
+    .wrap{padding:0 20px;}
+    .race-grid{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ticker-track{animation:none;}
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="ticker-bar">
+    <div class="ticker-track">
+      <span><b>VINCENNES</b> 13:50</span>
+      <span><b>CHANTILLY</b> 14:25</span>
+      <span><b>DEAUVILLE</b> 15:05</span>
+      <span><b>SAINT-CLOUD</b> 15:40</span>
+      <span><b>CAGNES-SUR-MER</b> 16:15</span>
+      <span><b>VINCENNES</b> 13:50</span>
+      <span><b>CHANTILLY</b> 14:25</span>
+      <span><b>DEAUVILLE</b> 15:05</span>
+      <span><b>SAINT-CLOUD</b> 15:40</span>
+      <span><b>CAGNES-SUR-MER</b> 16:15</span>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap">
+      <div class="logo">LONGUEUR<span class="dot">.</span></div>
+      <nav class="main-nav">
+        <a href="#courses">Courses du jour</a>
+        <a href="#ia">Pronostics IA</a>
+        <a href="#abonnements">Abonnements</a>
+        <a href="#">Résultats</a>
+      </nav>
+      <div class="header-actions">
+        <a href="#" class="link-muted">Se connecter</a>
+        <a href="#abonnements" class="btn-gold">Essai gratuit</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <div class="eyebrow">Turf & Intelligence artificielle</div>
+          <h1>Une <em>longueur</em> d'avance sur chaque course.</h1>
+          <p class="lead">Notre modèle croise forme, terrain, cotes et historique pour livrer un pronostic chiffré, course par course, avant chaque départ.</p>
+          <div class="hero-actions">
+            <a href="#courses" class="btn-gold">Voir les pronostics du jour</a>
+            <a href="#ia" class="btn-outline">Comment ça marche</a>
+          </div>
+          <div class="hero-note">12 hippodromes suivis en direct — mise à jour à chaque cote.</div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-card__head">
+            <span class="tag">R2 · C2 — PRIX DE CHANTILLY</span>
+            <span class="live">EN COURS</span>
+          </div>
+          <div class="feature-card__body">
+            <div class="feature-card__race">Chantilly · Plat, 1600m</div>
+            <div class="feature-card__meta">Départ 14:25 — 12 partants — Bon terrain</div>
+
+            <div class="pick-row">
+              <div class="silk" style="background:linear-gradient(135deg,#0B3D2E 50%,#C9A227 50%);"></div>
+              <div>
+                <div class="pick-name">N°9 — Éclat Royal</div>
+                <div class="pick-sub">Jockey T. Ferrand · Pronostic IA n°1</div>
+              </div>
+              <div class="pick-odds">4.20</div>
+            </div>
+
+            <div class="flap">
+              <span class="flap-label">Indice de confiance</span>
+              <span class="flap-value"><span data-target="88">00</span>%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="courses" id="courses">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Carnet du jour <span class="live-flag demo" id="liveFlag">Démo</span></div>
+            <h2>Les courses du jour</h2>
+          </div>
+          <p>Toutes réunions, toutes disciplines. Chaque carte affiche le favori et sa cote — connecté au flux PMU en direct.</p>
+        </div>
+
+        <div class="race-grid" id="raceGrid">
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R1 · C1</span><span class="race-time">13:50</span></div>
+            <h3>Vincennes</h3>
+            <div class="race-meta">Trot attelé — 2700m — 16 partants</div>
+            <div class="race-pick">
+              <span class="name">N°7 Mistral du Large</span>
+              <span class="conf">82%</span>
+            </div>
+            <div class="conf-bar"><i style="width:82%"></i></div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R1 · C4</span><span class="race-time">15:22</span></div>
+            <h3>Vincennes</h3>
+            <div class="race-meta">Trot attelé — 2100m — 14 partants</div>
+            <div class="race-pick">
+              <span class="name">N°2 Reine de Cœur</span>
+              <span class="conf">76%</span>
+            </div>
+            <div class="conf-bar"><i style="width:76%"></i></div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R2 · C2</span><span class="race-time">14:25</span></div>
+            <h3>Chantilly</h3>
+            <div class="race-meta">Plat — 1600m — 12 partants</div>
+            <div class="race-pick">
+              <span class="name">N°9 Éclat Royal</span>
+              <span class="conf">88%</span>
+            </div>
+            <div class="conf-bar"><i style="width:88%"></i></div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R3 · C1</span><span class="race-time">15:05</span></div>
+            <h3>Deauville</h3>
+            <div class="race-meta">Obstacle, haies — 3400m — 10 partants</div>
+            <div class="race-pick">
+              <span class="name">N°4 Cap Hornier</span>
+              <span class="conf">71%</span>
+            </div>
+            <div class="conf-bar"><i style="width:71%"></i></div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R4 · C3</span><span class="race-time">15:40</span></div>
+            <h3>Saint-Cloud</h3>
+            <div class="race-meta">Plat — 2000m — 13 partants</div>
+            <div class="race-pick">
+              <span class="name">N°11 Véloce Impérial</span>
+              <span class="conf">91%</span>
+            </div>
+            <div class="conf-bar"><i style="width:91%"></i></div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R5 · C1</span><span class="race-time">16:15</span></div>
+            <h3>Cagnes-sur-Mer</h3>
+            <div class="race-meta">Plat — 1400m — 9 partants</div>
+            <div class="race-pick">
+              <span class="name">N°3 Lumière d'Automne</span>
+              <span class="conf">68%</span>
+            </div>
+            <div class="conf-bar"><i style="width:68%"></i></div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section id="ia">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">La mécanique</div>
+            <h2>Comment l'IA construit chaque pronostic</h2>
+          </div>
+          <p>Quatre étapes, exécutées avant chaque départ, pour transformer la donnée brute en score exploitable.</p>
+        </div>
+
+        <div class="how-grid">
+          <div class="how-step">
+            <div class="num">1</div>
+            <h3>Collecte des données</h3>
+            <p>Historique des performances, terrain, météo, poids et déclarations officielles des partants.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">2</div>
+            <h3>Analyse de forme</h3>
+            <p>Allure récente, régularité, comportement du cheval selon la distance et la corde.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">3</div>
+            <h3>Modélisation</h3>
+            <p>Croisement avec les mouvements de cotes en temps réel pour détecter les signaux forts.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">4</div>
+            <h3>Score de confiance</h3>
+            <p>Synthèse en un indice unique, affiché avant chaque course, pour décider en un coup d'œil.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="wrap">
+        <div class="stat"><b><span data-target="68">0</span>%</b><span>de réussite sur le top 3 (30 derniers jours)</span></div>
+        <div class="stat"><b><span data-target="12">0</span></b><span>hippodromes suivis chaque semaine</span></div>
+        <div class="stat"><b><span data-target="50" data-suffix="k">0</span>+</b><span>courses analysées par le modèle</span></div>
+        <div class="stat"><b><span data-target="24">0</span>/7</b><span>mise à jour continue des cotes</span></div>
+      </div>
+    </section>
+
+    <section class="pricing" id="abonnements">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Abonnements</div>
+            <h2>Choisissez votre place sur l'hippodrome</h2>
+          </div>
+          <p>Trois formules, du libre accès jusqu'à l'analyse complète du peloton.</p>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="plan">
+            <div class="enclos">Pelouse</div>
+            <h3>Découverte</h3>
+            <div class="price">0€ <span>/ toujours</span></div>
+            <ul>
+              <li>1 pronostic IA par jour</li>
+              <li>Résultats et arrivées officielles</li>
+              <li>Actualités hippiques</li>
+            </ul>
+            <a href="#" class="btn-outline">Commencer gratuitement</a>
+          </div>
+
+          <div class="plan featured">
+            <div class="enclos">Tribune</div>
+            <h3>Turfiste</h3>
+            <div class="price">19€ <span>/ mois</span></div>
+            <ul>
+              <li>Pronostics IA sur toutes les courses</li>
+              <li>Indice de confiance détaillé</li>
+              <li>Alertes de mouvement de cotes</li>
+              <li>Historique des performances du modèle</li>
+            </ul>
+            <a href="#" class="btn-gold">Essai gratuit 7 jours</a>
+          </div>
+
+          <div class="plan">
+            <div class="enclos">Pesage</div>
+            <h3>Prestige</h3>
+            <div class="price">49€ <span>/ mois</span></div>
+            <ul>
+              <li>Tout Turfiste, sans limite</li>
+              <li>Analyse allure et terrain par cheval</li>
+              <li>Rapports quinté détaillés</li>
+              <li>Accès prioritaire au support</li>
+            </ul>
+            <a href="#" class="btn-outline">Passer à Prestige</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-final">
+      <div class="wrap">
+        <h2>Prêt à jouer avec méthode ?</h2>
+        <p>Rejoignez les turfistes qui décident avec un chiffre, pas seulement un instinct.</p>
+        <a href="#abonnements" class="btn-gold">Créer mon compte</a>
+      </div>
+    </section>
+
+    <section class="testimonials" id="avis">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Ils turfent avec Longueur</div>
+            <h2>Ce qu'en disent nos abonnés</h2>
+          </div>
+          <p>Des parieurs réguliers, sur trot et plat, qui ont intégré l'indice de confiance à leur méthode.</p>
+        </div>
+
+        <div class="quote-grid">
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">L'indice de confiance a changé ma façon de composer mes tickets. Je ne joue plus au flair, je croise avec le score.</p>
+            <div class="quote-person">
+              <div class="avatar a1">M</div>
+              <div class="who"><b>Marc D.</b><span>Abonné Turfiste — 2 ans</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Les alertes de mouvement de cotes m'ont évité plusieurs mauvaises surprises avant le départ. Précieux sur les quintés.</p>
+            <div class="quote-person">
+              <div class="avatar a2">S</div>
+              <div class="who"><b>Sophie L.</b><span>Abonnée Prestige</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Enfin un pronostic qui explique son raisonnement au lieu de balancer un nom. Ça se voit que le modèle est sérieux.</p>
+            <div class="quote-person">
+              <div class="avatar a3">K</div>
+              <div class="who"><b>Karim B.</b><span>Abonné Turfiste — 8 mois</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="track-scene">
+        <span class="track-caption">Vincennes — dernière ligne droite</span>
+        <svg viewBox="0 0 1440 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1440" height="220" fill="#081F19"/>
+          <path d="M0 150 Q 360 110 720 150 T 1440 150" stroke="rgba(228,197,102,.35)" stroke-width="2" fill="none"/>
+          <path d="M0 170 Q 360 132 720 170 T 1440 170" stroke="rgba(228,197,102,.18)" stroke-width="2" fill="none"/>
+          <path d="M0 220 Q 360 150 720 190 T 1440 190 L1440 220 Z" fill="#0C3327"/>
+          <g fill="#0F2A21">
+            <rect x="60" y="55" width="10" height="55"/><rect x="90" y="60" width="10" height="50"/>
+            <rect x="120" y="50" width="10" height="60"/><rect x="150" y="58" width="10" height="52"/>
+            <rect x="180" y="52" width="10" height="58"/>
+          </g>
+          <g fill="rgba(201,162,39,.9)">
+            <g transform="translate(760,140) scale(1.15)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(8,31,25,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+            <g transform="translate(860,150) scale(1.05)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(8,31,25,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+            <g transform="translate(700,152) scale(0.95)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(8,31,25,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+          </g>
+          <circle cx="1180" cy="46" r="30" fill="rgba(228,197,102,.14)"/>
+        </svg>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="logo">LONGUEUR<span class="dot">.</span></div>
+          <p class="brand-desc">Pronostics hippiques assistés par intelligence artificielle. Données, forme et cotes analysées avant chaque départ.</p>
+        </div>
+        <div>
+          <h4>Le site</h4>
+          <ul>
+            <li><a href="#courses">Courses du jour</a></li>
+            <li><a href="#ia">Pronostics IA</a></li>
+            <li><a href="#">Résultats</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Abonnements</h4>
+          <ul>
+            <li><a href="#abonnements">Pelouse — gratuit</a></li>
+            <li><a href="#abonnements">Tribune — 19€/mois</a></li>
+            <li><a href="#abonnements">Pesage — 49€/mois</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Légal</h4>
+          <ul>
+            <li><a href="#">CGU</a></li>
+            <li><a href="#">Confidentialité</a></li>
+            <li><a href="#">Jeu responsable</a></li>
+            <li><a href="admin.html">Administration</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="legal-note">
+        <b>Jouer comporte des risques :</b> endettement, isolement, dépendance. Interdit aux mineurs. Pour être aidé, appelez le 09 74 75 13 13 (appel non surtaxé) — Joueurs Info Service.
+      </div>
+    </div>
+  </footer>
+
+<script>
+  function animateValue(el, target, suffix){
+    let start = 0;
+    const duration = 1100;
+    const startTime = performance.now();
+    function tick(now){
+      const p = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const current = Math.round(eased * target);
+      el.textContent = current + (suffix || "");
+      if(p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  const targets = document.querySelectorAll('[data-target]');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const el = entry.target;
+        const target = parseInt(el.getAttribute('data-target'), 10);
+        const suffix = el.getAttribute('data-suffix') || "";
+        animateValue(el, target, suffix);
+        io.unobserve(el);
+      }
+    });
+  }, {threshold:0.5});
+  targets.forEach(el => io.observe(el));
+
+  // --- Connexion au relais API (courses & cotes en direct) ---
+  // Remplace par l'URL de ton serveur déployé (voir README du dossier longueur-api).
+  // Laisser en local pour tester avec `npm start` dans longueur-api/.
+  // Sur Cloudflare Pages, la fonction /api/courses-du-jour est servie
+  // sur le même domaine que le site : API_BASE reste vide.
+  // En local avec le serveur Node (longueur-api/), remplace par "http://localhost:3000".
+  const API_BASE = "";
+
+  const raceGrid = document.getElementById('raceGrid');
+  const liveFlag = document.getElementById('liveFlag');
+  const staticCardsHTML = raceGrid.innerHTML; // conservé comme repli si l'API échoue
+
+  function renderLiveCourses(courses){
+    if(!courses || courses.length === 0) return false;
+
+    raceGrid.innerHTML = courses.slice(0, 9).map(c => {
+      const favori = c.favori;
+      const favoriHTML = favori
+        ? `<span class="name">N°${favori.numero} ${favori.nom}</span><span class="odds">${favori.cote}</span>`
+        : `<span class="name">Cotes à venir</span>`;
+      const meta = [c.discipline, c.distance ? c.distance + 'm' : null, c.partants ? c.partants + ' partants' : null]
+        .filter(Boolean).join(' — ');
+
+      return `
+        <div class="race-card">
+          <div class="race-card__top"><span class="race-code">${c.reunion} · ${c.course}</span><span class="race-time">${c.heure || ''}</span></div>
+          <h3>${c.hippodrome}</h3>
+          <div class="race-meta">${meta}</div>
+          <div class="race-pick">${favoriHTML}</div>
+        </div>`;
+    }).join('');
+
+    return true;
+  }
+
+  fetch(`${API_BASE}/api/courses-du-jour`)
+    .then(res => { if(!res.ok) throw new Error('API indisponible'); return res.json(); })
+    .then(data => {
+      const ok = renderLiveCourses(data.courses);
+      if(ok){
+        liveFlag.textContent = data.source === 'live' ? 'En direct' : 'Cache';
+        liveFlag.classList.remove('demo');
+      }
+    })
+    .catch(() => {
+      // Repli silencieux : on garde les cartes de démonstration déjà affichées
+      raceGrid.innerHTML = staticCardsHTML;
+      liveFlag.textContent = 'Démo';
+    });
+</script>
+
+</body>
+</html>
