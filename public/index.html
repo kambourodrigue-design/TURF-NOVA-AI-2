@@ -762,7 +762,7 @@
         box.innerHTML = `
           <div class="ia-pick">N°${c.numero} ${c.cheval}</div>
           <div class="ia-conf">${c.confiance}% de confiance</div>
-          <div class="ia-sources">${c.sources.join(' + ')}${c.accordIA > 1 ? ' — d\\'accord' : ''}</div>
+          <div class="ia-sources">${c.sources.join(' + ')}${c.accordIA > 1 ? " — d'accord" : ''}</div>
         `;
         btn.replaceWith(box);
       })
