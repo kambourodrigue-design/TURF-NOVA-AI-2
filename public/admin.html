@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administration — Turf Nova AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c0d; --card:#1c1c1f; --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
+    --text:#f3f1ea; --text-dim:#9a978d; --gold:#c9a227; --gold-light:#e4c566; --green-light:#3fb37f; --rust:#d1531a;
+    --font-display:'Fraunces', serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body);}
+  a{color:inherit; text-decoration:none;}
+
+  .login-screen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 30% 20%, #1c1c1f 0%, #0c0c0d 70%);
+    padding:24px;
+  }
+  .login-card{
+    background:var(--card); width:100%; max-width:380px; border-radius:8px; padding:38px 34px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.7); border:1px solid var(--gold);
+  }
+  .login-card .mark{font-family:var(--font-display); font-weight:700; font-size:22px; color:#fff; margin-bottom:4px; text-transform:uppercase;}
+  .login-card .sub{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-light); margin-bottom:26px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; margin-bottom:6px; color:var(--text-dim);}
+  .field input{
+    width:100%; padding:11px 13px; border:1px solid var(--border-strong); border-radius:4px; font-size:14px;
+    font-family:var(--font-body); background:var(--bg); color:var(--text);
+  }
+  .field input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .login-btn{
+    width:100%; margin-top:8px; background:var(--gold); color:#0c0c0d; font-weight:600; font-size:14.5px;
+    padding:13px; border:none; border-radius:4px; cursor:pointer;
+  }
+  .login-error{font-size:12.5px; color:var(--rust); margin-top:12px; min-height:16px; text-align:center;}
+  .login-note{font-size:11.5px; color:var(--text-dim); margin-top:16px; text-align:center;}
+
+  .admin-shell{display:none; min-height:100vh;}
+  .admin-shell.active{display:block;}
+  .topbar{
+    display:flex; justify-content:space-between; align-items:center; padding:18px 28px;
+    border-bottom:1px solid var(--border); background:#000;
+  }
+  .topbar .mark{font-family:var(--font-display); font-weight:700; color:#fff; font-size:18px; text-transform:uppercase;}
+  .topbar .mark span{color:var(--gold);}
+  .topbar .who{font-family:var(--font-mono); font-size:12.5px; color:var(--text-dim);}
+
+  .content{padding:30px 28px; max-width:1080px; margin:0 auto;}
+  .content h1{font-family:var(--font-display); font-size:26px; margin-bottom:24px;}
+
+  .kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px;}
+  .kpi{background:var(--card); border:1px solid var(--border); border-radius:8px; padding:18px 20px; min-width:0;}
+  .kpi .label{font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;}
+  .kpi .value{font-family:var(--font-mono); font-size:26px; font-weight:700; color:var(--gold-light);}
+  .kpi .sub{font-size:11.5px; color:var(--text-dim); margin-top:4px;}
+
+  .panel{background:var(--card); border:1px solid var(--border); border-radius:8px; margin-bottom:24px;}
+  .panel-head{display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border);}
+  .panel-head h3{font-size:15px; font-family:var(--font-display); color:var(--text);}
+
+  .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  table{width:100%; border-collapse:collapse;}
+  th{
+    text-align:left; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--text-dim); padding:10px 20px; border-bottom:1px solid var(--border); white-space:nowrap;
+  }
+  td{padding:12px 20px; font-size:13px; border-bottom:1px solid var(--border); color:var(--text); white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  .empty-row td{color:var(--text-dim); text-align:center; padding:30px; white-space:normal;}
+  .tag{
+    font-family:var(--font-mono); font-size:10.5px; padding:3px 9px; border-radius:20px; font-weight:600; white-space:nowrap;
+  }
+  .tag.gratuit{background:rgba(255,255,255,.08); color:var(--text-dim);}
+  .tag.prestige{background:rgba(63,179,127,.15); color:var(--green-light);}
+  .tag.actif{background:rgba(63,179,127,.15); color:var(--green-light);}
+  .tag.desactive{background:rgba(209,83,26,.15); color:var(--rust);}
+  .tag.expire{background:rgba(209,83,26,.15); color:var(--rust);}
+
+  .row-actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .action-btn{
+    font-family:var(--font-mono); font-size:11px; padding:5px 11px; border-radius:4px;
+    border:1px solid var(--border-strong); background:transparent; color:var(--text); cursor:pointer; white-space:nowrap;
+  }
+  .action-btn:hover{border-color:var(--gold);}
+  .action-btn.danger{border-color:rgba(209,83,26,.4); color:var(--rust);}
+  .action-btn.danger:hover{border-color:var(--rust);}
+  .action-btn:disabled{opacity:.5; cursor:default;}
+  .plan-select{
+    font-family:var(--font-mono); font-size:11.5px; background:var(--bg); color:var(--text);
+    border:1px solid var(--border-strong); border-radius:4px; padding:5px 8px;
+  }
+
+  /* --- Adaptation écrans réduits (tablette / mobile) --- */
+  @media (max-width:860px){
+    .content{padding:20px 16px;}
+    .content h1{font-size:21px; margin-bottom:18px;}
+    .kpi-grid{grid-template-columns:repeat(2,1fr); gap:12px;}
+    .kpi{padding:14px 16px;}
+    .kpi .value{font-size:21px;}
+    .topbar{padding:14px 16px;}
+    .panel-head{padding:14px 16px;}
+    th, td{padding:10px 14px; font-size:12.5px;}
+  }
+  @media (max-width:420px){
+    .kpi-grid{grid-template-columns:1fr 1fr; gap:10px;}
+    .kpi .value{font-size:19px;}
+    .content h1{font-size:19px;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="mark">TURF NOVA AI<span style="color:var(--gold)">.</span></div>
+      <div class="sub">Espace administrateur</div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="admin@exemple.fr">
+      </div>
+      <div class="field">
+        <label for="pwd">Mot de passe</label>
+        <input type="password" id="pwd" placeholder="••••••••••">
+      </div>
+      <button class="login-btn" id="loginBtn">Accéder au tableau de bord</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-note">Accès réservé au compte administrateur configuré sur le Worker (ADMIN_EMAIL).</div>
+    </div>
+  </div>
+
+  <div class="admin-shell" id="shell">
+    <div class="topbar">
+      <div class="mark">TURF NOVA AI<span>.</span></div>
+      <div class="who" id="whoami"></div>
+    </div>
+
+    <div class="content">
+      <h1>Vue d'ensemble</h1>
+
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi">
+          <div class="label">Courses vérifiées</div>
+          <div class="value">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Au moins 1 coup sûr placé</div>
+          <div class="value">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">2 coups sûrs placés</div>
+          <div class="value">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Chevaux corrects / 4 (moy.)</div>
+          <div class="value">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Course du Jour (page d'accueil)</h3></div>
+        <p style="font-size:13px; color:var(--text-dim); margin:0 0 14px;">
+          Choisis quelle course PMU du jour est mise en avant sur la page d'accueil comme "Quinté+ commun" (favori + indice de confiance affichés automatiquement).
+        </p>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label style="font-size:13px;">Réunion
+            <input type="text" id="cdjReunionInput" placeholder="R1" style="width:70px; margin-left:6px;">
+          </label>
+          <label style="font-size:13px;">Course
+            <input type="text" id="cdjCourseInput" placeholder="C3" style="width:70px; margin-left:6px;">
+          </label>
+          <button class="login-btn" id="cdjSaveBtn" style="width:auto; padding:8px 18px;">Enregistrer</button>
+          <span id="cdjStatus" style="font-size:12.5px; color:var(--text-dim);"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Utilisateurs</h3></div>
+        <div class="table-scroll">
+        <table id="usersTable">
+          <thead>
+            <tr><th>Email</th><th>Compte</th><th>Plan</th><th>Abonnement</th><th>Expire le</th><th>Inscrit le</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr class="empty-row"><td colspan="7">Chargement…</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Dernières courses vérifiées</h3></div>
+        <div class="table-scroll">
+        <table id="verifTable">
+          <thead>
+            <tr><th>Course</th><th>Hippodrome</th><th>Chevaux corrects</th><th>Coups sûrs réussis</th></tr>
+          </thead>
+          <tbody id="verifBody">
+            <tr class="empty-row"><td colspan="4">Chargement…</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "";
+
+  const loginScreen = document.getElementById('loginScreen');
+  const shell = document.getElementById('shell');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginError = document.getElementById('loginError');
+
+  loginBtn.addEventListener('click', () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('pwd').value;
+    loginError.textContent = '';
+    loginBtn.disabled = true;
+
+    fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        loginBtn.disabled = false;
+        if(!ok){
+          loginError.textContent = data.error || 'Connexion impossible.';
+          return;
+        }
+        entrerDashboard(data.email);
+      })
+      .catch(() => {
+        loginBtn.disabled = false;
+        loginError.textContent = 'Connexion au serveur impossible.';
+      });
+  });
+
+  function entrerDashboard(email){
+    document.getElementById('whoami').textContent = email;
+
+    fetch(`${API_BASE}/api/admin/utilisateurs`)
+      .then(res => {
+        if(res.status === 403){ throw new Error('not_admin'); }
+        return res.json();
+      })
+      .then(data => {
+        loginScreen.style.display = 'none';
+        shell.classList.add('active');
+        renderUtilisateurs(data.utilisateurs || []);
+        chargerStats();
+        chargerCourseDuJourConfig();
+      })
+      .catch(err => {
+        if(err.message === 'not_admin'){
+          loginError.textContent = "Ce compte n'a pas les droits administrateur.";
+        } else {
+          loginError.textContent = 'Erreur de chargement.';
+        }
+      });
+  }
+
+  const PLANS = ['gratuit', 'essai', 'prestige'];
+
+  function renderUtilisateurs(utilisateurs){
+    const body = document.getElementById('usersBody');
+    if(utilisateurs.length === 0){
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">Aucun utilisateur pour le moment.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = utilisateurs.map(u => {
+      const optionsPlan = PLANS.map(p => `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${p}</option>`).join('');
+
+      // L'accès est déjà coupé automatiquement côté serveur dès expires_at dépassé
+      // (voir verifierAccesPremium, basé sur l'heure serveur). Ici on affiche juste
+      // cet état réel plutôt que le statut brut en base, qui peut rester "active"
+      // jusqu'au prochain passage du cron de nettoyage.
+      const expire = u.expiresAt != null;
+      const estExpire = expire && u.expiresAt < Date.now();
+      const libelleAbonnement = estExpire ? 'Expiré' : (u.abonnementStatus || 'active');
+      const classeAbonnement = estExpire ? 'expire' : (u.abonnementStatus === 'active' ? 'actif' : 'desactive');
+      const dateExpiration = expire ? new Date(u.expiresAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+
+      return `
+        <tr data-email="${u.email}">
+          <td>${u.email}</td>
+          <td><span class="tag ${u.actif ? 'actif' : 'desactive'}">${u.actif ? 'Actif' : 'Désactivé'}</span></td>
+          <td><select class="plan-select" data-role="plan-select">${optionsPlan}</select></td>
+          <td><span class="tag ${classeAbonnement}">${libelleAbonnement}</span></td>
+          <td>${dateExpiration}</td>
+          <td>${u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : ''}</td>
+          <td class="row-actions">
+            <button class="action-btn ${u.actif ? 'danger' : ''}" data-role="toggle-compte">${u.actif ? 'Désactiver' : 'Activer'}</button>
+            <button class="action-btn" data-role="appliquer-plan">Appliquer le plan</button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    body.querySelectorAll('[data-role="toggle-compte"]').forEach(btn => {
+      btn.addEventListener('click', () => toggleCompte(btn));
+    });
+    body.querySelectorAll('[data-role="appliquer-plan"]').forEach(btn => {
+      btn.addEventListener('click', () => appliquerPlan(btn));
+    });
+  }
+
+  function toggleCompte(btn){
+    const row = btn.closest('tr');
+    const email = row.dataset.email;
+    const estActuellementActif = btn.textContent.trim() === 'Désactiver';
+    const nouvelEtat = !estActuellementActif;
+
+    btn.disabled = true;
+    fetch(`${API_BASE}/api/admin/compte/statut`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, actif: nouvelEtat })
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        if(data.error) return;
+        const tag = row.querySelector('.tag');
+        tag.textContent = nouvelEtat ? 'Actif' : 'Désactivé';
+        tag.className = 'tag ' + (nouvelEtat ? 'actif' : 'desactive');
+        btn.textContent = nouvelEtat ? 'Désactiver' : 'Activer';
+        btn.className = 'action-btn' + (nouvelEtat ? ' danger' : '');
+      })
+      .catch(() => { btn.disabled = false; });
+  }
+
+  function appliquerPlan(btn){
+    const row = btn.closest('tr');
+    const email = row.dataset.email;
+    const plan = row.querySelector('[data-role="plan-select"]').value;
+
+    btn.disabled = true;
+    const texteOriginal = btn.textContent;
+    btn.textContent = '…';
+
+    fetch(`${API_BASE}/api/admin/abonnement/statut`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, plan, status: 'active' })
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.textContent = data.error ? texteOriginal : 'Appliqué ✓';
+        if(!data.error){
+          setTimeout(() => { btn.textContent = texteOriginal; }, 1800);
+        }
+      })
+      .catch(() => { btn.disabled = false; btn.textContent = texteOriginal; });
+  }
+
+  function chargerStats(){
+    fetch(`${API_BASE}/api/stats-performance`)
+      .then(res => res.json())
+      .then(data => {
+        const kpis = document.querySelectorAll('#kpiGrid .value');
+        kpis[0].textContent = data.totalCoursesVerifiees ?? '0';
+        kpis[1].textContent = data.tauxAuMoinsUnCoupSur != null ? data.tauxAuMoinsUnCoupSur + '%' : '—';
+        kpis[2].textContent = data.tauxDeuxCoupsSurs != null ? data.tauxDeuxCoupsSurs + '%' : '—';
+        kpis[3].textContent = data.moyenneChevauxCorrectsSur4 != null ? data.moyenneChevauxCorrectsSur4 + ' / 4' : '—';
+
+        const body = document.getElementById('verifBody');
+        const lignes = data.dernieresVerifications || [];
+        if(lignes.length === 0){
+          body.innerHTML = '<tr class="empty-row"><td colspan="4">Aucune course vérifiée pour le moment.</td></tr>';
+          return;
+        }
+        body.innerHTML = lignes.map(l => `
+          <tr>
+            <td>${l.reunion} · ${l.course}</td>
+            <td>${l.hippodrome || ''}</td>
+            <td>${l.chevaux_corrects} / 4</td>
+            <td>${l.coups_surs_reussis} / 2</td>
+          </tr>
+        `).join('');
+      })
+      .catch(() => {});
+  }
+
+  function chargerCourseDuJourConfig(){
+    fetch(`${API_BASE}/api/admin/course-du-jour`)
+      .then(res => res.json())
+      .then(data => {
+        if(data.reunion) document.getElementById('cdjReunionInput').value = data.reunion;
+        if(data.course) document.getElementById('cdjCourseInput').value = data.course;
+      })
+      .catch(() => {});
+  }
+
+  document.getElementById('cdjSaveBtn').addEventListener('click', () => {
+    const btn = document.getElementById('cdjSaveBtn');
+    const statusEl = document.getElementById('cdjStatus');
+    const reunion = document.getElementById('cdjReunionInput').value.trim().toUpperCase();
+    const course = document.getElementById('cdjCourseInput').value.trim().toUpperCase();
+
+    if(!/^R\d+$/.test(reunion) || !/^C\d+$/.test(course)){
+      statusEl.textContent = "Format attendu : R1 / C3";
+      return;
+    }
+
+    btn.disabled = true;
+    statusEl.textContent = '';
+    fetch(`${API_BASE}/api/admin/course-du-jour`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reunion, course })
+    })
+      .then(res => res.json())
+      .then(data => {
+        btn.disabled = false;
+        statusEl.textContent = data.error ? data.error : 'Enregistré ✓ (visible sur le site sous peu)';
+      })
+      .catch(() => { btn.disabled = false; statusEl.textContent = 'Erreur réseau'; });
+  });
+
+  // Si déjà connecté (session existante), tenter l'accès direct
+  fetch(`${API_BASE}/api/auth/me`)
+    .then(res => res.json())
+    .then(data => { if(data.authenticated) entrerDashboard(data.email); })
+    .catch(() => {});
+</script>
+
+</body>
+</html>
