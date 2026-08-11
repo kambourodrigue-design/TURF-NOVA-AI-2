@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — Turf Nova AI</title>
+<meta name="description" content="Analyses, actualités et méthodes autour du pronostic hippique PMU assisté par IA, par Turf Nova AI.">
+<link rel="canonical" href="https://turf-nova-ai-2.kambourodrigue.workers.dev/blog.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Turf Nova AI">
+<meta property="og:title" content="Blog — Turf Nova AI">
+<meta property="og:description" content="Analyses, actualités et méthodes autour du pronostic hippique PMU assisté par IA, par Turf Nova AI.">
+<meta property="og:url" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/blog.html">
+<meta property="og:image" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/favicon.svg">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c0d; --bg-alt:#131315; --card:#1c1c1f; --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
+    --text:#f3f1ea; --text-dim:#9a978d; --gold:#c9a227; --gold-light:#e4c566;
+    --font-display:'Fraunces', serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body); line-height:1.6;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px 80px;}
+  header{border-bottom:1px solid var(--border); padding:20px 0; margin-bottom:44px;}
+  .logo-link{display:block; max-width:920px; margin:0 auto; padding:0 24px;}
+  .logo{font-family:var(--font-display); font-size:20px; font-weight:700; color:#fff; text-transform:uppercase;}
+  .logo span{color:var(--gold);}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-light); font-weight:600; margin-bottom:12px;
+  }
+  h1{font-family:var(--font-display); font-size:32px; color:#fff; margin-bottom:36px;}
+  .article-grid{display:flex; flex-direction:column; gap:16px;}
+  .article-card{
+    display:block; background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:22px 24px; transition:border-color .2s;
+  }
+  .article-card:hover{border-color:var(--gold);}
+  .article-card h2{font-family:var(--font-display); font-size:19px; color:#fff; margin-bottom:8px;}
+  .article-card p{font-size:14px; color:var(--text-dim); margin-bottom:10px;}
+  .article-card .meta{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);}
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--text-dim); font-size:14.5px;
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+  }
+  footer{text-align:center; padding:24px; font-size:12px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px;}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo-link"><div class="logo">TURF NOVA AI<span>.</span></div></a>
+</header>
+
+<div class="wrap">
+  <div class="eyebrow">Blog</div>
+  <h1>Analyses & actualités</h1>
+
+  <div class="article-grid" id="articleGrid">
+    <div class="empty">Chargement des articles…</div>
+  </div>
+</div>
+
+<footer>
+  <a href="/">← Retour à l'accueil</a>
+</footer>
+
+<script>
+  function echapper(texte){
+    const div = document.createElement('div');
+    div.textContent = texte || '';
+    return div.innerHTML;
+  }
+
+  fetch('/api/articles')
+    .then(res => res.json())
+    .then(data => {
+      const grid = document.getElementById('articleGrid');
+      const articles = data.articles || [];
+      if(articles.length === 0){
+        grid.innerHTML = '<div class="empty">Aucun article publié pour le moment — revenez bientôt.</div>';
+        return;
+      }
+      grid.innerHTML = articles.map(a => `
+        <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}">
+          <h2>${echapper(a.titre)}</h2>
+          ${a.extrait ? `<p>${echapper(a.extrait)}</p>` : ''}
+          <span class="meta">${a.published_at ? new Date(a.published_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) : ''}</span>
+        </a>
+      `).join('');
+    })
+    .catch(() => {
+      document.getElementById('articleGrid').innerHTML = '<div class="empty">Impossible de charger les articles pour le moment.</div>';
+    });
+</script>
+
+</body>
+</html>
