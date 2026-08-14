@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — Turf Nova AI</title>
+<meta name="description" content="Analyses, actualités et méthodes autour du pronostic hippique PMU assisté par IA, par Turf Nova AI.">
+<link rel="canonical" href="https://turf-nova-ai-2.kambourodrigue.workers.dev/blog.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Turf Nova AI">
+<meta property="og:title" content="Blog — Turf Nova AI">
+<meta property="og:description" content="Analyses, actualités et méthodes autour du pronostic hippique PMU assisté par IA, par Turf Nova AI.">
+<meta property="og:url" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/blog.html">
+<meta property="og:image" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/favicon.svg">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0c0d; --bg-alt:#131315; --card:#1c1c1f; --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
+    --text:#f3f1ea; --text-dim:#9a978d; --gold:#c9a227; --gold-light:#e4c566;
+    --font-display:'Fraunces', serif; --font-body:'Inter', sans-serif; --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-body); line-height:1.6;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px 80px;}
+  header{border-bottom:1px solid var(--border); padding:20px 0; margin-bottom:44px;}
+  .logo-link{display:block; max-width:920px; margin:0 auto; padding:0 24px;}
+  .logo{font-family:var(--font-display); font-size:20px; font-weight:700; color:#fff; text-transform:uppercase;}
+  .logo span{color:var(--gold);}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-light); font-weight:600; margin-bottom:12px;
+  }
+  h1{font-family:var(--font-display); font-size:32px; color:#fff; margin-bottom:36px;}
+  .article-grid{display:flex; flex-direction:column; gap:16px;}
+  .article-card{
+    display:block; background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:22px 24px; transition:border-color .2s;
+  }
+  .article-card:hover{border-color:var(--gold);}
+  .article-card h2{font-family:var(--font-display); font-size:19px; color:#fff; margin-bottom:8px;}
+  .article-card p{font-size:14px; color:var(--text-dim); margin-bottom:10px;}
+  .article-card .meta{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);}
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--text-dim); font-size:14.5px;
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+  }
+  footer{text-align:center; padding:24px; font-size:12px; color:var(--text-dim); border-top:1px solid var(--border); margin-top:40px;}
+  .share-bar{background:var(--card); border-bottom:1px solid var(--border); padding:8px 0;}
+  .share-bar .wrap{max-width:920px; padding:0 24px; display:flex; align-items:center; justify-content:center; gap:12px;}
+  .share-bar__label{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); letter-spacing:.04em;}
+  .share-bar__btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; transition:transform .15s, opacity .15s; opacity:.9;
+  }
+  .share-bar__btn:hover{transform:translateY(-1px); opacity:1;}
+  .share-bar__btn svg{width:16px; height:16px;}
+</style>
+</head>
+<body>
+
+<div class="share-bar">
+  <div class="wrap">
+    <span class="share-bar__label">PARTAGER</span>
+    <a class="share-bar__btn" id="shareWhatsApp" href="#" target="_blank" rel="noopener" aria-label="Partager sur WhatsApp" style="background:#25D366;">
+      <svg viewBox="0 0 24 24" fill="#0c0c0d"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.26.86 5.82 2.42a8.2 8.2 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.24 8.24a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24zm-4.52 4.4c-.15 0-.4.06-.6.29-.21.22-.8.78-.8 1.9s.82 2.2.94 2.36c.11.15 1.61 2.46 3.9 3.45.55.24.97.38 1.31.48.55.17 1.05.15 1.44.09.44-.07 1.35-.55 1.54-1.08.19-.53.19-.99.14-1.08-.06-.1-.21-.15-.44-.27-.23-.11-1.35-.67-1.56-.74-.21-.08-.36-.11-.51.11-.15.22-.58.74-.71.9-.13.15-.26.17-.49.06-.23-.11-.96-.35-1.83-1.13-.68-.6-1.13-1.34-1.27-1.57-.13-.22-.01-.35.1-.46.11-.11.23-.27.35-.4.11-.14.15-.24.23-.4.08-.15.04-.29-.02-.4-.06-.11-.51-1.25-.71-1.7-.19-.44-.38-.38-.51-.39-.13-.01-.28-.01-.43-.01z"/></svg>
+    </a>
+    <a class="share-bar__btn" id="shareFacebook" href="#" target="_blank" rel="noopener" aria-label="Partager sur Facebook" style="background:#1877F2;">
+      <svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 21v-7.9h2.65l.4-3.08h-3.05V8.06c0-.89.25-1.5 1.52-1.5h1.63V3.83A21.8 21.8 0 0 0 14.3 3.7c-2.35 0-3.96 1.43-3.96 4.06v2.27H7.68v3.08h2.66V21h3.16z"/></svg>
+    </a>
+  </div>
+</div>
+
+<header>
+  <a href="/" class="logo-link"><div class="logo">TURF NOVA AI<span>.</span></div></a>
+</header>
+
+<div class="wrap">
+  <div class="eyebrow">Blog</div>
+  <h1>Analyses & actualités</h1>
+
+  <div class="article-grid" id="articleGrid">
+    <div class="empty">Chargement des articles…</div>
+  </div>
+</div>
+
+<footer>
+  <a href="/">← Retour à l'accueil</a>
+</footer>
+
+<script>
+  function echapper(texte){
+    const div = document.createElement('div');
+    div.textContent = texte || '';
+    return div.innerHTML;
+  }
+
+  fetch('/api/articles')
+    .then(res => res.json())
+    .then(data => {
+      const grid = document.getElementById('articleGrid');
+      const articles = data.articles || [];
+      if(articles.length === 0){
+        grid.innerHTML = '<div class="empty">Aucun article publié pour le moment — revenez bientôt.</div>';
+        return;
+      }
+      grid.innerHTML = articles.map(a => `
+        <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}">
+          <h2>${echapper(a.titre)}</h2>
+          ${a.extrait ? `<p>${echapper(a.extrait)}</p>` : ''}
+          <span class="meta">${a.published_at ? new Date(a.published_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) : ''}</span>
+        </a>
+      `).join('');
+    })
+    .catch(() => {
+      document.getElementById('articleGrid').innerHTML = '<div class="empty">Impossible de charger les articles pour le moment.</div>';
+    });
+
+  (function initPartageSocial(){
+    const url = encodeURIComponent(window.location.href);
+    const texte = encodeURIComponent(document.title);
+    const btnWA = document.getElementById('shareWhatsApp');
+    const btnFB = document.getElementById('shareFacebook');
+    if(btnWA) btnWA.href = `https://wa.me/?text=${texte}%20${url}`;
+    if(btnFB) btnFB.href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+  })();
+</script>
+
+</body>
+</html>
