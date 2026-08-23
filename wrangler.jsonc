@@ -31,6 +31,6 @@
     "VAPID_PUBLIC_KEY": "BGlx6yE1k4txICbec8BoOmAIuxVFcqU6g1pPgmDOWPy0PyKExHN-lqMrpXWUMEVnBwapovzKCQcsNX7udsisfno",
     // Identifie l'expéditeur auprès des services push (Google/Mozilla/etc.) — remplace
     // par une vraie adresse ou l'URL du site avant de déployer.
-    "VAPID_SUBJECT": "turf-nova-ai-2.kambourodrigue.workers.dev"
+    "VAPID_SUBJECT": "https://turf-nova-ai-2.kambourodrigue.workers.dev"
   }
 }
