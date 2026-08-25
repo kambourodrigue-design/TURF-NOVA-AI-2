@@ -1454,17 +1454,26 @@ async function handleStatsPerformance(env) {
   }
 
   try {
+    // Filtré sur mise_en_avant = 1 : uniquement la "course du jour" (course mise en avant),
+    // jamais les courses analysées à la demande via "Analyser une course" — échantillon
+    // systématique d'une course par jour, choisie avant de connaître le résultat.
     const global = await env.DB.prepare(
       `SELECT COUNT(*) as total,
-              SUM(CASE WHEN coups_surs_reussis >= 1 THEN 1 ELSE 0 END) as au_moins_un_coup_sur,
-              SUM(CASE WHEN coups_surs_reussis = 2 THEN 1 ELSE 0 END) as deux_coups_surs,
-              SUM(CASE WHEN chevaux_corrects = 4 THEN 1 ELSE 0 END) as quarte_reussi,
-              SUM(CASE WHEN tierce_reussi = 1 THEN 1 ELSE 0 END) as tierce_reussi,
-              AVG(chevaux_corrects) as moyenne_chevaux_corrects
-       FROM resultats_verifies`
+              SUM(CASE WHEN r.coups_surs_reussis >= 1 THEN 1 ELSE 0 END) as au_moins_un_coup_sur,
+              SUM(CASE WHEN r.coups_surs_reussis = 2 THEN 1 ELSE 0 END) as deux_coups_surs,
+              SUM(r.coups_surs_reussis) as total_coups_surs_reussis,
+              SUM(CASE WHEN r.chevaux_corrects = 4 THEN 1 ELSE 0 END) as quarte_reussi,
+              SUM(CASE WHEN r.tierce_reussi = 1 THEN 1 ELSE 0 END) as tierce_reussi,
+              AVG(r.chevaux_corrects) as moyenne_chevaux_corrects
+       FROM resultats_verifies r
+       JOIN predictions p ON p.id = r.prediction_id
+       WHERE p.mise_en_avant = 1`
     ).first();
 
     const total = global?.total || 0;
+    // Pourcentage de COUPS SÛRS (et non de courses) placés dans l'arrivée : sur les 2 coups
+    // sûrs proposés à chaque course, combien se sont réellement classés dans les 4 premiers.
+    const pctCoupsSursPlaces = total > 0 ? Math.round((global.total_coups_surs_reussis / (total * 2)) * 100) : null;
     const tauxCoupSur = total > 0 ? Math.round((global.au_moins_un_coup_sur / total) * 100) : null;
     const tauxDoubleCoupSur = total > 0 ? Math.round((global.deux_coups_surs / total) * 100) : null;
     // Quarté en 8 gagné = les 4 chevaux de l'arrivée officielle font partie de nos 8 sélectionnés
@@ -1478,13 +1487,16 @@ async function handleStatsPerformance(env) {
 
     const recentes = await env.DB.prepare(
       `SELECT p.date, p.reunion, p.course, p.hippodrome, r.chevaux_corrects, r.coups_surs_reussis
-       FROM resultats_verifies r JOIN predictions p ON p.id = r.prediction_id
+       FROM resultats_verifies r
+       JOIN predictions p ON p.id = r.prediction_id
+       WHERE p.mise_en_avant = 1
        ORDER BY r.verified_at DESC LIMIT 20`
     ).all();
 
     return new Response(
       JSON.stringify({
         totalCoursesVerifiees: total,
+        pctCoupsSursPlaces,
         tauxAuMoinsUnCoupSur: tauxCoupSur,
         tauxDeuxCoupsSurs: tauxDoubleCoupSur,
         tauxQuarteReussi,
@@ -2197,6 +2209,23 @@ async function handleCourseDuJour(request, env) {
             };
           });
           confiance = consensus.confiance;
+
+          // Marque cette prédiction comme "mise en avant" : c'est ce flag qui définit
+          // l'échantillon utilisé par /api/stats-performance (voir handleStatsPerformance).
+          // Idempotent et sans risque si la ligne a été créée plus tôt par un clic manuel
+          // sur "Voir le pronostic IA" pour cette même course (INSERT OR IGNORE) — on la
+          // retague simplement ici plutôt que de dupliquer la logique de verrouillage.
+          if (env.DB) {
+            try {
+              await env.DB.prepare(
+                `UPDATE predictions SET mise_en_avant = 1 WHERE date = ? AND reunion = ? AND course = ?`
+              )
+                .bind(date, reunion, course)
+                .run();
+            } catch (e) {
+              // Best-effort : un échec ici ne doit jamais casser l'affichage de la course du jour.
+            }
+          }
         }
       }
 
