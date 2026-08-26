@@ -1,0 +1,42 @@
+{
+  "name": "turf-nova-ai-2",
+  "compatibility_date": "2026-08-01",
+  "main": "worker.js",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/index.html", "/blog.html", "/article.html", "/cgu.html", "/confidentialite.html"]
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CACHE_KV",
+      "id": "5ce12447f8b641279bc706893a6e8bc3"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "turf-nova-db",
+      "database_id": "9e74bb9b-22d1-4945-805b-3a3d48590b65"
+    }
+  ],
+  "triggers": {
+    // 1h : tâches de fond existantes (abonnements, rappels, vérification nocturne).
+    // 6h : envoi de la notification push "pronostic du jour" (voir scheduled() dans worker.js).
+    "crons": ["0 1 * * *", "0 6 * * *"]
+  },
+  "observability": {
+    // Active les Workers Logs (onglet "Observability" du dashboard) : tous les
+    // console.log/console.error du code deviennent visibles en temps reel, sans avoir
+    // a reconstituer un bug a partir de captures d'ecran comme on vient de le faire.
+    "enabled": true
+  },
+  "vars": {
+    // Clé publique VAPID — non secrète, utilisée par le front (applicationServerKey)
+    // et renvoyée par le serveur dans l'en-tête Authorization des envois push.
+    "VAPID_PUBLIC_KEY": "BHcJMlQ0XsIboi6iCKs2IVfmEvU-Hylyx0m2ZWxbE4joYSxPOlHrcuXzFDmG4pxmWXwrx5U0pWBLIbbV-vYy0s8",
+    // Identifie l'expéditeur auprès des services push (Google/Mozilla/etc.) — remplace
+    // par une vraie adresse ou l'URL du site avant de déployer.
+    "VAPID_SUBJECT": "https://turf-nova-ai-2.kambourodrigue.workers.dev"
+  }
+}
