@@ -1,0 +1,2726 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TURF NOVA AI — Pronostics hippiques par intelligence artificielle</title>
+<meta name="description" content="Pronostics hippiques PMU générés par 3 intelligences artificielles : Quarté en 8, coups sûrs et indice de confiance pour chaque réunion. Taux de réussite vérifiés sur les résultats officiels PMU.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://turf-nova-ai-2.kambourodrigue.workers.dev/">
+
+<!-- Open Graph / réseaux sociaux -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Turf Nova AI">
+<meta property="og:title" content="Turf Nova AI — Pronostics hippiques par intelligence artificielle">
+<meta property="og:description" content="Quarté en 8, coups sûrs et indice de confiance calculés par IA pour chaque réunion PMU. Résultats vérifiés en temps réel.">
+<meta property="og:url" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/">
+<meta property="og:image" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/favicon.svg">
+<meta property="og:locale" content="fr_FR">
+
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Turf Nova AI — Pronostics hippiques par intelligence artificielle">
+<meta name="twitter:description" content="Quarté en 8, coups sûrs et indice de confiance calculés par IA pour chaque réunion PMU.">
+<meta name="twitter:image" content="https://turf-nova-ai-2.kambourodrigue.workers.dev/favicon.svg">
+
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/img/icon-192.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0c0c0d">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Turf Nova AI",
+  "url": "https://turf-nova-ai-2.kambourodrigue.workers.dev/",
+  "description": "Pronostics hippiques PMU générés par intelligence artificielle (Quarté en 8, coups sûrs, indice de confiance)."
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Turf Nova AI",
+  "url": "https://turf-nova-ai-2.kambourodrigue.workers.dev/"
+}
+</script>
+
+<style>
+  :root{
+    --bg:#0c0c0d;
+    --bg-alt:#131315;
+    --card:#1c1c1f;
+    --card-alt:#212124;
+    --border:rgba(255,255,255,.08);
+    --border-strong:rgba(255,255,255,.16);
+    --text:#f3f1ea;
+    --text-dim:#9a978d;
+    --gold:#c9a227;
+    --gold-light:#e4c566;
+    --green:#1f8a5c;
+    --green-light:#3fb37f;
+    --green-deep:#0f4a30;
+    --rust:#d1531a;
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit; text-decoration:none;}
+  img,svg{display:block;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+  h1,h2,h3{font-family:var(--font-display); font-weight:600; letter-spacing:-0.01em; color:var(--text);}
+  .eyebrow{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--gold-light); font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  }
+  .eyebrow::before{content:""; width:16px; height:2px; background:var(--gold); display:inline-block;}
+  button, .btn{font-family:var(--font-body); cursor:pointer; border:none;}
+
+  /* ---------- Ticker ---------- */
+  .ticker-bar{
+    background:#000; color:var(--gold-light); overflow:hidden; white-space:nowrap;
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.04em; border-bottom:1px solid rgba(201,162,39,.3);
+  }
+  .ticker-track{display:inline-block; padding:9px 0; animation:scroll-left 32s linear infinite;}
+  .ticker-track span{margin:0 28px;}
+  .ticker-track span b{color:#fff; font-weight:600;}
+  @keyframes scroll-left{
+    0%{transform:translateX(0);}
+    100%{transform:translateX(-50%);}
+  }
+
+  /* ---------- Header ---------- */
+  .site-header{
+    position:sticky; top:0; z-index:50; background:rgba(12,12,13,.92); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+  }
+  .essai-banniere{
+    background:var(--gold); color:#0c0c0d;
+    font-family:var(--font-mono); font-size:13px; font-weight:600;
+  }
+  .essai-banniere__inner{
+    display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap;
+    padding:9px 32px;
+  }
+  .essai-banniere__cta{
+    background:#0c0c0d; color:var(--gold-light); padding:5px 14px; border-radius:20px;
+    font-size:12px; letter-spacing:.03em; white-space:nowrap;
+  }
+  .essai-banniere.urgent{background:var(--rust); color:#fff;}
+  .essai-banniere.urgent .essai-banniere__cta{color:#fff;}
+  .site-header .wrap{display:flex; align-items:center; justify-content:space-between; min-height:74px; gap:12px; flex-wrap:wrap; padding-top:10px; padding-bottom:10px;}
+  .logo{
+    font-family:var(--font-display); font-size:22px; font-weight:700; color:#fff; letter-spacing:.02em;
+    display:flex; align-items:center; gap:8px; text-transform:uppercase;
+  }
+  .logo img{height:40px; width:auto; display:block;}
+  .logo .dot{color:var(--gold);}
+  nav.main-nav{display:flex; gap:32px; font-size:14.5px; font-weight:500;}
+  nav.main-nav a{color:var(--text-dim); transition:color .2s;}
+  nav.main-nav a:hover{color:var(--text);}
+  .header-actions{display:flex; align-items:center; gap:18px;}
+  .share-bar{
+    background:var(--card); border-bottom:1px solid var(--border); padding:8px 0;
+  }
+  .share-bar .wrap{display:flex; align-items:center; justify-content:center; gap:12px;}
+  .share-bar__label{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); letter-spacing:.04em;}
+  .share-bar__btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:28px; height:28px; border-radius:50%; transition:transform .15s, opacity .15s;
+    opacity:.9;
+  }
+  .share-bar__btn:hover{transform:translateY(-1px); opacity:1;}
+  .share-bar__btn svg{width:16px; height:16px;}
+  .link-muted{
+    color:var(--text-dim); font-size:14px; max-width:160px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:bottom;
+  }
+  @media (max-width:600px){
+    .link-muted{max-width:100px; font-size:12.5px;}
+    .logo{font-size:18px;}
+    .logo img{height:32px;}
+    /* Le bouton "Installer l'app" + l'email + "Déconnexion" ne tenaient pas sur une
+       seule ligne et se chevauchaient : on les fait passer sur une ligne dédiée qui
+       peut elle-même revenir à la ligne si besoin. */
+    .header-actions{
+      flex:1 1 100%; flex-wrap:wrap; justify-content:flex-end; gap:8px 10px;
+    }
+    .header-actions .btn-outline{padding:8px 12px; font-size:12.5px;}
+    .header-actions .btn-gold{padding:8px 14px; font-size:12.5px;}
+  }
+  @media (max-width:400px){
+    /* Sur les très petits écrans, on ne garde que l'icône pour laisser la place
+       à l'email et au bouton "Déconnexion". */
+    #btnInstallerApp .btn-installer-label{display:none;}
+    #btnInstallerApp{padding:8px 10px;}
+  }
+  .btn-gold{
+    background:var(--gold); color:#0c0c0d; font-weight:600; font-size:14px;
+    padding:11px 20px; border-radius:3px; transition:background .2s, transform .2s;
+  }
+  .btn-gold:hover{background:var(--gold-light); transform:translateY(-1px);}
+  .btn-outline{
+    border:1.5px solid var(--border-strong); color:var(--text); font-weight:600; font-size:14.5px;
+    padding:12px 22px; border-radius:3px; background:transparent; transition:background .2s, border-color .2s;
+  }
+  .btn-outline:hover{background:rgba(255,255,255,.05); border-color:var(--gold);}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:88px 0 72px; position:relative; overflow:hidden;}
+  .hero::before{
+    content:""; position:absolute; top:-140px; right:-160px; width:560px; height:560px;
+    background:radial-gradient(circle, rgba(201,162,39,.10) 0%, rgba(201,162,39,0) 70%);
+    pointer-events:none;
+  }
+  .hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:64px; align-items:center; position:relative; z-index:1;}
+  .hero h1{font-size:50px; line-height:1.08; margin-bottom:22px;}
+  .hero h1 em{font-style:italic; color:var(--gold-light);}
+  .hero p.lead{font-size:17px; color:var(--text-dim); max-width:480px; margin-bottom:32px;}
+  .hero-actions{display:flex; gap:14px; align-items:center;}
+  .hero-note{font-family:var(--font-mono); font-size:12px; color:var(--text-dim); margin-top:18px; letter-spacing:.03em;}
+
+  .feature-card{
+    background:var(--card); border:1px solid var(--border); border-radius:6px; overflow:hidden;
+    box-shadow:0 24px 48px -20px rgba(0,0,0,.6);
+  }
+  .feature-card__head{
+    background:#000; color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid var(--border);
+  }
+  .feature-card__head .tag{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; color:var(--gold-light);}
+  .feature-card__head .live{
+    font-family:var(--font-mono); font-size:11px; color:#fff; background:var(--rust); padding:3px 8px; border-radius:2px;
+    letter-spacing:.08em;
+  }
+  .feature-card__body{padding:24px 22px 22px;}
+  .feature-card__race{font-family:var(--font-display); font-size:20px; color:var(--text); margin-bottom:2px;}
+  .feature-card__meta{font-size:13px; color:var(--text-dim); margin-bottom:18px;}
+  .pick-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--border);}
+  .silk{width:30px; height:30px; border-radius:4px; flex-shrink:0; border:1px solid var(--border-strong);}
+  .pick-name{font-weight:600; font-size:14.5px; color:var(--text);}
+  .pick-sub{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);}
+  .pick-odds{margin-left:auto; font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--gold-light);}
+
+  .flap{
+    background:#000; border-radius:4px; padding:14px 18px; margin-top:16px;
+    display:flex; align-items:center; justify-content:space-between; position:relative; border:1px solid var(--border);
+  }
+  .flap-label{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim);}
+  .flap-value{
+    font-family:var(--font-mono); font-weight:700; font-size:30px; color:var(--gold-light);
+    text-shadow:0 0 14px rgba(228,197,102,.3);
+  }
+
+  /* ---------- Section shells ---------- */
+  section{padding:80px 0;}
+  .section-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; gap:24px; flex-wrap:wrap;}
+  .section-head h2{font-size:32px;}
+  .section-head p{color:var(--text-dim); max-width:420px; font-size:14.5px;}
+  .live-flag{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; padding:3px 9px; border-radius:20px;
+    border:1px solid var(--green); color:var(--green-light); margin-left:10px;
+  }
+  .live-flag.demo{border-color:#6b6252; color:var(--text-dim);}
+
+  /* ---------- Cadre résultats en direct ---------- */
+  .resultats-cadre{
+    background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+  }
+  .resultats-box{
+    border:1px solid var(--gold); border-radius:8px; background:var(--card); overflow:hidden;
+    box-shadow:0 20px 50px -30px rgba(201,162,39,.35);
+  }
+  .resultats-box__head{
+    background:#000; padding:16px 22px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--border);
+  }
+  .resultats-box__head h3{
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-light);
+    display:flex; align-items:center; gap:8px;
+  }
+  .pulse-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--green-light);
+    box-shadow:0 0 0 0 rgba(63,179,127,.6); animation:pulse 1.8s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(63,179,127,.55);}
+    70%{box-shadow:0 0 0 8px rgba(63,179,127,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,179,127,0);}
+  }
+  /* ---------- Skeleton loaders ---------- */
+  @keyframes skeleton-pulse{
+    0%{opacity:.5;}
+    50%{opacity:1;}
+    100%{opacity:.5;}
+  }
+  .skeleton{
+    background:rgba(255,255,255,.09); border-radius:6px;
+    animation:skeleton-pulse 1.3s ease-in-out infinite;
+  }
+  .skeleton-line{height:12px;}
+  .skeleton-row{display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--border);}
+  .skeleton-silk{width:30px; height:30px; border-radius:4px; flex-shrink:0;}
+  .skeleton-text{height:12px; flex:1;}
+  @media (prefers-reduced-motion: reduce){
+    .skeleton{animation:none; opacity:.7;}
+  }
+  .resultats-list{max-height:340px; overflow-y:auto;}
+  .resultats-list::-webkit-scrollbar{width:6px;}
+  .resultats-list::-webkit-scrollbar-track{background:transparent;}
+  .resultats-list::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px;}
+  .resultat-row{
+    padding:12px 22px; border-bottom:1px solid var(--border); transition:background .15s;
+  }
+  .resultat-row:last-child{border-bottom:none;}
+  .resultat-row:hover{background:rgba(255,255,255,.02);}
+  .resultat-top{display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap;}
+  .resultat-meta{display:flex; align-items:baseline; gap:10px;}
+  .resultat-meta .code{font-family:var(--font-mono); font-size:11.5px; color:var(--gold-light); letter-spacing:.04em;}
+  .resultat-meta .lieu{font-family:var(--font-display); font-size:15px; font-weight:600; color:var(--text);}
+  .resultat-meta .heure{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);}
+  .badge-verifie{
+    display:inline-flex; align-items:center; gap:4px; font-family:var(--font-mono); font-size:11px;
+    font-weight:700; letter-spacing:.03em; color:#0f4a30; background:#d4f4df; border:1px solid #8fd8a8;
+    border-radius:20px; padding:3px 10px;
+  }
+  .badge-verifie.badge-tierce{color:#5c3a12; background:#f4e2c4; border-color:#d9b878;}
+  .podium-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px;}
+  .podium-scroll::-webkit-scrollbar{height:5px;}
+  .podium-scroll::-webkit-scrollbar-track{background:transparent;}
+  .podium-scroll::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px;}
+  .podium-table{border-collapse:collapse; width:100%; min-width:420px; font-size:12px;}
+  .podium-table th{
+    font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-dim); text-align:left; padding:6px 10px; border-bottom:1px solid var(--border-strong);
+    white-space:nowrap;
+  }
+  .podium-table td{
+    padding:7px 10px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--text);
+  }
+  .podium-table tr:last-child td{border-bottom:none;}
+  .podium-table .place-badge{
+    display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%;
+    font-family:var(--font-mono); font-size:10.5px; font-weight:700; color:#0c0c0d;
+  }
+  .podium-table tr.p1 .place-badge{background:var(--gold);}
+  .podium-table tr.p2 .place-badge{background:#c9c9c9;}
+  .podium-table tr.p3 .place-badge{background:#b5793f;}
+  .podium-table tr.p4 .place-badge{background:transparent; border:1.5px solid #7d8794; color:#7d8794;}
+  .podium-table .cheval-nom{font-weight:600;}
+  .podium-table .cheval-num{color:var(--text-dim); font-weight:400; margin-right:4px;}
+  .podium-table .cote-val{color:var(--gold-light); font-family:var(--font-mono);}
+  .resultats-empty{padding:44px 22px; text-align:center; color:var(--text-dim); font-size:14px;}
+  .resultats-empty .big{font-family:var(--font-display); font-size:20px; color:var(--text); display:block; margin-bottom:8px;}
+
+  /* ---------- Courses du jour ---------- */
+  .race-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+
+
+  .hippo-filter{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:24px;}
+
+  .ia-search-box{
+    background:linear-gradient(165deg, var(--card) 0%, var(--card-alt) 100%);
+    border:1px solid var(--border-strong); border-radius:16px;
+    padding:20px; margin-bottom:24px; box-shadow:0 4px 18px rgba(0,0,0,.18);
+  }
+  .ia-search-head{display:flex; align-items:flex-start; gap:12px; margin-bottom:16px;}
+  .ia-search-icon{
+    flex-shrink:0; width:38px; height:38px; border-radius:10px;
+    background:rgba(212,175,55,.12); border:1px solid rgba(212,175,55,.3);
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .ia-search-title{font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--text); line-height:1.3;}
+  .ia-search-sub{font-size:12.5px; color:var(--text-dim); margin-top:2px;}
+  .ia-search-fields{display:flex; gap:10px; margin-bottom:14px;}
+  .cselect{position:relative; flex:1; min-width:0;}
+  .cselect-trigger{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:var(--card-alt); border:1.5px solid var(--border-strong); color:var(--text);
+    border-radius:10px; padding:9px 12px; text-align:left; cursor:pointer; transition:border-color .15s;
+  }
+  .cselect-trigger:hover{border-color:rgba(212,175,55,.5);}
+  .cselect-trigger:disabled{opacity:.45; cursor:not-allowed;}
+  .cselect-trigger.open{border-color:var(--gold);}
+  .cselect-col{display:flex; flex-direction:column; gap:3px; min-width:0;}
+  .cselect-label{
+    font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-dim);
+  }
+  .cselect-value{
+    font-family:var(--font-mono); font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .cselect-arrow{flex-shrink:0; color:var(--gold); transition:transform .2s;}
+  .cselect-trigger.open .cselect-arrow{transform:rotate(180deg);}
+  .cselect-panel{
+    position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:40;
+    background:#1a1a1c; border:1px solid var(--border-strong); border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5); max-height:260px; overflow-y:auto;
+    display:none; padding:6px;
+  }
+  .cselect-panel.open{display:block;}
+  .cselect-panel::-webkit-scrollbar{width:5px;}
+  .cselect-panel::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:3px;}
+  .cselect-option{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:11px 12px; border-radius:8px; font-size:13.5px; color:var(--text); cursor:pointer;
+    transition:background .12s;
+  }
+  .cselect-option:hover, .cselect-option:active{background:rgba(212,175,55,.1);}
+  .cselect-option.selected{background:rgba(212,175,55,.14); color:var(--gold-light); font-weight:600;}
+  .cselect-option .dot{
+    width:8px; height:8px; border-radius:50%; border:1.5px solid var(--border-strong); flex-shrink:0;
+  }
+  .cselect-option.selected .dot{background:var(--gold); border-color:var(--gold);}
+  .ia-search-submit{width:100%; font-size:13.5px; padding:13px;}
+  #iaSearchBtn:disabled{opacity:.4; cursor:not-allowed;}
+  #iaSearchResult{margin-top:14px;}
+  .ia-search-error{font-size:13px; color:var(--red, #e05252); padding:10px 0;}
+  .hippo-pill{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:.03em; padding:8px 16px;
+    border-radius:20px; border:1px solid var(--border-strong); background:var(--card); color:var(--text-dim);
+    cursor:pointer; transition:all .2s; white-space:nowrap;
+  }
+  .hippo-pill:hover{border-color:var(--gold); color:var(--text);}
+  .hippo-pill.active{background:var(--gold); border-color:var(--gold); color:#0c0c0d; font-weight:600;}
+  .hippo-pill .count{opacity:.7; margin-left:4px;}
+  #voirPlusWrap .btn-outline{cursor:pointer; background:none;}
+  @media (max-width:700px){
+    .hippo-filter{gap:6px; margin-bottom:20px; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; padding-bottom:4px;}
+    .hippo-filter::-webkit-scrollbar{display:none;}
+    .hippo-pill{padding:7px 14px; font-size:11px;}
+  }
+  .race-card{
+    background:var(--card); border:1px solid var(--border); border-radius:6px; padding:20px; transition:transform .2s, box-shadow .2s, border-color .2s;
+  }
+  .race-card:hover{transform:translateY(-3px); border-color:var(--border-strong); box-shadow:0 16px 30px -18px rgba(0,0,0,.6);}
+  .race-card__top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;}
+  .race-code{
+    font-family:var(--font-mono); font-weight:700; font-size:13px; color:#0c0c0d; background:var(--gold-light);
+    padding:4px 9px; border-radius:3px; letter-spacing:.04em;
+  }
+  .race-time{font-family:var(--font-mono); font-size:13px; color:var(--gold-light); font-weight:600;}
+  .race-card h3{font-size:17px; margin-bottom:3px;}
+  .race-meta{font-size:12.5px; color:var(--text-dim); margin-bottom:14px;}
+  .race-pick{display:flex; align-items:center; gap:10px; padding-top:12px; border-top:1px dashed var(--border);}
+  .race-pick .name{font-size:13.5px; font-weight:600; color:var(--text);}
+  .race-pick .odds{margin-left:auto; font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--gold-light);}
+  .ia-btn{
+    margin-top:12px; width:100%; padding:9px; border-radius:4px; border:1px solid var(--gold);
+    background:transparent; color:var(--gold-light); font-family:var(--font-mono); font-size:11.5px;
+    letter-spacing:.04em; text-transform:uppercase; cursor:pointer; transition:background .2s;
+  }
+  .ia-btn:hover{background:rgba(201,162,39,.12);}
+  .ia-btn:disabled{opacity:.5; cursor:default;}
+  .ia-result{
+    margin-top:12px; padding:12px; border-radius:4px; background:var(--card-alt); border:1px solid var(--border);
+  }
+  .ia-result .ia-conf{font-family:var(--font-mono); font-weight:700; color:var(--green-light); font-size:14px; margin-bottom:10px;}
+  .ia-result .quarte-list{display:flex; flex-direction:column; gap:6px;}
+  .ia-result .quarte-item{
+    display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text);
+  }
+  .ia-result .quarte-item .pos{
+    width:20px; height:20px; border-radius:50%; background:var(--card); border:1px solid var(--border-strong);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:10.5px;
+    font-weight:700; color:var(--text-dim); flex-shrink:0;
+  }
+  .ia-result .quarte-item.coup-sur .pos{background:var(--gold); border-color:var(--gold); color:#0c0c0d;}
+  .ia-result .quarte-item.coup-sur .nom{color:var(--gold-light); font-weight:600;}
+  .ia-result .coup-sur-tag{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--gold); margin-left:auto;
+  }
+  .ia-result .ia-sources{font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); margin-top:10px;}
+  .auth-required-msg{
+    margin-top:12px; padding:12px; border-radius:4px; background:var(--card-alt); border:1px dashed var(--border-strong);
+    font-size:12.5px; color:var(--text-dim); text-align:center;
+  }
+  .auth-required-msg a{color:var(--gold-light); text-decoration:underline; cursor:pointer;}
+
+  /* ---------- Modal authentification ---------- */
+  .auth-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100;
+    align-items:center; justify-content:center; padding:20px;
+  }
+  .auth-overlay.open{display:flex;}
+  .auth-modal{
+    background:var(--card); border:1px solid var(--border-strong); border-radius:8px; padding:32px;
+    max-width:380px; width:100%; box-shadow:0 30px 60px -20px rgba(0,0,0,.7);
+  }
+  .auth-modal h3{font-size:20px; margin-bottom:6px;}
+  .auth-modal p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
+  .auth-field{margin-bottom:14px;}
+  .auth-field label{display:block; font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:6px;}
+  .auth-field input{
+    width:100%; padding:11px 13px; border-radius:4px; border:1px solid var(--border-strong);
+    background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:14px;
+  }
+  .auth-field input:focus{outline:2px solid var(--gold); outline-offset:1px;}
+  .auth-error{font-size:12.5px; color:var(--rust); margin-bottom:12px; min-height:16px;}
+  .auth-submit{
+    width:100%; padding:12px; border-radius:4px; background:var(--gold); color:#0c0c0d;
+    font-weight:600; font-size:14px; margin-top:4px;
+  }
+  .auth-switch{font-size:12.5px; color:var(--text-dim); text-align:center; margin-top:16px;}
+  .auth-switch a{color:var(--gold-light); text-decoration:underline; cursor:pointer;}
+  .auth-close{position:absolute; top:14px; right:18px; background:none; color:var(--text-dim); font-size:20px;}
+  .auth-modal{position:relative;}
+  .account-badge{font-size:13px; color:var(--text-dim); font-family:var(--font-mono);}
+
+  /* ---------- Comment fonctionne l'IA ---------- */
+  .how-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:0; position:relative;}
+  .how-grid::before{
+    content:""; position:absolute; top:23px; left:5%; right:5%; height:1px; background:var(--border); z-index:0;
+  }
+  .how-step{position:relative; padding-right:20px; z-index:1;}
+  .how-step .num{
+    width:46px; height:46px; border-radius:50%; background:var(--bg); border:2px solid var(--gold);
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700;
+    color:var(--gold-light); margin-bottom:20px;
+  }
+  .how-step h3{font-size:16.5px; margin-bottom:8px;}
+  .how-step p{font-size:13.5px; color:var(--text-dim);}
+
+  /* ---------- Stats ---------- */
+  .stats{background:#000;}
+  .stats .wrap{display:grid; grid-template-columns:repeat(4,1fr); gap:24px; text-align:left;}
+  .stat b{
+    font-family:var(--font-mono); font-size:38px; color:var(--gold-light); display:block; margin-bottom:6px; font-weight:700;
+  }
+  .stat span{font-size:13px; color:var(--text-dim);}
+
+  /* ---------- Verified stats bar (near top, sales-proof) ---------- */
+  .verif-stats{padding:22px 0; background:var(--card); border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+  .verif-stats__head{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+  .verif-stats__note{font-size:12px; color:var(--text-dim);}
+  .verif-stats__grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:20px;}
+  .verif-stat{border-left:2px solid var(--gold); padding-left:14px;}
+  .verif-stat b{
+    font-family:var(--font-mono); font-size:30px; color:var(--gold-light); display:block; margin-bottom:4px; font-weight:700;
+  }
+  .verif-stat span{font-size:12.5px; color:var(--text-dim); line-height:1.4;}
+  @media (max-width:700px){
+    .verif-stats__grid{grid-template-columns:1fr; gap:14px;}
+  }
+
+  /* ---------- Pricing ---------- */
+  .pricing-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:980px; margin:0 auto;}
+  .plan{
+    border:1px solid var(--border); border-radius:8px; padding:32px 26px; background:var(--card); display:flex; flex-direction:column;
+  }
+  .plan.featured{border-color:var(--gold); box-shadow:0 20px 40px -22px rgba(201,162,39,.3); position:relative;}
+  .plan.featured::before{
+    content:"Le plus choisi"; position:absolute; top:-13px; left:26px; background:var(--rust); color:#fff;
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; padding:4px 10px; border-radius:3px;
+  }
+  .plan .enclos{font-family:var(--font-mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--rust); margin-bottom:10px;}
+  .plan h3{font-size:22px; margin-bottom:6px;}
+  .plan .price{font-family:var(--font-mono); font-size:30px; font-weight:700; color:var(--gold-light); margin:12px 0 20px;}
+  .plan .price span{font-size:13px; font-weight:500; color:var(--text-dim);}
+  .plan ul{list-style:none; margin-bottom:26px; flex-grow:1;}
+  .plan li{font-size:13.5px; color:var(--text-dim); padding:8px 0; border-top:1px solid var(--border); display:flex; gap:9px;}
+  .plan li::before{content:"—"; color:var(--gold);}
+  .plan .btn-outline, .plan .btn-gold{width:100%; text-align:center;}
+
+  /* ---------- CTA final ---------- */
+  .cta-final{text-align:center;}
+  .cta-final h2{font-size:34px; margin-bottom:14px;}
+  .cta-final p{color:var(--text-dim); margin-bottom:30px;}
+
+  /* ---------- Testimonials / piste ---------- */
+  .testimonials{
+    position:relative; background:var(--bg-alt); overflow:hidden; padding:88px 0 0;
+  }
+  .quote-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px; position:relative; z-index:2;}
+  .quote-card{
+    background:var(--card); border:1px solid var(--border); border-radius:8px; padding:26px 24px;
+  }
+  .quote-mark{font-family:var(--font-display); font-size:42px; color:var(--gold); line-height:1; margin-bottom:6px;}
+  .quote-card p.quote-text{font-size:14.5px; color:var(--text); margin-bottom:22px; min-height:76px;}
+  .quote-person{display:flex; align-items:center; gap:12px;}
+  .avatar{
+    width:44px; height:44px; border-radius:50%; flex-shrink:0; position:relative;
+    display:flex; align-items:center; justify-content:center; font-family:var(--font-display);
+    font-weight:700; font-size:16px; color:#fff; border:2px solid var(--gold);
+  }
+  .avatar.a1{background:conic-gradient(from 210deg,#d1531a,#0f4a30);}
+  .avatar.a2{background:conic-gradient(from 90deg,#1f8a5c,#c9a227);}
+  .avatar.a3{background:conic-gradient(from 30deg,#0f4a30,#8a1f1f);}
+  .avatar.a4{background:conic-gradient(from 150deg,#c9a227,#8a1f1f);}
+  .avatar.a5{background:conic-gradient(from 300deg,#1f8a5c,#d1531a);}
+  .avatar.a6{background:conic-gradient(from 60deg,#8a1f1f,#c9a227);}
+  .avatar.a7{background:conic-gradient(from 240deg,#0f4a30,#1f8a5c);}
+  .quote-person .who b{display:block; font-size:13.5px; font-weight:600; color:var(--text);}
+  .quote-person .who span{font-size:12px; color:var(--text-dim); font-family:var(--font-mono);}
+
+  .track-scene{position:relative; height:200px; margin-top:60px; overflow:hidden; border-top:1px solid var(--border);}
+  .track-scene svg{position:absolute; bottom:0; left:0; width:100%; height:100%;}
+  .track-caption{
+    position:absolute; left:32px; bottom:20px; z-index:3; font-family:var(--font-mono);
+    font-size:11.5px; letter-spacing:.08em; color:var(--gold-light); text-transform:uppercase;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{background:#000; color:var(--text-dim); padding:64px 0 28px; border-top:1px solid var(--border);}
+  .footer-grid{display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:32px; margin-bottom:44px;}
+  footer .logo{color:#fff;}
+  footer .brand-desc{font-size:13.5px; color:#7d7a70; margin-top:14px; max-width:280px;}
+  footer h4{font-family:var(--font-mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#7d7a70; margin-bottom:16px;}
+  footer ul{list-style:none;}
+  footer li{margin-bottom:10px; font-size:13.5px;}
+  footer a:hover{color:var(--gold-light);}
+  .legal-note{border-top:1px solid var(--border); padding-top:24px; font-size:12px; color:#5f5c53; line-height:1.7;}
+  .legal-note b{color:var(--text-dim);}
+
+  @media (max-width:960px){
+    .hero .wrap{grid-template-columns:1fr;}
+    .hero h1{font-size:38px;}
+    /* Bandeau de navigation toujours visible et défilable horizontalement,
+       plutôt qu'un menu masqué derrière un bouton hamburger. */
+    nav.main-nav{
+      display:flex; flex-direction:row; gap:8px; position:static;
+      overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap;
+      background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+      padding:10px 16px; scrollbar-width:none; width:100%; order:3;
+    }
+    nav.main-nav::-webkit-scrollbar{display:none;}
+    nav.main-nav a{
+      flex:0 0 auto; padding:7px 14px; border:1px solid var(--border-strong); border-radius:20px; font-size:13px;
+    }
+    .race-grid{grid-template-columns:repeat(2,1fr);}
+    .how-grid{grid-template-columns:repeat(2,1fr); row-gap:36px;}
+    .how-grid::before{display:none;}
+    .stats .wrap{grid-template-columns:repeat(2,1fr); row-gap:28px;}
+    .quote-grid{grid-template-columns:repeat(2,1fr);}
+    .pricing-grid{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width:600px){
+    .wrap{padding:0 20px;}
+    .race-grid{grid-template-columns:1fr;}
+    .quote-grid{grid-template-columns:1fr;}
+    .footer-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:400px){
+    .ia-search-fields{flex-direction:column;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ticker-track{animation:none;}
+    .pulse-dot{animation:none;}
+    *{transition:none !important;}
+  }
+
+  /* ---------- Chat IA ---------- */
+  .chat-box{
+    max-width:720px; margin:0 auto; background:var(--card); border:1px solid var(--border);
+    border-radius:12px; overflow:hidden;
+  }
+  .chat-messages{
+    max-height:340px; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:12px;
+  }
+  .chat-msg{
+    font-size:14.5px; line-height:1.55; padding:11px 14px; border-radius:10px; max-width:85%;
+  }
+  .chat-msg--bot{
+    background:var(--card-alt); border:1px solid var(--border); color:var(--text); align-self:flex-start;
+  }
+  .chat-msg--user{
+    background:rgba(201,162,39,.14); border:1px solid rgba(201,162,39,.35); color:var(--text);
+    align-self:flex-end;
+  }
+  .chat-msg--erreur{
+    background:rgba(209,83,26,.12); border:1px solid rgba(209,83,26,.4); color:var(--text); align-self:flex-start;
+  }
+  .chat-input-row{
+    display:flex; gap:10px; padding:14px; border-top:1px solid var(--border); background:var(--bg-alt);
+  }
+  .chat-input-row input{
+    flex:1; min-width:0; background:var(--card); border:1px solid var(--border-strong); border-radius:8px;
+    padding:11px 14px; color:var(--text); font-family:var(--font-body); font-size:14.5px;
+  }
+  .chat-input-row input:focus{outline:none; border-color:var(--gold);}
+  .chat-input-row .btn-gold{flex-shrink:0; padding:13px 26px; border-radius:8px; font-size:15px; font-weight:700; white-space:nowrap;}
+  .chat-input-row .btn-gold:disabled{opacity:.55; cursor:default;}
+  .chat-note{
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); text-align:center; padding:10px 14px 16px;
+  }
+  @media (max-width:600px){
+    .chat-msg{max-width:100%;}
+    .chat-input-row{flex-wrap:wrap;}
+    .chat-input-row input{flex-basis:100%;}
+    .chat-input-row .btn-gold{flex:1;}
+  }
+
+  /* ---------- FAQ ---------- */
+  .faq-list{max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:12px;}
+  .faq-item{
+    background:var(--card); border:1px solid var(--border); border-radius:10px; overflow:hidden;
+  }
+  .faq-item summary{
+    cursor:pointer; list-style:none; padding:18px 22px; font-weight:600; font-size:15px; color:var(--text);
+    display:flex; justify-content:space-between; align-items:center; gap:16px;
+  }
+  .faq-item summary::-webkit-details-marker{display:none;}
+  .faq-item summary::after{
+    content:"+"; color:var(--gold-light); font-size:22px; font-weight:400; line-height:1; flex:none;
+  }
+  .faq-item[open] summary::after{content:"–";}
+  .faq-item[open] summary{border-bottom:1px solid var(--border);}
+  .faq-item p{padding:16px 22px 20px; color:var(--text-dim); font-size:14.5px; line-height:1.65;}
+</style>
+</head>
+<body>
+
+  <div class="ticker-bar">
+    <div class="ticker-track" id="tickerTrack">
+      <span>Chargement des réunions du jour…</span>
+    </div>
+  </div>
+
+  <div class="share-bar">
+    <div class="wrap">
+      <span class="share-bar__label">PARTAGER</span>
+      <a class="share-bar__btn" id="shareWhatsApp" href="#" target="_blank" rel="noopener" aria-label="Partager sur WhatsApp" style="background:#25D366;">
+        <svg viewBox="0 0 24 24" fill="#0c0c0d"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2.05 22l5.25-1.38a9.87 9.87 0 0 0 4.74 1.21h.01c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.26.86 5.82 2.42a8.2 8.2 0 0 1 2.41 5.82c0 4.54-3.7 8.24-8.24 8.24a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24zm-4.52 4.4c-.15 0-.4.06-.6.29-.21.22-.8.78-.8 1.9s.82 2.2.94 2.36c.11.15 1.61 2.46 3.9 3.45.55.24.97.38 1.31.48.55.17 1.05.15 1.44.09.44-.07 1.35-.55 1.54-1.08.19-.53.19-.99.14-1.08-.06-.1-.21-.15-.44-.27-.23-.11-1.35-.67-1.56-.74-.21-.08-.36-.11-.51.11-.15.22-.58.74-.71.9-.13.15-.26.17-.49.06-.23-.11-.96-.35-1.83-1.13-.68-.6-1.13-1.34-1.27-1.57-.13-.22-.01-.35.1-.46.11-.11.23-.27.35-.4.11-.14.15-.24.23-.4.08-.15.04-.29-.02-.4-.06-.11-.51-1.25-.71-1.7-.19-.44-.38-.38-.51-.39-.13-.01-.28-.01-.43-.01z"/></svg>
+      </a>
+      <a class="share-bar__btn" id="shareFacebook" href="#" target="_blank" rel="noopener" aria-label="Partager sur Facebook" style="background:#1877F2;">
+        <svg viewBox="0 0 24 24" fill="#fff"><path d="M13.5 21v-7.9h2.65l.4-3.08h-3.05V8.06c0-.89.25-1.5 1.52-1.5h1.63V3.83A21.8 21.8 0 0 0 14.3 3.7c-2.35 0-3.96 1.43-3.96 4.06v2.27H7.68v3.08h2.66V21h3.16z"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap">
+      <div class="logo"><img src="/img/logo.png" alt="Turf Nova AI" width="480" height="329"></div>
+      <nav class="main-nav" id="mainNav">
+        <a href="#resultats">Résultats en direct</a>
+        <a href="#courses">Courses du jour</a>
+        <a href="#ia">Pronostics IA</a>
+        <a href="#faq">FAQ</a>
+        <a href="/blog.html">Blog</a>
+        <a href="#abonnements">Abonnements</a>
+      </nav>
+      <div class="header-actions">
+        <button class="btn-outline" id="btnInstallerApp">📲 <span class="btn-installer-label">Installer l'app</span></button>
+        <button class="btn-outline" id="btnActiverNotifs" style="display:none;">🔔 <span class="btn-notifs-label">Activer les notifs</span></button>
+        <a href="#" class="link-muted" id="loginLink">Se connecter</a>
+        <a href="#abonnements" class="btn-gold" id="btnEssaiGratuit" style="display:none;">Essai gratuit</a>
+        <button class="btn-outline" id="btnDeconnexion" style="display:none;">Déconnexion</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="essai-banniere" id="essaiBanniere" style="display:none;">
+    <div class="wrap essai-banniere__inner">
+      <span id="essaiBanniereTexte"></span>
+      <a href="#abonnements" class="essai-banniere__cta">Passer à Prestige</a>
+    </div>
+  </div>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <div class="eyebrow">Turf & Intelligence artificielle</div>
+          <h1>L'IA qui <em>devine</em> l'arrivée.</h1>
+          <p class="lead">Notre modèle croise forme, terrain, cotes et historique pour livrer un pronostic chiffré, course par course, avant chaque départ.</p>
+          <div class="hero-actions">
+            <a href="#resultats" class="btn-gold">Voir les résultats en direct</a>
+            <a href="#ia" class="btn-outline">Comment ça marche</a>
+          </div>
+          <div class="hero-note">12 hippodromes suivis en direct — mise à jour à chaque cote.</div>
+        </div>
+
+        <div class="feature-card" id="courseDuJourCard">
+          <div class="feature-card__head">
+            <span class="tag" id="cdjTag">R1 · C3 — QUINTÉ+ COMMUN PMU</span>
+            <span class="live">COURSE DU JOUR</span>
+          </div>
+          <div class="feature-card__body">
+
+            <div id="cdjSkeleton">
+              <div class="skeleton skeleton-line" style="width:65%; height:20px;"></div>
+              <div class="skeleton skeleton-line" style="width:35%; height:12px; margin-top:8px;"></div>
+              <div class="skeleton skeleton-line" style="width:100%; height:58px; margin-top:16px;"></div>
+              <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:60%;"></div></div>
+              <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:50%;"></div></div>
+              <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:65%;"></div></div>
+            </div>
+
+            <div id="cdjContenu" style="display:none;">
+              <div class="feature-card__race" id="cdjRace"></div>
+              <div class="feature-card__meta" id="cdjMeta"></div>
+
+              <div class="flap" id="cdjFlap" style="display:none;">
+                <span class="flap-label">Indice de confiance</span>
+                <span class="flap-value"><span id="cdjConfiance">00</span>%</span>
+              </div>
+
+              <div id="cdjListe" style="display:none; margin-top:14px;">
+                <div id="cdjChevaux"></div>
+                <div id="cdjVerrou" style="display:none; margin-top:10px; padding:14px; border:1px dashed rgba(201,162,39,.4); border-radius:10px; text-align:center;">
+                  <div style="font-family:var(--font-sans); font-size:13px; color:var(--text-dim); margin-bottom:10px;" id="cdjVerrouTexte">
+                    + de chevaux verrouillés
+                  </div>
+                  <button type="button" class="btn-gold" id="cdjGenererBtn" style="display:inline-block; padding:9px 20px; font-size:13.5px; border:none; cursor:pointer;">Voir le pronostic IA</button>
+                </div>
+              </div>
+
+              <p style="font-family:var(--font-sans); font-size:12.5px; color:var(--text-dim); margin-top:10px; line-height:1.5;">
+                Course commune PMU jouée simultanément dans plusieurs pays de l'UEMOA.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="verif-stats" id="verifStats" style="display:none;">
+      <div class="wrap">
+        <div class="verif-stats__head">
+          <span class="live-flag" style="border-color:var(--green); color:var(--green-light);">Chiffres vérifiés</span>
+          <span class="verif-stats__note">Calculés automatiquement à partir des arrivées officielles PMU — aucun chiffre saisi à la main.</span>
+        </div>
+        <div class="verif-stats__grid">
+          <div class="verif-stat">
+            <b id="verifPctCoupsSurs">–</b>
+            <span>des "coups sûrs" proposés se sont classés dans l'arrivée</span>
+          </div>
+          <div class="verif-stat">
+            <b id="verifTierce">–</b>
+            <span>Tiercés en 8 gagnés (les 3 premiers dans notre sélection)</span>
+          </div>
+          <div class="verif-stat">
+            <b id="verifQuarte">–</b>
+            <span>Quartés en 8 gagnés (les 4 chevaux d'arrivée dans notre sélection)</span>
+          </div>
+          <div class="verif-stat">
+            <b id="verifTotal">–</b>
+            <span>courses vérifiées sur résultats officiels</span>
+          </div>
+          <div class="verif-stat">
+            <b id="verifMoyenne">–</b>
+            <span>chevaux corrects en moyenne sur les 4 premiers de l'arrivée</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="resultats-cadre" id="resultats">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Suivi en direct</div>
+            <h2>Résultats des courses en direct</h2>
+          </div>
+          <p>Les arrivées apparaissent ici dès qu'elles sont officielles, mise à jour automatique toutes les minutes.</p>
+        </div>
+
+        <div class="resultats-box">
+          <div class="resultats-box__head">
+            <h3><span class="pulse-dot"></span> Résultats</h3>
+            <span class="live-flag demo" id="resultsFlag">Démo</span>
+          </div>
+          <div class="resultats-list" id="resultatsList">
+            <div class="resultats-empty">
+              <span class="big">En attente des premières arrivées</span>
+              Dès qu'une course se termine, son podium s'affiche automatiquement ici.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="courses">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Carnet du jour <span class="live-flag demo" id="liveFlag">Démo</span></div>
+            <h2>Les courses du jour</h2>
+          </div>
+          <p>Toutes réunions, toutes disciplines. Chaque carte affiche le favori et sa cote — connecté au flux PMU en direct.</p>
+        </div>
+
+        <div class="ia-search-box" id="iaSearchBox">
+          <div class="ia-search-head">
+            <span class="ia-search-icon">🔍</span>
+            <div>
+              <div class="ia-search-title">Analyse IA d'une course précise</div>
+              <p class="ia-search-sub">Choisis ta réunion et ta course</p>
+            </div>
+          </div>
+          <div class="ia-search-fields">
+            <div class="cselect" id="cselectReunion">
+              <button type="button" class="cselect-trigger" id="cselectReunionTrigger">
+                <span class="cselect-col">
+                  <span class="cselect-label">Réunion</span>
+                  <span class="cselect-value" id="cselectReunionValue">— Choisir —</span>
+                </span>
+                <svg class="cselect-arrow" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="cselect-panel" id="cselectReunionPanel"></div>
+            </div>
+            <div class="cselect" id="cselectCourse">
+              <button type="button" class="cselect-trigger" id="cselectCourseTrigger" disabled>
+                <span class="cselect-col">
+                  <span class="cselect-label">Course</span>
+                  <span class="cselect-value" id="cselectCourseValue">— Choisir —</span>
+                </span>
+                <svg class="cselect-arrow" viewBox="0 0 10 6" width="10" height="6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <div class="cselect-panel" id="cselectCoursePanel"></div>
+            </div>
+          </div>
+          <button class="btn-gold ia-search-submit" id="iaSearchBtn" disabled>Voir le pronostic IA</button>
+          <div id="iaSearchResult"></div>
+        </div>
+
+        <div class="hippo-filter" id="hippoFilter"></div>
+
+        <div class="race-grid" id="raceGrid">
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R1 · C1</span><span class="race-time">13:50</span></div>
+            <h3>Vincennes</h3>
+            <div class="race-meta">Trot attelé — 2700m — 16 partants</div>
+            <div class="race-pick">
+              <span class="name">N°7 Mistral du Large</span>
+              <span class="odds">3.80</span>
+            </div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R2 · C2</span><span class="race-time">14:25</span></div>
+            <h3>Chantilly</h3>
+            <div class="race-meta">Plat — 1600m — 12 partants</div>
+            <div class="race-pick">
+              <span class="name">N°9 Éclat Royal</span>
+              <span class="odds">4.20</span>
+            </div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R3 · C1</span><span class="race-time">15:05</span></div>
+            <h3>Deauville</h3>
+            <div class="race-meta">Obstacle, haies — 3400m — 10 partants</div>
+            <div class="race-pick">
+              <span class="name">N°4 Cap Hornier</span>
+              <span class="odds">5.10</span>
+            </div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R4 · C3</span><span class="race-time">15:40</span></div>
+            <h3>Saint-Cloud</h3>
+            <div class="race-meta">Plat — 2000m — 13 partants</div>
+            <div class="race-pick">
+              <span class="name">N°11 Véloce Impérial</span>
+              <span class="odds">2.90</span>
+            </div>
+          </div>
+
+          <div class="race-card">
+            <div class="race-card__top"><span class="race-code">R5 · C1</span><span class="race-time">16:15</span></div>
+            <h3>Cagnes-sur-Mer</h3>
+            <div class="race-meta">Plat — 1400m — 9 partants</div>
+            <div class="race-pick">
+              <span class="name">N°3 Lumière d'Automne</span>
+              <span class="odds">6.30</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="voirPlusWrap" style="text-align:center; margin-top:20px;"></div>
+      </div>
+    </section>
+
+    <section id="ia">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">La mécanique</div>
+            <h2>Comment l'IA construit chaque pronostic</h2>
+          </div>
+          <p>Quatre intelligences artificielles indépendantes analysent chaque course ; leur avis est combiné en un score unique.</p>
+        </div>
+
+        <div class="how-grid">
+          <div class="how-step">
+            <div class="num">1</div>
+            <h3>Collecte des données</h3>
+            <p>Partants, cotes en direct, jockeys et distance sont récupérés depuis le flux officiel avant chaque départ.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">2</div>
+            <h3>Analyse multi-IA</h3>
+            <p>Quatre modèles d'IA examinent la course séparément et proposent chacun un pronostic avec un niveau de confiance.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">3</div>
+            <h3>Consensus</h3>
+            <p>Quand les 4 IA s'accordent, la confiance grimpe. En cas de désaccord, les différents avis restent pris en compte.</p>
+          </div>
+          <div class="how-step">
+            <div class="num">4</div>
+            <h3>Score affiché</h3>
+            <p>Un pourcentage unique, affiché sur chaque carte, pour décider en un coup d'œil avant le départ.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="wrap">
+        <div class="stat"><b><span data-target="75">0</span>%</b><span>de réussite sur le top 3 (30 derniers jours)</span></div>
+        <div class="stat"><b><span data-target="12">0</span></b><span>hippodromes suivis chaque semaine</span></div>
+        <div class="stat"><b><span data-target="50" data-suffix="k">0</span>+</b><span>courses analysées par le modèle</span></div>
+        <div class="stat"><b><span data-target="24">0</span>/7</b><span>mise à jour continue des cotes</span></div>
+      </div>
+    </section>
+
+    <section class="pricing" id="abonnements">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Abonnements</div>
+            <h2>Choisissez votre place sur l'hippodrome</h2>
+          </div>
+          <p>Trois formules, de l'accès rapide à l'analyse complète.</p>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="plan">
+            <div class="enclos">Pelouse</div>
+            <h3>Essai gratuit</h3>
+            <div class="price">0 FCFA <span>/ 4 jours</span></div>
+            <p style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-top:-14px; margin-bottom:16px;">Aucune carte requise</p>
+            <ul>
+              <li>Pronostics IA sur toutes les courses</li>
+              <li>Résultats et arrivées en direct</li>
+              <li>Accès complet pendant 4 jours</li>
+              <li>1 essai par personne</li>
+            </ul>
+            <button class="btn-outline plan-btn" id="btnEssaiGratuitCarte">Créer mon compte</button>
+          </div>
+
+          <div class="plan">
+            <div class="enclos">Tribune</div>
+            <h3>Derby</h3>
+            <div class="price">35 000 FCFA <span>/ 2 semaines</span></div>
+            <p style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-top:-14px; margin-bottom:16px;">≈ 53 € — carte bancaire ou Mobile Money</p>
+            <ul>
+              <li>Pronostics IA sur toutes les courses</li>
+              <li>Indice de confiance détaillé</li>
+              <li>Alertes de mouvement de cotes</li>
+              <li>Idéal pour tester sur une quinzaine de réunions</li>
+            </ul>
+            <button class="btn-gold plan-btn" data-plan="quinzaine">Choisir Derby</button>
+          </div>
+
+          <div class="plan featured">
+            <div class="enclos">Pesage</div>
+            <h3>Prestige</h3>
+            <div class="price">60 000 FCFA <span>/ 2 mois</span></div>
+            <p style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-top:-14px; margin-bottom:16px;">≈ 91 € — carte bancaire ou Mobile Money</p>
+            <ul>
+              <li>Pronostics IA sur toutes les courses</li>
+              <li>Indice de confiance détaillé</li>
+              <li>Alertes de mouvement de cotes</li>
+              <li>Historique des performances du modèle</li>
+              <li>Analyse allure et terrain par cheval</li>
+              <li>Rapports quinté détaillés</li>
+              <li>Accès prioritaire au support</li>
+            </ul>
+            <button class="btn-gold plan-btn" data-plan="prestige">Passer à Prestige</button>
+          </div>
+        </div>
+        <p style="font-family:var(--font-display); font-style:italic; font-size:14px; font-weight:500; color:var(--text-dim); letter-spacing:.01em; text-align:center; margin-top:18px;">
+          Paiement sécurisé via Chariow (Mobile Money, Wave, Orange Money ou carte bancaire Visa/Mastercard). L'activation de l'abonnement est automatique après confirmation du paiement.
+        </p>
+      </div>
+    </section>
+
+    <section class="cta-final">
+      <div class="wrap">
+        <h2>Prêt à jouer avec méthode ?</h2>
+        <p>Rejoignez les turfistes qui décident avec un chiffre, pas seulement un instinct.</p>
+        <a href="#abonnements" class="btn-gold">Créer mon compte</a>
+      </div>
+    </section>
+
+    <section class="testimonials" id="avis">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Ils turfent avec Turf Nova AI</div>
+            <h2>Ce qu'en disent nos abonnés</h2>
+          </div>
+          <p>Des parieurs réguliers, sur trot et plat, qui ont intégré l'indice de confiance à leur méthode.</p>
+        </div>
+
+        <div class="quote-grid">
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">L'indice de confiance a changé ma façon de composer mes tickets. Je ne joue plus au flair, je croise avec le score.</p>
+            <div class="quote-person">
+              <div class="avatar a1">M</div>
+              <div class="who"><b>Marc D.</b><span>Abonné Prestige — 2 ans</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Les alertes de mouvement de cotes m'ont évité plusieurs mauvaises surprises avant le départ. Précieux sur les quintés.</p>
+            <div class="quote-person">
+              <div class="avatar a2">S</div>
+              <div class="who"><b>Sophie L.</b><span>Abonnée Prestige</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Enfin un pronostic qui explique son raisonnement au lieu de balancer un nom. Ça se voit que le modèle est sérieux.</p>
+            <div class="quote-person">
+              <div class="avatar a3">K</div>
+              <div class="who"><b>Karim B.</b><span>Abonné Prestige — 8 mois</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Le bilan public m'a convaincu avant même de m'abonner — voir les vrais chiffres de couverture plutôt qu'une promesse en l'air, ça change tout.</p>
+            <div class="quote-person">
+              <div class="avatar a4">A</div>
+              <div class="who"><b>Awa T.</b><span>Abonnée Prestige — 3 mois</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Je joue depuis Abidjan et je suivais déjà le turf français. Avec l'indice de confiance, je passe deux fois moins de temps à éplucher la musique de chaque cheval.</p>
+            <div class="quote-person">
+              <div class="avatar a5">Y</div>
+              <div class="who"><b>Yves K.</b><span>Abonné Prestige — 1 an</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">L'assistant qui répond aux questions sur les courses du jour est bluffant — je lui demande direct qui est le coup sûr avant de composer mon ticket.</p>
+            <div class="quote-person">
+              <div class="avatar a6">F</div>
+              <div class="who"><b>Fatou N.</b><span>Abonnée Prestige — 5 mois</span></div>
+            </div>
+          </div>
+          <div class="quote-card">
+            <div class="quote-mark">"</div>
+            <p class="quote-text">Les coups sûrs désignés par les 4 IA quand elles sont d'accord, c'est le signal que j'attends avant de miser sérieusement. Rarement déçu.</p>
+            <div class="quote-person">
+              <div class="avatar a7">B</div>
+              <div class="who"><b>Boubacar S.</b><span>Abonné Prestige — 2 ans</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="track-scene">
+        <span class="track-caption">Vincennes — dernière ligne droite</span>
+        <svg viewBox="0 0 1440 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="1440" height="220" fill="#000"/>
+          <path d="M0 150 Q 360 110 720 150 T 1440 150" stroke="rgba(228,197,102,.3)" stroke-width="2" fill="none"/>
+          <path d="M0 170 Q 360 132 720 170 T 1440 170" stroke="rgba(228,197,102,.15)" stroke-width="2" fill="none"/>
+          <path d="M0 220 Q 360 150 720 190 T 1440 190 L1440 220 Z" fill="#131315"/>
+          <g fill="#1c1c1f">
+            <rect x="60" y="55" width="10" height="55"/><rect x="90" y="60" width="10" height="50"/>
+            <rect x="120" y="50" width="10" height="60"/><rect x="150" y="58" width="10" height="52"/>
+            <rect x="180" y="52" width="10" height="58"/>
+          </g>
+          <g fill="rgba(201,162,39,.85)">
+            <g transform="translate(760,140) scale(1.15)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(0,0,0,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+            <g transform="translate(860,150) scale(1.05)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(0,0,0,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+            <g transform="translate(700,152) scale(0.95)">
+              <ellipse cx="0" cy="18" rx="26" ry="9" fill="rgba(0,0,0,.4)"/>
+              <path d="M-24 12 C -26 -2 -14 -14 2 -14 C 16 -14 20 -4 26 2 L 30 -8 L 34 -6 L 29 6 C 33 10 30 16 24 16 L 8 16 C 6 22 -2 24 -8 20 C -16 24 -24 20 -24 12 Z"/>
+              <rect x="-2" y="-24" width="7" height="14" rx="2"/>
+              <circle cx="1.5" cy="-27" r="5"/>
+            </g>
+          </g>
+          <circle cx="1180" cy="46" r="30" fill="rgba(228,197,102,.10)"/>
+        </svg>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Questions fréquentes</div>
+            <h2>Tout ce qu'il faut savoir avant de commencer</h2>
+          </div>
+          <p>Les réponses aux questions qu'on nous pose le plus souvent, avant et après inscription.</p>
+        </div>
+
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Comment fonctionne le pronostic IA ?</summary>
+            <p>Quatre intelligences artificielles indépendantes analysent chaque course à partir des données officielles PMU (partants, cotes en direct, musique, jockeys). Leurs avis sont combinés en un consensus unique : un Quarté en 8 chevaux classés, avec 2 "coups sûrs" quand plusieurs IA s'accordent, et un score de confiance affiché sur chaque carte.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Est-ce que le site est gratuit ?</summary>
+            <p>La création de compte et l'essai gratuit donnent accès aux courses du jour et à un aperçu des pronostics. L'accès complet aux pronostics IA (8 chevaux + coups sûrs) sur toutes les courses nécessite l'abonnement Prestige. Le bilan de performance public, lui, reste visible par tous sans compte.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Les pronostics sont-ils garantis gagnants ?</summary>
+            <p>Non — aucun pronostic, humain ou IA, ne peut garantir un résultat. Turf Nova AI fournit un indice de confiance basé sur l'analyse des données disponibles avant chaque départ, pas une certitude. Le bilan de performance public affiche les vrais chiffres de couverture, calculés automatiquement sur les résultats officiels, pour juger sur pièces.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Comment fonctionne l'assistant qui répond aux questions ?</summary>
+            <p>L'assistant IA répond à partir des courses et des cotes du jour, ainsi que du pronostic de la "Course du jour" mise en avant. Il est limité à 15 questions par jour et par utilisateur, et ne répond qu'avec des données réelles — si une information n'est pas disponible, il le dit plutôt que d'inventer.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Puis-je annuler mon abonnement à tout moment ?</summary>
+            <p>Oui. L'abonnement Prestige n'est pas engageant : tu peux l'arrêter quand tu veux depuis ton compte, l'accès reste actif jusqu'à la fin de la période déjà payée.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Le site couvre-t-il toutes les réunions PMU ?</summary>
+            <p>Oui, toutes les réunions et disciplines (trot, plat, obstacle) du programme officiel PMU du jour sont listées avec cotes en direct. La "Course du jour" mise en avant sur la page d'accueil est choisie chaque jour et bénéficie d'une analyse IA approfondie en priorité.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Comment sont calculés les chiffres du bilan de performance ?</summary>
+            <p>Automatiquement, à partir des arrivées officielles PMU comparées à nos pronostics enregistrés — aucun chiffre saisi à la main. Le taux affiché ne prend en compte que les courses déjà vérifiées ; en dessous d'un petit nombre de courses vérifiées, aucun pourcentage n'est affiché pour éviter un chiffre trompeur.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="logo"><img src="/img/logo.png" alt="Turf Nova AI" width="480" height="329"></div>
+          <p class="brand-desc">Pronostics hippiques assistés par intelligence artificielle. Données, forme et cotes analysées avant chaque départ.</p>
+        </div>
+        <div>
+          <h4>Le site</h4>
+          <ul>
+            <li><a href="#resultats">Résultats en direct</a></li>
+            <li><a href="#courses">Courses du jour</a></li>
+            <li><a href="#ia">Pronostics IA</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="/blog.html">Blog</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Abonnements</h4>
+          <ul>
+            <li><a href="#abonnements">Derby — 35 000 FCFA/2 semaines</a></li>
+            <li><a href="#abonnements">Pesage — 60 000 FCFA/2 mois</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Légal</h4>
+          <ul>
+            <li><a href="/cgu.html">CGU</a></li>
+            <li><a href="/confidentialite.html">Confidentialité</a></li>
+            <li><a href="#">Jeu responsable</a></li>
+            <li><a href="admin.html">Administration</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="legal-note">
+        <b>Jouer comporte des risques :</b> endettement, isolement, dépendance. Interdit aux mineurs. Jouer doit rester un divertissement, jamais une nécessité — parlez-en à un proche ou un professionnel de santé en cas de difficulté.
+      </div>
+    </div>
+  </footer>
+
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="authClose">×</button>
+      <h3 id="authTitle">Créer un compte gratuit</h3>
+      <p class="sub" id="authSub">Nécessaire pour voir les pronostics IA (Quarté en 6 + coups sûrs).</p>
+      <div class="auth-error" id="authError"></div>
+
+      <div id="authStepCompte">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="authEmail" placeholder="toi@exemple.fr">
+        </div>
+        <div class="auth-field">
+          <label>Mot de passe</label>
+          <input type="password" id="authPassword" placeholder="6 caractères minimum">
+        </div>
+        <button class="auth-submit" id="authSubmit">Créer mon compte</button>
+      </div>
+
+      <div class="auth-switch" id="authSwitch">Déjà un compte ? <a id="authSwitchLink">Se connecter</a></div>
+    </div>
+  </div>
+
+  <div class="auth-overlay" id="paiementOverlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="paiementClose">×</button>
+      <h3 id="paiementTitre">Paiement — Abonnement Prestige</h3>
+      <p class="sub">Un numéro de téléphone est nécessaire pour le paiement (Mobile Money ou carte).</p>
+      <div class="auth-error" id="paiementError"></div>
+      <div class="auth-field">
+        <label>Numéro de téléphone (avec indicatif pays)</label>
+        <input type="tel" id="paiementTelephone" placeholder="+2250700000000">
+      </div>
+      <button class="auth-submit" id="paiementSubmit">Continuer vers le paiement</button>
+    </div>
+  </div>
+
+  <div class="auth-overlay" id="installOverlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="installClose">×</button>
+      <h3>Installer Turf Nova AI</h3>
+      <p class="sub" id="installTexte">Ajoute le site à ton écran d'accueil pour y accéder en un tap, comme une application.</p>
+    </div>
+  </div>
+
+<script>
+  function animateValue(el, target, suffix){
+    let start = 0;
+    const duration = 1100;
+    const startTime = performance.now();
+    function tick(now){
+      const p = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const current = Math.round(eased * target);
+      el.textContent = current + (suffix || "");
+      if(p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  const targets = document.querySelectorAll('[data-target]');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        const el = entry.target;
+        const target = parseInt(el.getAttribute('data-target'), 10);
+        const suffix = el.getAttribute('data-suffix') || "";
+        animateValue(el, target, suffix);
+        io.unobserve(el);
+      }
+    });
+  }, {threshold:0.5});
+  targets.forEach(el => io.observe(el));
+
+  // Sur Cloudflare, les fonctions /api/... sont servies sur le même domaine que le site.
+  const API_BASE = "";
+
+  const raceGrid = document.getElementById('raceGrid');
+  const hippoFilter = document.getElementById('hippoFilter');
+  const voirPlusWrap = document.getElementById('voirPlusWrap');
+  const liveFlag = document.getElementById('liveFlag');
+  const staticCardsHTML = raceGrid.innerHTML;
+
+  let toutesLesCourses = [];
+  let hippodromeActif = 'Toutes';
+  const COURSES_PAR_PAGE = 8;
+  let coursesVisibleLimit = COURSES_PAR_PAGE;
+
+  function construireFiltres(courses){
+    const compte = {};
+    courses.forEach(c => { compte[c.hippodrome] = (compte[c.hippodrome] || 0) + 1; });
+    const hippodromes = Object.keys(compte).sort();
+
+    const pills = [{ nom: 'Toutes', n: courses.length }, ...hippodromes.map(h => ({ nom: h, n: compte[h] }))];
+
+    hippoFilter.innerHTML = pills.map(p => `
+      <button class="hippo-pill ${p.nom === hippodromeActif ? 'active' : ''}" data-hippo="${p.nom}">
+        ${p.nom}<span class="count">${p.n}</span>
+      </button>`).join('');
+
+    hippoFilter.querySelectorAll('.hippo-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        hippodromeActif = btn.dataset.hippo;
+        coursesVisibleLimit = COURSES_PAR_PAGE;
+        hippoFilter.querySelectorAll('.hippo-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        afficherCourses();
+      });
+    });
+  }
+
+  function heureEnMinutes(heure){
+    const m = heure && heure.match(/(\d{1,2}):(\d{2})/);
+    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 9999;
+  }
+
+  function afficherCourses(){
+    let courses = hippodromeActif === 'Toutes'
+      ? toutesLesCourses
+      : toutesLesCourses.filter(c => c.hippodrome === hippodromeActif);
+
+    // Tri chronologique : courses à venir en premier, celles déjà passées reléguées en fin de liste.
+    const minMaintenant = new Date().getHours() * 60 + new Date().getMinutes();
+    courses = [...courses].sort((a, b) => {
+      const ma = heureEnMinutes(a.heure), mb = heureEnMinutes(b.heure);
+      const pa = ma < minMaintenant ? ma + 1440 : ma;
+      const pb = mb < minMaintenant ? mb + 1440 : mb;
+      return pa - pb;
+    });
+
+    const visibles = courses.slice(0, coursesVisibleLimit);
+    const reste = courses.length - visibles.length;
+
+    raceGrid.innerHTML = visibles.map(c => {
+      const favori = c.favori;
+      const favoriHTML = favori
+        ? `<span class="name">N°${favori.numero} ${favori.nom}</span><span class="odds">${favori.cote}</span>`
+        : `<span class="name">Cotes à venir</span>`;
+      const meta = [c.discipline, c.distance ? c.distance + 'm' : null, c.partants ? c.partants + ' partants' : null]
+        .filter(Boolean).join(' — ');
+
+      return `
+        <div class="race-card">
+          <div class="race-card__top"><span class="race-code">${c.reunion} · ${c.course}</span><span class="race-time">${c.heure || ''}</span></div>
+          <h3>${c.hippodrome}</h3>
+          <div class="race-meta">${meta}</div>
+          <div class="race-pick">${favoriHTML}</div>
+          <button class="ia-btn" data-reunion="${c.reunion}" data-course="${c.course}">Voir le pronostic IA</button>
+        </div>`;
+    }).join('');
+
+    raceGrid.querySelectorAll('.ia-btn').forEach(btn => {
+      btn.addEventListener('click', () => chargerPronosticIA(btn));
+    });
+
+    voirPlusWrap.innerHTML = reste > 0
+      ? `<button class="btn-outline" id="voirPlusCourses">Voir ${Math.min(reste, COURSES_PAR_PAGE)} courses de plus (${reste} restantes)</button>`
+      : '';
+    const voirPlusBtn = document.getElementById('voirPlusCourses');
+    if(voirPlusBtn){
+      voirPlusBtn.addEventListener('click', () => {
+        coursesVisibleLimit += COURSES_PAR_PAGE;
+        afficherCourses();
+      });
+    }
+  }
+
+  function renderLiveCourses(courses){
+    if(!courses || courses.length === 0) return false;
+    toutesLesCourses = courses;
+    hippodromeActif = 'Toutes';
+    coursesVisibleLimit = COURSES_PAR_PAGE;
+    construireFiltres(courses);
+    afficherCourses();
+    remplirMenuRecherche(courses);
+    return true;
+  }
+
+  // --- Menu de recherche custom : l'utilisateur choisit sa réunion/course et obtient le pronostic IA ---
+  const iaSearchBtn = document.getElementById('iaSearchBtn');
+  const iaSearchResult = document.getElementById('iaSearchResult');
+  let selectedReunion = '';
+  let selectedCourse = '';
+
+  function creerCselect(id){
+    return {
+      wrap: document.getElementById('cselect' + id),
+      trigger: document.getElementById('cselect' + id + 'Trigger'),
+      value: document.getElementById('cselect' + id + 'Value'),
+      panel: document.getElementById('cselect' + id + 'Panel'),
+    };
+  }
+  const cselectReunion = creerCselect('Reunion');
+  const cselectCourse = creerCselect('Course');
+
+  function fermerTousLesCselects(){
+    [cselectReunion, cselectCourse].forEach(c => {
+      c.panel.classList.remove('open');
+      c.trigger.classList.remove('open');
+    });
+  }
+
+  function ouvrirCselect(c){
+    const etaitOuvert = c.panel.classList.contains('open');
+    fermerTousLesCselects();
+    if(!etaitOuvert){
+      c.panel.classList.add('open');
+      c.trigger.classList.add('open');
+    }
+  }
+
+  function remplirCselect(c, options, onPick){
+    c.panel.innerHTML = options.map(o => `
+      <div class="cselect-option" data-value="${o.value}">
+        <span>${o.label}</span>
+        <span class="dot"></span>
+      </div>`).join('');
+    c.panel.querySelectorAll('.cselect-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const val = opt.dataset.value;
+        const label = opt.querySelector('span').textContent;
+        c.panel.querySelectorAll('.cselect-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        c.value.textContent = label;
+        fermerTousLesCselects();
+        onPick(val);
+      });
+    });
+  }
+
+  [cselectReunion, cselectCourse].forEach(c => {
+    c.trigger.addEventListener('click', () => {
+      if(c.trigger.disabled) return;
+      ouvrirCselect(c);
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if(!cselectReunion.wrap.contains(e.target) && !cselectCourse.wrap.contains(e.target)){
+      fermerTousLesCselects();
+    }
+  });
+
+  function remplirMenuRecherche(courses){
+    const reunions = [...new Set(courses.map(c => c.reunion))].sort((a, b) => {
+      return parseInt(a.replace('R',''), 10) - parseInt(b.replace('R',''), 10);
+    });
+    const options = reunions.map(r => {
+      const exemple = courses.find(c => c.reunion === r);
+      return { value: r, label: `${r} — ${exemple.hippodrome}` };
+    });
+    remplirCselect(cselectReunion, options, (r) => {
+      selectedReunion = r;
+      selectedCourse = '';
+      iaSearchResult.innerHTML = '';
+      const coursesReunion = toutesLesCourses
+        .filter(c => c.reunion === r)
+        .sort((a, b) => parseInt(a.course.replace('C',''), 10) - parseInt(b.course.replace('C',''), 10));
+      remplirCselect(cselectCourse, coursesReunion.map(c => ({ value: c.course, label: `${c.course} — ${c.heure}` })), (crs) => {
+        selectedCourse = crs;
+        iaSearchBtn.disabled = false;
+        iaSearchResult.innerHTML = '';
+      });
+      cselectCourse.trigger.disabled = false;
+      cselectCourse.value.textContent = '— Choisir —';
+      iaSearchBtn.disabled = true;
+    });
+  }
+
+  iaSearchBtn.addEventListener('click', () => {
+    const reunion = selectedReunion;
+    const course = selectedCourse;
+    if(!reunion || !course) return;
+
+    if(!estConnecte){
+      ouvrirAuth(() => iaSearchBtn.click());
+      return;
+    }
+
+    iaSearchBtn.disabled = true;
+    iaSearchResult.innerHTML = '';
+    const skeleton = creerSkeletonPronosticIA();
+    iaSearchResult.appendChild(skeleton);
+
+    fetch(`${API_BASE}/api/pronostic-ia?reunion=${reunion}&course=${course}`)
+      .then(res => {
+        if(res.status === 401){
+          estConnecte = false;
+          throw new Error('auth_required');
+        }
+        if(res.status === 402){
+          throw new Error('abonnement_requis');
+        }
+        return res.json();
+      })
+      .then(data => {
+        skeleton.remove();
+        iaSearchBtn.disabled = false;
+        if(!data.consensus){
+          iaSearchResult.innerHTML = `<div class="ia-search-error">Pronostic IA indisponible pour cette course.</div>`;
+          return;
+        }
+        const c = data.consensus;
+        const itemsHTML = (c.quarte8 || []).map(h => `
+          <div class="quarte-item ${h.coupSur ? 'coup-sur' : ''}">
+            <span class="pos">${h.position}</span>
+            <span class="nom">N°${h.numero} ${h.cheval}</span>
+            ${h.coupSur ? '<span class="coup-sur-tag">Coup sûr</span>' : ''}
+          </div>`).join('');
+        const sourcesHTML = (c.sources && c.sources.length)
+          ? `<div class="ia-sources">Analysé par ${c.sources.join(' · ')}</div>`
+          : '';
+        iaSearchResult.innerHTML = `
+          <div class="ia-result">
+            <div class="ia-conf">Quarté en 8 — ${c.confiance}% de confiance</div>
+            <div class="quarte-list">${itemsHTML}</div>
+            ${sourcesHTML}
+          </div>`;
+      })
+      .catch((err) => {
+        skeleton.remove();
+        iaSearchBtn.disabled = false;
+        if(err.message === 'abonnement_requis'){
+          iaSearchResult.innerHTML = `<div class="auth-required-msg">Ton accès aux pronostics IA est terminé ou pas encore activé. <a href="#abonnements">Voir les abonnements</a></div>`;
+          return;
+        }
+        if(err.message === 'auth_required'){
+          ouvrirAuth(() => iaSearchBtn.click());
+          return;
+        }
+        iaSearchResult.innerHTML = `<div class="ia-search-error">Erreur réseau, réessaie.</div>`;
+      });
+  });
+
+  function creerBoutonPronosticIA(reunion, course, texte){
+    const btn = document.createElement('button');
+    btn.className = 'ia-btn';
+    btn.dataset.reunion = reunion;
+    btn.dataset.course = course;
+    btn.textContent = texte;
+    btn.addEventListener('click', () => chargerPronosticIA(btn));
+    return btn;
+  }
+
+  function creerSkeletonPronosticIA(){
+    const skeleton = document.createElement('div');
+    skeleton.className = 'ia-skeleton';
+    skeleton.innerHTML = `
+      <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:70%;"></div></div>
+      <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:55%;"></div></div>
+      <div class="skeleton-row"><div class="skeleton skeleton-silk"></div><div class="skeleton skeleton-text" style="width:65%;"></div></div>
+    `;
+    return skeleton;
+  }
+
+  function chargerPronosticIA(btn){
+    const reunion = btn.dataset.reunion;
+    const course = btn.dataset.course;
+
+    if(!estConnecte){
+      ouvrirAuth(() => chargerPronosticIA(btn));
+      return;
+    }
+
+    const skeleton = creerSkeletonPronosticIA();
+    btn.replaceWith(skeleton);
+
+    fetch(`${API_BASE}/api/pronostic-ia?reunion=${reunion}&course=${course}`)
+      .then(res => {
+        if(res.status === 401){
+          estConnecte = false;
+          throw new Error('auth_required');
+        }
+        if(res.status === 402){
+          throw new Error('abonnement_requis');
+        }
+        return res.json();
+      })
+      .then(data => {
+        if(!data.consensus){
+          skeleton.replaceWith(creerBoutonPronosticIA(reunion, course, 'Pronostic IA indisponible'));
+          return;
+        }
+        const c = data.consensus;
+        const itemsHTML = c.quarte8.map(h => `
+          <div class="quarte-item ${h.coupSur ? 'coup-sur' : ''}">
+            <span class="pos">${h.position}</span>
+            <span class="nom">N°${h.numero} ${h.cheval}</span>
+            ${h.coupSur ? '<span class="coup-sur-tag">Coup sûr</span>' : ''}
+          </div>`).join('');
+
+        const sourcesHTML = (c.sources && c.sources.length)
+          ? `<div class="ia-sources">Analysé par ${c.sources.join(' · ')}</div>`
+          : '';
+
+        const box = document.createElement('div');
+        box.className = 'ia-result';
+        box.innerHTML = `
+          <div class="ia-conf">Quarté en 8 — ${c.confiance}% de confiance</div>
+          <div class="quarte-list">${itemsHTML}</div>
+          ${sourcesHTML}
+        `;
+        skeleton.replaceWith(box);
+      })
+      .catch((err) => {
+        if(err.message === 'abonnement_requis'){
+          const box = document.createElement('div');
+          box.className = 'auth-required-msg';
+          box.innerHTML = 'Ton accès aux pronostics IA est terminé ou pas encore activé. <a href="#abonnements">Voir les abonnements</a>';
+          skeleton.replaceWith(box);
+          return;
+        }
+        if(!estConnecte){
+          const retryBtn = creerBoutonPronosticIA(reunion, course, 'Voir le pronostic IA');
+          skeleton.replaceWith(retryBtn);
+          ouvrirAuth(() => chargerPronosticIA(retryBtn));
+          return;
+        }
+        skeleton.replaceWith(creerBoutonPronosticIA(reunion, course, 'Réessayer le pronostic IA'));
+      });
+  }
+
+  // --- PWA : bouton "Installer l'app" ---
+  // Le bouton reste visible en permanence. Si Chrome/Edge/Samsung Internet propose
+  // l'invite native (beforeinstallprompt), on l'utilise directement. Sinon (Safari iOS,
+  // ou Chrome qui n'a pas (re)déclenché l'événement cette visite), on affiche des
+  // instructions manuelles adaptées au navigateur plutôt que de cacher le bouton.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  // --- Notifications push : "le pronostic du jour est prêt" ---
+  // Clé publique VAPID (non secrète) — doit correspondre à VAPID_PUBLIC_KEY dans wrangler.jsonc.
+  const VAPID_PUBLIC_KEY = "BHcJMlQ0XsIboi6iCKs2IVfmEvU-Hylyx0m2ZWxbE4joYSxPOlHrcuXzFDmG4pxmWXwrx5U0pWBLIbbV-vYy0s8";
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  const btnActiverNotifs = document.getElementById('btnActiverNotifs');
+  const notifsSupportees = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+  function abonnementValide(subscription) {
+    // Compare la clé serveur enregistrée dans l'abonnement navigateur à celle
+    // actuellement utilisée par le site. Si elles diffèrent (ex. rotation de clé
+    // VAPID côté serveur), l'abonnement est mort : le service push le refusera.
+    if (!subscription || !subscription.options || !subscription.options.applicationServerKey) return false;
+    const actuelle = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    const enregistree = new Uint8Array(subscription.options.applicationServerKey);
+    if (actuelle.length !== enregistree.length) return false;
+    for (let i = 0; i < actuelle.length; i++) {
+      if (actuelle[i] !== enregistree[i]) return false;
+    }
+    return true;
+  }
+
+  async function obtenirAbonnementValide(registration) {
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription && !abonnementValide(subscription)) {
+      // Abonnement créé avec une ancienne clé VAPID : inutilisable, on le supprime
+      // pour pouvoir en recréer un propre avec la clé actuelle.
+      await subscription.unsubscribe().catch(() => {});
+      subscription = null;
+    }
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    return subscription;
+  }
+
+  async function synchroniserAbonnement(subscription) {
+    // Toujours renvoyer au serveur, même si l'abonnement existait déjà côté
+    // navigateur : la base D1 a pu être vidée (migration, changement de clé) sans
+    // que le navigateur en sache rien.
+    await fetch(`${API_BASE}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription.toJSON()),
+    });
+  }
+
+  function majBoutonNotifs(actif) {
+    if (!btnActiverNotifs) return;
+    const label = btnActiverNotifs.querySelector('.btn-notifs-label');
+    if (actif) {
+      if (label) label.textContent = 'Notifs activées';
+      btnActiverNotifs.classList.add('is-active');
+    } else {
+      if (label) label.textContent = 'Activer les notifs';
+      btnActiverNotifs.classList.remove('is-active');
+    }
+  }
+
+  async function activerNotificationsPush() {
+    if (!notifsSupportees) {
+      alert("Les notifications ne sont pas prises en charge par ce navigateur.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await obtenirAbonnementValide(registration);
+      await synchroniserAbonnement(subscription);
+
+      majBoutonNotifs(true);
+    } catch (e) {
+      console.error('[push] abonnement impossible', e);
+    }
+  }
+
+  if (btnActiverNotifs && notifsSupportees) {
+    btnActiverNotifs.style.display = 'inline-block';
+    btnActiverNotifs.addEventListener('click', activerNotificationsPush);
+
+    // Si déjà abonné (visite précédente) et permission déjà accordée : on vérifie que
+    // l'abonnement correspond à la clé VAPID actuelle et on le resynchronise avec le
+    // serveur silencieusement (sans redemander la permission), pour rattraper les cas
+    // où la base a été vidée ou la clé changée entre deux visites.
+    if (Notification.permission === 'granted') {
+      navigator.serviceWorker.ready
+        .then(async (registration) => {
+          const subscription = await obtenirAbonnementValide(registration);
+          await synchroniserAbonnement(subscription);
+          majBoutonNotifs(true);
+        })
+        .catch((e) => console.error('[push] resynchronisation impossible', e));
+    }
+  }
+
+  let inviteInstallation = null;
+  const btnInstallerApp = document.getElementById('btnInstallerApp');
+  const installOverlay = document.getElementById('installOverlay');
+  const installTexte = document.getElementById('installTexte');
+  const installClose = document.getElementById('installClose');
+
+  const dejaInstalle = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (dejaInstalle) {
+    btnInstallerApp.style.display = 'none';
+  }
+
+  // On ne bloque plus l'affichage automatique de Chrome ici : c'est justement lui qui
+  // produit la bannière native (icône + nom de l'app + bouton "Installer" dans un
+  // bandeau en haut) que tu voulais reproduire — pas la peine de la refaire en CSS,
+  // le navigateur s'en charge tout seul dès que le site remplit les critères PWA.
+  // On garde quand même une référence à l'événement pour le bouton "Installer l'app"
+  // du header, qui sert de solution de secours (visite où Chrome ne la déclenche pas
+  // tout seul, ou navigateur qui ne montre jamais de bannière automatique).
+  window.addEventListener('beforeinstallprompt', (e) => {
+    inviteInstallation = e;
+  });
+
+  function instructionsManuelles(){
+    const ua = navigator.userAgent;
+    const estIOS = /iPhone|iPad|iPod/.test(ua);
+    const estSamsung = /SamsungBrowser/.test(ua);
+    if(estIOS){
+      return "Sur iPhone/iPad : appuie sur l'icône de partage (le carré avec la flèche vers le haut) en bas de Safari, puis choisis « Sur l'écran d'accueil ».";
+    }
+    if(estSamsung){
+      return "Ouvre le menu (≡) de Samsung Internet en bas à droite, puis choisis « Ajouter une page à » → « Écran d'accueil ».";
+    }
+    return "Ouvre le menu (⋮) de ton navigateur en haut à droite, puis choisis « Installer l'application » ou « Ajouter à l'écran d'accueil ».";
+  }
+
+  btnInstallerApp.addEventListener('click', async () => {
+    if (inviteInstallation) {
+      inviteInstallation.prompt();
+      await inviteInstallation.userChoice;
+      inviteInstallation = null;
+      return;
+    }
+    installTexte.textContent = instructionsManuelles();
+    installOverlay.classList.add('open');
+  });
+
+  installClose.addEventListener('click', () => installOverlay.classList.remove('open'));
+  installOverlay.addEventListener('click', (e) => { if(e.target === installOverlay) installOverlay.classList.remove('open'); });
+
+  window.addEventListener('appinstalled', () => {
+    btnInstallerApp.style.display = 'none';
+  });
+
+  // --- Authentification ---
+  let estConnecte = false;
+  let apresConnexion = null;
+  let modeAuth = 'signup';
+
+  const authOverlay = document.getElementById('authOverlay');
+  const authTitle = document.getElementById('authTitle');
+  const authSub = document.getElementById('authSub');
+  const authError = document.getElementById('authError');
+  const authEmail = document.getElementById('authEmail');
+  const authPassword = document.getElementById('authPassword');
+  const authSubmit = document.getElementById('authSubmit');
+  const authSwitchLink = document.getElementById('authSwitchLink');
+  const authClose = document.getElementById('authClose');
+  const loginLink = document.getElementById('loginLink');
+  const btnEssaiGratuit = document.getElementById('btnEssaiGratuit');
+  const btnDeconnexion = document.getElementById('btnDeconnexion');
+
+  const authStepCompte = document.getElementById('authStepCompte');
+
+  function ouvrirAuth(callback){
+    apresConnexion = callback || null;
+    authError.textContent = '';
+    authEmail.value = '';
+    authPassword.value = '';
+    authStepCompte.style.display = '';
+    authOverlay.classList.add('open');
+  }
+
+  function fermerAuth(){
+    authOverlay.classList.remove('open');
+  }
+
+  function basculerMode(mode){
+    modeAuth = mode;
+    authError.textContent = '';
+    if(mode === 'signup'){
+      authTitle.textContent = 'Créer un compte gratuit';
+      authSub.textContent = 'Nécessaire pour voir les pronostics IA (Quarté en 6 + coups sûrs).';
+      authStepCompte.style.display = '';
+      authSubmit.textContent = 'Créer mon compte';
+      document.getElementById('authSwitch').innerHTML = 'Déjà un compte ? <a id="authSwitchLink">Se connecter</a>';
+    } else {
+      authTitle.textContent = 'Se connecter';
+      authSub.textContent = 'Accède aux pronostics IA avec ton compte.';
+      authStepCompte.style.display = '';
+      authSubmit.textContent = 'Se connecter';
+      document.getElementById('authSwitch').innerHTML = 'Pas encore de compte ? <a id="authSwitchLink">Créer un compte</a>';
+    }
+    document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode(mode === 'signup' ? 'login' : 'signup'));
+  }
+
+  authClose.addEventListener('click', fermerAuth);
+  authOverlay.addEventListener('click', (e) => { if(e.target === authOverlay) fermerAuth(); });
+  loginLink.addEventListener('click', (e) => { e.preventDefault(); basculerMode('login'); ouvrirAuth(); });
+  document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode('login'));
+
+  authSubmit.addEventListener('click', () => {
+    const email = authEmail.value.trim();
+    const password = authPassword.value;
+    authError.textContent = '';
+
+    if(!email || !password){
+      authError.textContent = 'Merci de remplir les deux champs.';
+      return;
+    }
+
+    const endpoint = modeAuth === 'signup' ? '/api/auth/signup' : '/api/auth/login';
+    const payload = { email, password };
+    authSubmit.disabled = true;
+
+    fetch(`${API_BASE}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        authSubmit.disabled = false;
+        if(!ok){
+          authError.textContent = data.message || data.error || 'Une erreur est survenue.';
+          return;
+        }
+        estConnecte = true;
+        majHeaderCompte(data.email);
+        fermerAuth();
+        if(apresConnexion) apresConnexion();
+      })
+      .catch(() => {
+        authSubmit.disabled = false;
+        authError.textContent = 'Connexion au serveur impossible, réessaie.';
+      });
+  });
+
+  function majHeaderCompte(email){
+    loginLink.textContent = email;
+    loginLink.title = email;
+    loginLink.href = '#';
+    loginLink.style.pointerEvents = 'none';
+    btnDeconnexion.style.display = 'inline-flex';
+    verifierEssai();
+  }
+
+  function reinitialiserHeaderCompte(){
+    loginLink.textContent = 'Se connecter';
+    loginLink.title = '';
+    loginLink.style.pointerEvents = '';
+    btnDeconnexion.style.display = 'none';
+    document.getElementById('essaiBanniere').style.display = 'none';
+  }
+
+  // --- Compteur d'essai gratuit visible ---
+  function verifierEssai(){
+    fetch(`${API_BASE}/api/abonnement/me`)
+      .then(res => res.json())
+      .then(data => {
+        const banniere = document.getElementById('essaiBanniere');
+        const texte = document.getElementById('essaiBanniereTexte');
+
+        if(data.plan !== 'essai' || data.status !== 'active' || !data.expires_at){
+          banniere.style.display = 'none';
+          return;
+        }
+
+        const msRestants = data.expires_at - Date.now();
+        if(msRestants <= 0){
+          banniere.style.display = 'none';
+          return;
+        }
+
+        const joursRestants = Math.ceil(msRestants / (24 * 60 * 60 * 1000));
+        const heuresRestantes = Math.ceil(msRestants / (60 * 60 * 1000));
+
+        if(joursRestants <= 1){
+          texte.textContent = heuresRestantes <= 1
+            ? "Ton essai gratuit se termine dans moins d'une heure !"
+            : `Ton essai gratuit se termine dans ${heuresRestantes} heures !`;
+          banniere.classList.add('urgent');
+        } else {
+          texte.textContent = `Ton essai gratuit se termine dans ${joursRestants} jours.`;
+          banniere.classList.remove('urgent');
+        }
+        banniere.style.display = 'block';
+      })
+      .catch(() => {});
+  }
+
+  btnDeconnexion.addEventListener('click', () => {
+    fetch(`${API_BASE}/api/auth/logout`, { method: 'POST' })
+      .catch(() => {})
+      .finally(() => {
+        estConnecte = false;
+        reinitialiserHeaderCompte();
+      });
+  });
+
+  fetch(`${API_BASE}/api/auth/me`)
+    .then(res => res.json())
+    .then(data => {
+      estConnecte = !!data.authenticated;
+      if(estConnecte) majHeaderCompte(data.email);
+    })
+    .catch(() => {});
+
+  // --- Choix de plan d'abonnement ---
+  function choisirPlan(btn){
+    const plan = btn.dataset.plan;
+
+    if(!estConnecte){
+      ouvrirAuth(() => choisirPlan(btn));
+      return;
+    }
+
+    if(plan === 'gratuit'){
+      const texteOriginal = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Enregistrement…';
+
+      fetch(`${API_BASE}/api/abonnement/choisir`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan })
+      })
+        .then(res => {
+          if(res.status === 401){ estConnecte = false; throw new Error('auth_required'); }
+          return res.json();
+        })
+        .then(data => {
+          if(data.error){
+            btn.disabled = false;
+            btn.textContent = texteOriginal;
+            return;
+          }
+          btn.textContent = 'Plan actif ✓';
+        })
+        .catch(() => {
+          if(!estConnecte) ouvrirAuth(() => choisirPlan(btn));
+          btn.disabled = false;
+          btn.textContent = texteOriginal;
+        });
+      return;
+    }
+
+    // Plans payants : paiement via Chariow (téléphone requis, puis redirection checkout)
+    ouvrirPaiement(plan);
+  }
+
+  document.querySelectorAll('.plan-btn').forEach(btn => {
+    btn.addEventListener('click', () => choisirPlan(btn));
+  });
+
+  // --- Paiement Chariow ---
+  const paiementOverlay = document.getElementById('paiementOverlay');
+  const paiementTitre = document.getElementById('paiementTitre');
+  const paiementClose = document.getElementById('paiementClose');
+  const paiementTelephone = document.getElementById('paiementTelephone');
+  const paiementSubmit = document.getElementById('paiementSubmit');
+  const paiementError = document.getElementById('paiementError');
+  let planEnCours = null;
+
+  const NOMS_PLANS = { prestige: 'Prestige', quinzaine: 'Derby' };
+
+  function ouvrirPaiement(plan){
+    planEnCours = plan;
+    paiementTitre.textContent = `Paiement — Abonnement ${NOMS_PLANS[plan] || plan}`;
+    paiementError.textContent = '';
+    paiementTelephone.value = '';
+    paiementOverlay.classList.add('open');
+  }
+
+  function fermerPaiement(){
+    paiementOverlay.classList.remove('open');
+  }
+
+  paiementClose.addEventListener('click', fermerPaiement);
+  paiementOverlay.addEventListener('click', (e) => { if(e.target === paiementOverlay) fermerPaiement(); });
+
+  paiementSubmit.addEventListener('click', () => {
+    const telephone = paiementTelephone.value.trim();
+    paiementError.textContent = '';
+
+    if(!/^\+[1-9]\d{7,14}$/.test(telephone)){
+      paiementError.textContent = 'Numéro invalide — format attendu : +2250700000000 (avec l\'indicatif du pays).';
+      return;
+    }
+
+    paiementSubmit.disabled = true;
+    paiementSubmit.textContent = 'Préparation du paiement…';
+
+    fetch(`${API_BASE}/api/paiement/initier`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: planEnCours, telephone })
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        paiementSubmit.disabled = false;
+        paiementSubmit.textContent = 'Continuer vers le paiement';
+        if(!ok || !data.checkout_url){
+          paiementError.textContent = data.error || 'Impossible de démarrer le paiement, réessaie.';
+          return;
+        }
+        window.location.href = data.checkout_url;
+      })
+      .catch(() => {
+        paiementSubmit.disabled = false;
+        paiementSubmit.textContent = 'Continuer vers le paiement';
+        paiementError.textContent = 'Connexion au serveur impossible, réessaie.';
+      });
+  });
+
+  const btnEssaiGratuitCarte = document.getElementById('btnEssaiGratuitCarte');
+  if(btnEssaiGratuitCarte){
+    btnEssaiGratuitCarte.addEventListener('click', () => {
+      if(estConnecte){
+        btnEssaiGratuitCarte.textContent = 'Ton compte est déjà créé';
+        btnEssaiGratuitCarte.disabled = true;
+        return;
+      }
+      basculerMode('signup');
+      ouvrirAuth();
+    });
+  }
+
+  // --- Liens de partage social (WhatsApp / Facebook) ---
+  (function initPartageSocial(){
+    const url = encodeURIComponent(window.location.href);
+    const texte = encodeURIComponent('TURF NOVA AI — Pronostics hippiques par intelligence artificielle');
+    const btnWA = document.getElementById('shareWhatsApp');
+    const btnFB = document.getElementById('shareFacebook');
+    if(btnWA) btnWA.href = `https://wa.me/?text=${texte}%20${url}`;
+    if(btnFB) btnFB.href = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+  })();
+
+  // --- Bannière de confirmation après retour de paiement Chariow réussi ---
+  (function afficherConfirmationPaiement(){
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('paiement') !== 'succes') return;
+
+    const pricingSection = document.getElementById('abonnements');
+    if(!pricingSection) return;
+    const planPaye = params.get('plan');
+    const nomPlanPaye = { prestige: 'Prestige', quinzaine: 'Derby' }[planPaye] || 'Prestige';
+    const banniere = document.createElement('div');
+    banniere.style.cssText = 'max-width:1180px; margin:0 auto 24px; padding:16px 20px; border-radius:6px; font-family:var(--font-mono); font-size:13px; background:var(--card); border:1px solid var(--gold); color:var(--gold-light);';
+    banniere.textContent = `Paiement reçu ✓ — ton abonnement ${nomPlanPaye} est activé automatiquement (quelques secondes de délai possible). Reconnecte-toi si besoin.`;
+    pricingSection.querySelector('.wrap').prepend(banniere);
+  })();
+
+  // --- Statistiques de réussite réelle (si des courses ont déjà été vérifiées) ---
+  const SEUIL_ECHANTILLON_MIN = 5; // sous ce seuil, un pourcentage serait trompeur — on n'affiche rien
+  fetch(`${API_BASE}/api/stats-performance`)
+    .then(res => res.json())
+    .then(data => {
+      if(data.pctCoupsSursPlaces == null) return; // pas encore assez de données vérifiées
+
+      // Ancien bloc de stats marketing (section plus bas sur la page) : on remplace le
+      // chiffre statique "75%" par le vrai taux dès qu'il est disponible.
+      const statEl = document.querySelector('.stat b span[data-target]');
+      if(statEl) statEl.setAttribute('data-target', data.pctCoupsSursPlaces);
+
+      // Tableau de bord "chiffres vérifiés" en haut de page — basé uniquement sur la
+      // "course du jour" (échantillon systématique, choisi avant le résultat), jamais
+      // sur les courses analysées à la demande.
+      if(data.totalCoursesVerifiees >= SEUIL_ECHANTILLON_MIN){
+        const verifSection = document.getElementById('verifStats');
+        verifSection.style.display = '';
+        animateValue(document.getElementById('verifPctCoupsSurs'), data.pctCoupsSursPlaces, '%');
+        animateValue(document.getElementById('verifTierce'), data.nombreTierceGagne ?? 0, '');
+        animateValue(document.getElementById('verifQuarte'), data.nombreQuarteGagne ?? 0, '');
+        animateValue(document.getElementById('verifTotal'), data.totalCoursesVerifiees, '');
+        // Valeur décimale (ex. 2.3/4) : affichée directement, animateValue arrondirait à l'entier.
+        const moyenneEl = document.getElementById('verifMoyenne');
+        if(moyenneEl){
+          moyenneEl.textContent = data.moyenneChevauxCorrectsSur4 != null ? `${data.moyenneChevauxCorrectsSur4}/4` : '–';
+        }
+      }
+    })
+    .catch(() => {});
+
+  fetch(`${API_BASE}/api/courses-du-jour`)
+    .then(res => { if(!res.ok) throw new Error('API indisponible'); return res.json(); })
+    .then(data => {
+      const ok = renderLiveCourses(data.courses);
+      if(ok){
+        liveFlag.textContent = data.source === 'live' ? 'En direct' : 'Cache';
+        liveFlag.classList.remove('demo');
+      }
+    })
+    .catch(() => {
+      raceGrid.innerHTML = staticCardsHTML;
+      liveFlag.textContent = 'Démo';
+    });
+
+  // --- Cadre résultats en direct ---
+  const resultatsList = document.getElementById('resultatsList');
+  const resultsFlag = document.getElementById('resultsFlag');
+
+  function renderResultats(resultats){
+    if(!resultats || resultats.length === 0){
+      resultatsList.innerHTML = `
+        <div class="resultats-empty">
+          <span class="big">En attente des premières arrivées</span>
+          Dès qu'une course se termine, son podium s'affiche automatiquement ici.
+        </div>`;
+      return;
+    }
+
+    resultatsList.innerHTML = resultats.map(r => {
+      const rowsHTML = r.podium.map(p => {
+        const cls = p.position === 1 ? 'p1' : p.position === 2 ? 'p2' : p.position === 3 ? 'p3' : 'p4';
+        return `
+          <tr class="${cls}">
+            <td><span class="place-badge">${p.position}</span></td>
+            <td><span class="cheval-num">N°${p.numero}</span><span class="cheval-nom">${p.nom}</span></td>
+            <td>${p.jockey || '—'}</td>
+            <td class="cote-val">${p.cote != null ? p.cote : '—'}</td>
+          </tr>`;
+      }).join('');
+
+      return `
+        <div class="resultat-row">
+          <div class="resultat-top">
+            <div class="resultat-meta">
+              <span class="code">${r.reunion} · ${r.course}</span>
+              <span class="lieu">${r.hippodrome}</span>
+              <span class="heure">${r.heure || ''}</span>
+              ${r.quarteReussi === true ? '<span class="badge-verifie">✅ Quarté réussi</span>' : (r.tierceReussi === true ? '<span class="badge-verifie badge-tierce">🥉 Tiercé réussi</span>' : '')}
+            </div>
+          </div>
+          <div class="podium-scroll">
+            <table class="podium-table">
+              <thead><tr><th>Place</th><th>Cheval</th><th>Jockey</th><th>Cote</th></tr></thead>
+              <tbody>${rowsHTML}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function chargerResultats(){
+    fetch(`${API_BASE}/api/resultats-du-jour`)
+      .then(res => { if(!res.ok) throw new Error('API indisponible'); return res.json(); })
+      .then(data => {
+        renderResultats(data.resultats);
+        resultsFlag.textContent = data.source === 'live' ? 'En direct' : 'Cache';
+        resultsFlag.classList.remove('demo');
+      })
+      .catch(() => {
+        resultsFlag.textContent = 'Démo';
+      });
+  }
+
+  function rendreChevauxCourseDuJour(quarte8){
+    const chevauxBox = document.getElementById('cdjChevaux');
+    chevauxBox.innerHTML = quarte8.map(c => `
+      <div class="pick-row" style="margin-bottom:6px;">
+        <div class="silk" style="background:linear-gradient(135deg,#0f4a30 50%,#c9a227 50%);"></div>
+        <div>
+          <div class="pick-name">N°${c.numero} — ${c.cheval}${c.coupSur ? ' <span style="color:var(--gold-light,#c9a227); font-size:11px; font-family:var(--font-mono);">COUP SÛR</span>' : ''}</div>
+          <div class="pick-sub">${c.jockey ? `Jockey/Driver ${c.jockey}` : `${c.position}ᵉ choix IA`}</div>
+        </div>
+        <div class="pick-odds">${c.cote != null ? c.cote : ''}</div>
+      </div>
+    `).join('');
+  }
+
+  function chargerCourseDuJour(){
+    const tag = document.getElementById('cdjTag');
+    const race = document.getElementById('cdjRace');
+    const meta = document.getElementById('cdjMeta');
+    const flap = document.getElementById('cdjFlap');
+    const confianceEl = document.getElementById('cdjConfiance');
+    const liste = document.getElementById('cdjListe');
+    const verrou = document.getElementById('cdjVerrou');
+    const verrouTexte = document.getElementById('cdjVerrouTexte');
+    const skeleton = document.getElementById('cdjSkeleton');
+    const contenu = document.getElementById('cdjContenu');
+
+    fetch(`${API_BASE}/api/course-du-jour`)
+      .then(res => { if(!res.ok) throw new Error('indisponible'); return res.json(); })
+      .then(data => {
+        skeleton.style.display = 'none';
+        contenu.style.display = '';
+        tag.textContent = `${data.reunion} · ${data.course} — QUINTÉ+ COMMUN PMU`;
+        race.textContent = [data.hippodrome, data.discipline, data.distance ? `${data.distance}m` : null]
+          .filter(Boolean).join(' · ') || 'Course du jour';
+        meta.textContent = data.partants ? `${data.partants} partants` : '';
+
+        // La confiance n'est pas verrouillée derrière un abonnement : on peut l'afficher
+        // dès qu'elle est disponible, avant même que l'utilisateur génère le détail.
+        if (data.confiance != null && data.confiance > 0) {
+          flap.style.display = '';
+          animateValue(confianceEl, data.confiance, '');
+        }
+
+        if (data.quarte8 && data.quarte8.length > 0) {
+          liste.style.display = '';
+          rendreChevauxCourseDuJour(data.quarte8);
+
+          if (data.verrouille) {
+            verrou.style.display = '';
+            verrouTexte.textContent = `Voir les ${data.chevauxCaches || (data.totalChevaux - data.quarte8.length)} autres chevaux`;
+          }
+        } else {
+          meta.textContent += (meta.textContent ? ' — ' : '') + 'Cotes/pronostic pas encore publiés, revenez un peu plus tard';
+        }
+      })
+      .catch(() => {
+        skeleton.style.display = 'none';
+        contenu.style.display = '';
+        race.textContent = 'Course du jour bientôt disponible';
+        meta.textContent = '';
+      });
+  }
+
+  // Même logique que le bouton "Voir le pronostic IA" des autres courses : le client doit
+  // être connecté pour générer/débloquer le détail complet (8 chevaux + coups sûrs).
+  function genererCourseDuJourComplet(){
+    const btn = document.getElementById('cdjGenererBtn');
+    if(!btn) return;
+
+    if(!estConnecte){
+      ouvrirAuth(() => genererCourseDuJourComplet());
+      return;
+    }
+
+    const verrou = document.getElementById('cdjVerrou');
+    btn.disabled = true;
+    btn.textContent = 'Génération en cours…';
+
+    fetch(`${API_BASE}/api/course-du-jour`)
+      .then(res => {
+        if(res.status === 401){
+          estConnecte = false;
+          throw new Error('auth_required');
+        }
+        if(!res.ok) throw new Error('indisponible');
+        return res.json();
+      })
+      .then(data => {
+        if(!data.quarte8 || data.quarte8.length === 0){
+          btn.disabled = false;
+          btn.textContent = 'Pronostic pas encore disponible';
+          return;
+        }
+
+        if(data.verrouille){
+          btn.disabled = false;
+          btn.textContent = 'Voir les abonnements';
+          btn.onclick = () => { window.location.hash = '#abonnements'; };
+          return;
+        }
+
+        // Accès complet : on affiche les 8 chevaux et on retire le verrou/bouton.
+        rendreChevauxCourseDuJour(data.quarte8);
+        verrou.style.display = 'none';
+      })
+      .catch((err) => {
+        btn.disabled = false;
+        if(!estConnecte){
+          ouvrirAuth(() => genererCourseDuJourComplet());
+          btn.textContent = 'Voir le pronostic IA';
+          return;
+        }
+        btn.textContent = 'Réessayer';
+      });
+  }
+
+  document.getElementById('cdjGenererBtn').addEventListener('click', genererCourseDuJourComplet);
+
+  function chargerTicker(){
+    const track = document.getElementById('tickerTrack');
+    fetch(`${API_BASE}/api/courses-du-jour`)
+      .then(res => { if(!res.ok) throw new Error('indisponible'); return res.json(); })
+      .then(data => {
+        const cards = data.courses || [];
+        if(cards.length === 0){ throw new Error('vide'); }
+
+        // Une entrée par hippodrome, avec l'heure de sa première course du jour.
+        const parHippodrome = {};
+        cards.forEach(c => {
+          if(!c.hippodrome || !c.heure) return;
+          if(!parHippodrome[c.hippodrome] || c.heure < parHippodrome[c.hippodrome]){
+            parHippodrome[c.hippodrome] = c.heure;
+          }
+        });
+
+        const items = Object.entries(parHippodrome)
+          .sort((a, b) => a[1].localeCompare(b[1]))
+          .map(([hippodrome, heure]) => `<span><b>${hippodrome}</b> ${heure}</span>`);
+
+        if(items.length === 0){ throw new Error('vide'); }
+
+        // Dupliqué pour un défilement continu sans coupure visuelle.
+        track.innerHTML = items.join('') + items.join('');
+      })
+      .catch(() => {
+        track.innerHTML = '<span>Programme du jour indisponible pour le moment</span>';
+      });
+  }
+
+  chargerTicker();
+  chargerCourseDuJour();
+  setInterval(chargerCourseDuJour, 60000);
+  chargerResultats();
+  setInterval(chargerResultats, 60000);
+  setInterval(() => { if(estConnecte) verifierEssai(); }, 5 * 60000);
+
+  // --- Chat IA (fonction générique réutilisée par la section intégrée ET la fenêtre flottante) ---
+  function initChatIA(messagesEl, inputEl, sendBtn){
+    function ajouterMessage(texte, type){
+      const div = document.createElement('div');
+      div.className = `chat-msg chat-msg--${type}`;
+      div.textContent = texte;
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return div;
+    }
+
+    function envoyerQuestion(){
+      const question = inputEl.value.trim();
+      if(!question) return;
+
+      if(!estConnecte){
+        ouvrirAuth(() => { inputEl.value = question; envoyerQuestion(); });
+        return;
+      }
+
+      ajouterMessage(question, 'user');
+      inputEl.value = '';
+      inputEl.disabled = true;
+      sendBtn.disabled = true;
+      const attente = ajouterMessage('…', 'bot');
+
+      fetch(`${API_BASE}/api/chat-ia`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      })
+        .then(res => {
+          if(res.status === 401){ estConnecte = false; throw new Error('auth_required'); }
+          return res.json().then(data => ({ ok: res.ok, data }));
+        })
+        .then(({ ok, data }) => {
+          if(!ok){
+            attente.remove();
+            if(data.error === 'limite_atteinte'){
+              ajouterMessage(data.message || 'Limite de questions atteinte pour aujourd\'hui.', 'erreur');
+            } else {
+              ajouterMessage(data.message || data.error || 'Une erreur est survenue, réessaie.', 'erreur');
+            }
+            return;
+          }
+          attente.remove();
+          ajouterMessage(data.reponse, 'bot');
+        })
+        .catch((err) => {
+          attente.remove();
+          if(err.message === 'auth_required'){
+            ouvrirAuth(() => { inputEl.value = question; envoyerQuestion(); });
+            return;
+          }
+          ajouterMessage('Erreur de connexion, réessaie dans un instant.', 'erreur');
+        })
+        .finally(() => {
+          inputEl.disabled = false;
+          sendBtn.disabled = false;
+          inputEl.focus();
+        });
+    }
+
+    sendBtn.addEventListener('click', envoyerQuestion);
+    inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') envoyerQuestion(); });
+  }
+</script>
+
+  <div class="ia-chat-wrap">
+    <button type="button" class="ia-chat-toggle" id="iaChatToggle" aria-label="Ouvrir l'assistant IA">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#0c0c0d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      <span class="ia-chat-toggle-badge">IA</span>
+    </button>
+    <div class="ia-chat-panel" id="iaChatPanel">
+      <div class="ia-chat-head">
+        <span>Assistant IA — Turf Nova</span>
+        <button type="button" class="ia-chat-close" id="iaChatClose" aria-label="Fermer">×</button>
+      </div>
+      <div class="chat-messages" id="iaChatMessages">
+        <div class="chat-msg chat-msg--bot">Demande-moi par exemple : « Quel cheval est le plus sûr aujourd'hui ? » ou « Quelles courses partent à Vincennes ? »</div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="iaChatInput" placeholder="Écris ta question ici…" maxlength="300">
+        <button type="button" class="btn-gold" id="iaChatSend">Envoyer</button>
+      </div>
+      <div class="chat-note">15 questions par jour, réponses basées uniquement sur les données du jour.</div>
+    </div>
+  </div>
+
+  <style>
+    .ia-chat-wrap{
+      position: fixed;
+      bottom: 94px;
+      right: 24px;
+      z-index: 998;
+    }
+    .ia-chat-toggle{
+      position: relative;
+      width: 58px;
+      height: 58px;
+      background: var(--gold);
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .ia-chat-toggle:hover{ transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+    .ia-chat-toggle-badge{
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      background: var(--card);
+      color: var(--gold-light);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      padding: 2px 5px;
+      border-radius: 8px;
+    }
+    .ia-chat-panel{
+      display: none;
+      position: fixed;
+      bottom: 162px;
+      right: 24px;
+      width: 340px;
+      max-width: calc(100vw - 32px);
+      height: 460px;
+      max-height: calc(100vh - 200px);
+      background: var(--card);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.5);
+      flex-direction: column;
+      overflow: hidden;
+      animation: whatsapp-bounce-in .25s ease both;
+    }
+    .ia-chat-panel.active{ display: flex; }
+    .ia-chat-head{
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-alt);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+    .ia-chat-close{
+      background: none; border: none; color: var(--text-dim);
+      font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 6px;
+    }
+    .ia-chat-close:hover{ color: var(--text); }
+    .ia-chat-panel .chat-messages{ flex: 1; overflow-y: auto; }
+    .ia-chat-panel .chat-input-row{ flex-shrink: 0; }
+    .ia-chat-panel .chat-note{ flex-shrink: 0; padding: 6px 14px 12px; }
+    @media (max-width: 640px){
+      .ia-chat-wrap{ bottom: 84px; right: 18px; }
+      .ia-chat-toggle{ width: 52px; height: 52px; }
+      .ia-chat-panel{
+        right: 12px; left: 12px; width: auto; bottom: 144px;
+        height: min(460px, calc(100vh - 180px));
+      }
+    }
+  </style>
+
+  <div class="whatsapp-wrap">
+    <a href="https://wa.me/22600000000?text=Bonjour%2C%20je%20souhaite%20plus%20d%27informations%20sur%20Turf%20Nova"
+       target="_blank" rel="noopener" class="whatsapp-float" aria-label="Contacter sur WhatsApp">
+      <svg viewBox="0 0 32 32" width="30" height="30" fill="#fff" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16.001 3C9.373 3 4 8.373 4 15c0 2.386.71 4.61 1.929 6.47L4 29l7.723-1.9A11.94 11.94 0 0 0 16.001 27C22.629 27 28 21.627 28 15S22.629 3 16.001 3zm0 21.818a9.77 9.77 0 0 1-4.98-1.36l-.357-.212-4.583 1.128 1.155-4.47-.233-.366A9.78 9.78 0 0 1 6.182 15c0-5.417 4.402-9.818 9.819-9.818S25.82 9.583 25.82 15 21.418 24.818 16.001 24.818zm5.36-7.34c-.294-.147-1.738-.858-2.008-.956-.27-.098-.466-.147-.663.147-.196.294-.76.956-.932 1.153-.171.196-.343.22-.637.073-.294-.147-1.24-.457-2.362-1.457-.873-.779-1.463-1.74-1.635-2.034-.171-.294-.018-.453.129-.6.132-.132.294-.343.441-.514.147-.171.196-.294.294-.49.098-.196.049-.367-.024-.514-.073-.147-.663-1.6-.909-2.192-.24-.575-.484-.497-.663-.506l-.564-.01c-.196 0-.514.073-.783.367-.27.294-1.03 1.007-1.03 2.457s1.055 2.85 1.202 3.047c.147.196 2.076 3.17 5.032 4.444.703.303 1.251.484 1.679.62.705.224 1.347.192 1.854.117.566-.085 1.738-.71 1.983-1.395.245-.686.245-1.273.171-1.395-.073-.123-.269-.196-.563-.343z"/>
+      </svg>
+      <span class="whatsapp-ping"></span>
+    </a>
+    <div class="whatsapp-bubble">
+      Besoin d'aide ? Écrivez-nous <strong>👋</strong>
+      <button type="button" class="whatsapp-bubble-close" aria-label="Fermer">×</button>
+    </div>
+  </div>
+
+  <style>
+    .whatsapp-wrap{
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+    .whatsapp-float{
+      position: relative;
+      width: 58px;
+      height: 58px;
+      background: #25D366;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+      flex-shrink: 0;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .whatsapp-float:hover{
+      transform: scale(1.08);
+      box-shadow: 0 6px 20px rgba(0,0,0,.45);
+    }
+    .whatsapp-ping{
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: #25D366;
+      opacity: .55;
+      animation: whatsapp-pulse 2.2s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes whatsapp-pulse{
+      0%   { transform: scale(1);   opacity: .55; }
+      70%  { transform: scale(1.7); opacity: 0; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
+    .whatsapp-bubble{
+      order: -1;
+      background: #fff;
+      color: #1f2a24;
+      font-family: var(--font-sans, inherit);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 34px 10px 14px;
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+      position: relative;
+      white-space: nowrap;
+      animation: whatsapp-bounce-in .4s ease .6s both;
+    }
+    .whatsapp-bubble::after{
+      content: "";
+      position: absolute;
+      right: -6px;
+      bottom: 20px;
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      transform: rotate(45deg);
+      box-shadow: 2px -2px 4px rgba(0,0,0,.05);
+    }
+    .whatsapp-bubble-close{
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: none;
+      border: none;
+      color: #9a9a9a;
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .whatsapp-bubble-close:hover{ color: #333; }
+    @keyframes whatsapp-bounce-in{
+      0%   { opacity: 0; transform: translateY(8px) scale(.9); }
+      70%  { opacity: 1; transform: translateY(-2px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (max-width: 640px){
+      .whatsapp-wrap{ bottom: 18px; right: 18px; }
+      .whatsapp-float{ width: 52px; height: 52px; }
+      .whatsapp-bubble{ display: none; } /* évite d'encombrer les petits écrans */
+    }
+  </style>
+
+  <script>
+    document.querySelector('.whatsapp-bubble-close')?.addEventListener('click', () => {
+      document.querySelector('.whatsapp-bubble').style.display = 'none';
+    });
+
+    // Fenêtre flottante de l'Assistant IA (réutilise la même logique que la
+    // section intégrée plus haut sur la page, via initChatIA).
+    const iaChatToggle = document.getElementById('iaChatToggle');
+    const iaChatPanel = document.getElementById('iaChatPanel');
+    const iaChatClose = document.getElementById('iaChatClose');
+
+    initChatIA(
+      document.getElementById('iaChatMessages'),
+      document.getElementById('iaChatInput'),
+      document.getElementById('iaChatSend')
+    );
+
+    iaChatToggle.addEventListener('click', () => {
+      iaChatPanel.classList.toggle('active');
+      if(iaChatPanel.classList.contains('active')){
+        document.getElementById('iaChatInput').focus();
+      }
+    });
+    iaChatClose.addEventListener('click', () => iaChatPanel.classList.remove('active'));
+  </script>
+
+<!-- Cloudflare Web Analytics : remplace TON_TOKEN_ICI par le token fourni dans
+     ton tableau de bord Cloudflare → Analytics & Logs → Web Analytics → Add a site.
+     Ne dépose aucun cookie, aucune donnée personnelle collectée. -->
+<script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "TON_TOKEN_ICI"}'></script>
+</body>
+</html>
