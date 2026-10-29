@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Contact - Nafora</title><meta name="description" content="Contacter l'équipe Nafora."><link rel="icon" type="image/png" href="/favicon.png"><style>:root{--bg:#f5f8ff;--fg:#111b40;--card:#fff;--link:#1a4bd1;--bar:#0b1f66;--barfg:#fff;--sub:#bcd1ff;color-scheme:light}html.dark{--bg:#050b24;--fg:#eef3ff;--card:#0f1b47;--link:#8fb0ff;--bar:#0b1f66;--barfg:#fff;--sub:#8fb0ff;color-scheme:dark}body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.6;color:var(--fg);margin:0;background:var(--bg)}header{background:var(--bar);color:var(--barfg);padding:14px 20px;border-bottom:3px solid #ffbf1f}header a{color:#fff;text-decoration:none;font-weight:800}main{max-width:760px;margin:0 auto;padding:28px 20px}h1{font-size:28px}h2{font-size:20px;margin-top:28px}footer{background:var(--bar);color:var(--sub);padding:18px 20px;font-size:14px;text-align:center}footer a{color:var(--sub);margin:0 8px}a{color:var(--link)}</style><script>try{var t=localStorage.getItem("sb-theme");if(t?t==="dark":matchMedia("(prefers-color-scheme: dark)").matches)document.documentElement.className="dark"}catch(e){}</script></head>
+<body><header><a href="/" aria-label="Nafora"><img src="/brand/logo-horizontal-dark.png" alt="Nafora" style="height:34px;width:auto;display:block"></a></header><main>
+<h1>Contact</h1>
+<p>Une question, un problème ou une suggestion ? Écrivez-nous. Nous répondons en français.</p>
+<p id="wa-box">Depuis votre compte Nafora, vous pouvez aussi nous joindre directement via l'assistance.</p>
+<h2>Commerçants déjà inscrits</h2>
+<p>Mot de passe oublié : utilisez le lien « Mot de passe oublié » sur l'écran de connexion. Nous vous contactons ensuite pour le réinitialiser.</p>
+<h2>Paiement de l'abonnement</h2>
+<p>Les abonnements se paient par Mobile Money depuis l'application (Paramètres, puis Abonnement). Chaque paiement est vérifié à la main.</p>
+<script>
+fetch('/api/plans').then(function(r){return r.json()}).then(function(p){
+  if(p&&p.whatsapp){document.getElementById('wa-box').innerHTML='Écrivez-nous sur WhatsApp : <a href="https://wa.me/'+p.whatsapp+'" rel="noopener">cliquez ici pour ouvrir la conversation</a>.'}
+}).catch(function(){});
+</script>
+</main><footer><a href="/">Accueil</a><a href="/a-propos.html">À propos</a><a href="/contact.html">Contact</a><a href="/confidentialite.html">Confidentialité</a><a href="/conditions.html">Conditions</a></footer></body></html>

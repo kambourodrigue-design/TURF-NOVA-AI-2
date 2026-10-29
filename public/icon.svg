@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f5af0" />
+      <stop offset="100%" stop-color="#0b1f66" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#19c0f0" />
+      <stop offset="100%" stop-color="#2f6bff" />
+    </linearGradient>
+  </defs>
+  <!-- Background with rounded squircle -->
+  <rect width="512" height="512" rx="120" fill="url(#bg)" />
+  
+  <!-- Subtle pattern / decorative ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#gold)" stroke-width="6" stroke-opacity="0.25" stroke-dasharray="16 12"/>
+  <circle cx="256" cy="256" r="185" fill="none" stroke="#ffffff" stroke-width="2" stroke-opacity="0.15"/>
+
+  <!-- Store Roof Canopy & Growth Arrow -->
+  <g transform="translate(256, 240) scale(1.15)">
+    <!-- Market Stall Roof -->
+    <path d="M -110,-40 L 0,-100 L 110,-40 L 90,-20 L 0,-70 L -90,-20 Z" fill="url(#gold)"/>
+    
+    <!-- Cashier / Storefront Base -->
+    <rect x="-85" y="-15" width="170" height="110" rx="16" fill="#ffffff" fill-opacity="0.95" />
+    
+    <!-- Doorway / Counter -->
+    <rect x="-35" y="25" width="70" height="70" rx="8" fill="url(#bg)" />
+    
+    <!-- Gold Coin / Currency symbol center -->
+    <circle cx="0" cy="5" r="20" fill="url(#gold)"/>
+    <text x="0" y="12" font-family="Arial, sans-serif" font-weight="900" font-size="20" fill="#78350f" text-anchor="middle">F</text>
+    
+    <!-- Dynamic Growth trend line upward right -->
+    <path d="M -70,55 L -35,35 L 5,45 L 65,-5" fill="none" stroke="#19c0f0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="65,-18 78,-5 60,3" fill="#19c0f0"/>
+  </g>
+
+  <!-- Stars / Trust badge -->
+  <circle cx="120" cy="120" r="14" fill="#fbbf24" opacity="0.9"/>
+  <circle cx="392" cy="120" r="14" fill="#fbbf24" opacity="0.9"/>
+</svg>
