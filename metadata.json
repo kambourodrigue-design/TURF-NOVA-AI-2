@@ -1,0 +1,6 @@
+{
+  "name": "Nafora - Gestion Commerçant & Score Crédit",
+  "description": "Application intuitive hors-ligne et en ligne pour commerçants et PME d'Afrique de l'Ouest : gestion des ventes, stocks, dépenses, carnet de créances, facturation et calcul du score de crédit bancaire.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

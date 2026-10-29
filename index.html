@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Nafora - Gestion Commerçant & Score Crédit</title>
+    <meta name="description" content="Application intuitive hors-ligne et en ligne pour commerçants et PME d'Afrique de l'Ouest : gestion des ventes, stocks, dépenses, carnet de créances, facturation et calcul du score de crédit bancaire." />
+    <meta name="theme-color" content="#050b24" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nafora" />
+    <link rel="preload" as="image" href="/brand/logo-stacked-dark.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    
+    <meta property="og:title" content="Nafora - Gestion Commerçant & Score Crédit" />
+    <meta property="og:description" content="Gestion des ventes, stocks, dépenses, carnet de créances, facturation et calcul du score de crédit bancaire pour commerçants d'Afrique de l'Ouest." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+      /* Thème appliqué avant l'affichage (évite le flash blanc en mode nuit) */
+      (function () {
+        try {
+          var t = localStorage.getItem('sb-theme');
+          var dark = t ? t === 'dark' : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) { document.documentElement.classList.add('dark'); document.querySelector('meta[name="theme-color"]').setAttribute('content', '#050b24'); }
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      :root { --boot-bg:#f5f8ff; --boot-fg:#0b1f66; --boot-sub:#4a5780; --boot-dim:#8d9bbc; color-scheme: light; }
+      :root.dark { --boot-bg:#050b24; --boot-fg:#eef3ff; --boot-sub:#93a3ce; --boot-dim:#7284b5; color-scheme: dark; }
+      html, body { background: var(--boot-bg); }
+      /* écran de démarrage = même logo, même taille et même fond que l'écran de chargement de l'application */
+      .boot-logo { height: 115px; width: auto; max-width: 90vw; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-stone-900 antialiased selection:bg-emerald-500 selection:text-white">
+    <div id="root"><div id="boot" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:system-ui,sans-serif;color:#eef3ff;background:#050b24;text-align:center;padding:24px">
+      <img class="boot-logo" src="/brand/logo-stacked-dark.png" alt="Nafora" width="164" height="115">
+      <div id="boot-msg" style="display:none;font-size:14px;color:#93a3ce"></div>
+      <div id="boot-detail" style="font-size:11px;color:#7284b5;max-width:320px;word-break:break-word"></div>
+      <button id="boot-fix" style="display:none;padding:12px 22px;border:0;border-radius:14px;background:#1a4bd1;color:#fff;font-weight:700;font-size:15px">Réparer et recharger</button>
+      <div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"><main style="max-width:720px;margin:0 auto;padding:32px 20px;font-family:system-ui,sans-serif;color:#1c1917">
+      <h1 style="font-size:28px;font-weight:800">Nafora : gérez votre commerce, même sans internet</h1>
+      <p>Application de gestion pour les commerçants et PME d'Afrique de l'Ouest : caisse, stocks, carnet de crédit clients, dépenses, trésorerie, score et dossier bancaire.</p>
+      <ul><li>Caisse rapide avec reçu WhatsApp</li><li>Suivi des stocks et alertes de rupture</li><li>Carnet de dettes clients et fournisseurs</li><li>Trésorerie : espèces, Mobile Money, banque</li><li>Fonctionne hors connexion et se synchronise automatiquement</li><li>Comptes pour vos employés (gérant, caissier)</li><li>Assistant intelligent en français</li></ul>
+      <p><a href="/a-propos.html">À propos</a> · <a href="/contact.html">Contact</a> · <a href="/confidentialite.html">Confidentialité</a> · <a href="/conditions.html">Conditions d'utilisation</a></p>
+      <noscript><p>Activez JavaScript pour utiliser l'application.</p></noscript>
+    </main></div>
+    </div>
+    <script>
+      var __errs = [];
+      var __note = function (m) {
+        m = String(m || '').slice(0, 220); if (!m || __errs.indexOf(m) >= 0) return; __errs.push(m);
+        try {
+          var d = document.getElementById('boot-detail'); if (d) d.textContent = __errs.slice(0, 3).join(' | ');
+          var body = JSON.stringify({ where: 'boot', message: m, url: location.pathname });
+          if (navigator.sendBeacon) navigator.sendBeacon('/api/log', new Blob([body], { type: 'application/json' }));
+        } catch (e) {}
+      };
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (t && t !== window && (t.src || t.href)) __note('Fichier non chargé : ' + (t.src || t.href));
+        else __note(e.message + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : ''));
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) { __note('Promesse refusée : ' + (e.reason && e.reason.message || e.reason)); });
+      setTimeout(function () {
+        var m = document.getElementById('boot-msg'), b = document.getElementById('boot-fix');
+        if (!m || !b) return;
+        m.style.display = 'block'; m.textContent = 'Le chargement est long. Vérifiez votre connexion puis touchez le bouton.';
+        b.style.display = 'block';
+        b.onclick = function () {
+          var done = function () { location.replace('/?r=' + Date.now()); };
+          try {
+            Promise.all([
+              navigator.serviceWorker ? navigator.serviceWorker.getRegistrations().then(function (r) { return Promise.all(r.map(function (x) { return x.unregister(); })); }) : 0,
+              window.caches ? caches.keys().then(function (k) { return Promise.all(k.map(function (x) { return caches.delete(x); })); }) : 0
+            ]).then(done, done);
+          } catch (e) { done(); }
+        };
+      }, 8000);
+    </script></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

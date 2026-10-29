@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@import "./theme-dark.css";
+
+/* ===== Thème Nafora : marine, bleu électrique, or ===== */
+@theme {
+  /* « emerald » = couleur de marque : bleu électrique / marine */
+  --color-emerald-50:  #eef4ff;
+  --color-emerald-100: #dde8ff;
+  --color-emerald-200: #bcd1ff;
+  --color-emerald-300: #8fb0ff;
+  --color-emerald-400: #5c8cff;
+  --color-emerald-500: #2f6bff;
+  --color-emerald-600: #1f5af0;
+  --color-emerald-700: #1a4bd1;
+  --color-emerald-800: #132f8f;
+  --color-emerald-900: #0b1f66;
+  --color-emerald-950: #060f3d;
+  /* « amber » = or du logo */
+  --color-amber-50:  #fff8e6;
+  --color-amber-100: #ffefc2;
+  --color-amber-200: #ffe08a;
+  --color-amber-300: #ffd04d;
+  --color-amber-400: #ffbf1f;
+  --color-amber-500: #f5a800;
+  --color-amber-600: #d98e00;
+  --color-amber-700: #b87300;
+  --color-amber-800: #8f5800;
+  --color-amber-900: #6b4200;
+  --color-amber-950: #3d2400;
+  /* « stone » = neutres à reflet marine */
+  --color-stone-50:  #f5f8ff;
+  --color-stone-100: #ebf0fb;
+  --color-stone-200: #dce3f2;
+  --color-stone-300: #c3cde3;
+  --color-stone-400: #8d9bbc;
+  --color-stone-500: #64729a;
+  --color-stone-600: #4a5780;
+  --color-stone-700: #36426a;
+  --color-stone-800: #1f2a52;
+  --color-stone-900: #111b40;
+  --color-stone-950: #070e2b;
+  /* « teal » = cyan du logo */
+  --color-teal-50:  #ecfaff;
+  --color-teal-100: #cff3ff;
+  --color-teal-200: #a3e7ff;
+  --color-teal-300: #5fd4fa;
+  --color-teal-400: #19c0f0;
+  --color-teal-500: #0aa6d6;
+  --color-teal-600: #0887b3;
+  --color-teal-700: #0b6c8f;
+  --color-teal-800: #0f566f;
+  --color-teal-900: #0e4256;
+  --color-teal-950: #082b3a;
+  /* « indigo » = violet (icône Stocks du logo) */
+  --color-indigo-50:  #f4f0ff;
+  --color-indigo-100: #e8dfff;
+  --color-indigo-200: #d2c1ff;
+  --color-indigo-300: #b79aff;
+  --color-indigo-400: #9b72ff;
+  --color-indigo-500: #8250f5;
+  --color-indigo-600: #6d3be0;
+  --color-indigo-700: #5a2fbf;
+  --color-indigo-800: #47269a;
+  --color-indigo-900: #361d75;
+  --color-indigo-950: #1f1045;
+}
+
+/* Couleurs des graphiques (suivent le thème) */
+:root {
+  --c-blue: #1a4bd1;  --c-blue-deep: #0b1f66;
+  --c-gold: #f5a800;  --c-gold-deep: #b87300;
+  --c-rose: #e11d48;  --c-rose-deep: #be123c;
+  --c-cyan: #0887b3;  --c-violet: #6d3be0;
+  --c-axis: #8d9bbc;  --c-grid: #ebf0fb;  --c-axis-line: #dce3f2;
+  color-scheme: light;
+}
+:root.dark {
+  --c-blue: #5c8cff;  --c-blue-deep: #bcd1ff;
+  --c-gold: #ffbf1f;  --c-gold-deep: #ffd04d;
+  --c-rose: #ff6b88;  --c-rose-deep: #ff9fb2;
+  --c-cyan: #19c0f0;  --c-violet: #9b72ff;
+  --c-axis: #7284b5;  --c-grid: #1c2c68;  --c-axis-line: #2a3c7e;
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Numeric values like prices in FCFA */
+  .font-mono-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-feature-settings: 'tnum' 1;
+  }
+}
+
+/* Print layout for Receipts & Bank Credit Dossier */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-card {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    break-inside: avoid;
+  }
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 114, 154, 0.45);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 114, 154, 0.75);
+}
+
+/* Bandeaux d'état (hors ligne / synchronisation) : apparition douce */
+@keyframes sb-pop { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes sb-pop-up { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+.sb-pop { animation: sb-pop .25s ease-out both; }
+.sb-pop-up { animation: sb-pop-up .25s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .sb-pop, .sb-pop-up { animation: none; } }
+
+/* Transition douce lors du changement de thème */
+html.theme-anim, html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after {
+  transition: background-color .25s ease, border-color .25s ease, color .2s ease !important;
+}
+
+/* Logo : variante fond clair en thème clair, variante fond sombre en thème nuit */
+.logo-on-dark { display: none; }
+.dark .logo-on-light { display: none; }
+.dark .logo-on-dark { display: inline-block; }
