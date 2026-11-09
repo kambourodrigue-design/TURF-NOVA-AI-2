@@ -350,26 +350,92 @@
   }
   .cdj-categorie{margin-bottom:12px;}
   .cdj-categorie-nom{font-family:var(--font-sans); font-size:12.5px; font-weight:600; color:var(--text-dim); margin-bottom:6px;}
-  .cdj-numeros{display:flex; flex-wrap:wrap; gap:8px;}
-  .cdj-numero-chip{
-    position:relative; font-family:var(--font-mono); font-size:13px; font-weight:700; color:var(--text);
-    background:var(--card-alt, #212124); border:1px solid var(--border-strong);
-    border-radius:20px; padding:5px 13px; cursor:default;
-  }
-  .cdj-numero-chip .forme-badge{
-    position:absolute; top:-7px; right:-6px; font-size:12px; line-height:1;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));
-  }
   .forme-badge-inline{color:var(--gold-light); font-weight:700; white-space:nowrap;}
-  .cdj-categorie-nom--sures ~ .cdj-numeros .cdj-numero-chip,
-  #cdjValeursSures .cdj-numero-chip{border-color:var(--green); color:var(--green-light);}
-  #cdjOutsiders .cdj-numero-chip{border-color:var(--gold); color:var(--gold-light);}
-  #cdjTocards .cdj-numero-chip{border-color:var(--rust); color:var(--rust-light);}
   .cdj-numeros-vide{font-family:var(--font-sans); font-size:12.5px; color:var(--text-dim); font-style:italic;}
 
-  /* ---------- Pronostic PREMIUM course du jour ---------- */
-  .cdj-premium{border-top:1px dashed var(--border-strong); padding-top:18px;}
-  .cdj-section-titre--premium{color:var(--gold-light);}
+  /* Tableau compact des sélections (gratuit + premium) */
+  .cdj-table{
+    width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0;
+    font-family:var(--font-sans); font-size:13.5px; color:var(--text);
+    background:var(--card-alt, #212124); border:1px solid var(--border-strong); border-radius:12px; overflow:hidden;
+  }
+  .cdj-table col.c-num{width:52px;}
+  .cdj-table col.c-cote{width:58px;}
+  .cdj-table thead th{
+    background:var(--bg-alt); color:var(--text-dim); text-align:left;
+    font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:8px 12px;
+  }
+  .cdj-table th.r, .cdj-table td.r{text-align:right;}
+  .cdj-table tr.grp td{
+    padding:7px 12px; font-size:11.5px; font-weight:700; letter-spacing:.02em; color:var(--cat);
+    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 10%, transparent);
+    border-top:1px solid var(--border); border-left:3px solid var(--cat);
+  }
+  .cdj-table tr.grp .n{font-weight:600; color:var(--text-dim); margin-left:4px;}
+  .cdj-table tr.row td{padding:8px 12px; border-top:1px solid var(--border); vertical-align:middle;}
+  .cdj-table tr.grp + tr.row td{border-top:none;}
+  .cdj-table .num{
+    display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:24px; padding:0 6px;
+    border-radius:7px; font-family:var(--font-mono); font-weight:800; font-size:12.5px;
+    color:var(--cat); border:1px solid var(--cat);
+    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 12%, transparent);
+  }
+  .cdj-table .nom{display:block; font-weight:600; color:var(--text); line-height:1.25; overflow-wrap:anywhere;}
+  .cdj-table .sub{display:block; margin-top:1px; font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cdj-table .cs{
+    display:inline-block; margin-left:6px; padding:1px 6px; border-radius:5px; vertical-align:1px;
+    font-size:9.5px; font-weight:800; letter-spacing:.05em; color:var(--gold-light);
+    border:1px solid var(--gold); white-space:nowrap;
+  }
+  .cdj-table .cote{font-family:var(--font-mono); font-weight:800; font-size:14px; color:var(--gold-light); text-align:right; white-space:nowrap;}
+  .cdj-table tr.row:hover td{background:rgba(255,255,255,.025);}
+  .cat-sures{--cat:var(--green-light);}
+  .cat-outsiders{--cat:var(--gold);}
+  .cat-tocards{--cat:var(--rust-light);}
+
+  /* ---------- Blocs séparés : gratuit / premium ---------- */
+  .cdj-panel{
+    background:var(--card); border:1px solid var(--border-strong); border-radius:14px; padding:14px;
+  }
+  .cdj-panel .cdj-section-titre{margin-bottom:10px; flex-wrap:wrap;}
+  .cdj-premium{
+    background:linear-gradient(160deg, rgba(201,162,39,.12), rgba(201,162,39,.02) 60%), var(--card);
+    border:1px solid rgba(201,162,39,.45); border-radius:14px; padding:14px;
+  }
+  [data-theme="light"] .cdj-premium{
+    background:linear-gradient(160deg, rgba(124,58,237,.10), rgba(124,58,237,.02) 60%), var(--card);
+    border-color:rgba(124,58,237,.4);
+  }
+  .cdj-section-titre--premium{color:var(--gold-light); margin-bottom:10px;}
+  .cdj-badge-premium{
+    font-family:var(--font-sans); font-size:10.5px; text-transform:none; letter-spacing:0; font-weight:700;
+    color:var(--gold-light); border:1px solid var(--gold); padding:2px 9px; border-radius:20px;
+  }
+
+  .cat-comp{--cat:var(--gold-light);}
+  .cdj-complement{margin-top:16px; padding-top:14px; border-top:1px dashed var(--border-strong);}
+  .cdj-complement__titre{
+    display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px;
+    font-family:var(--font-sans); font-size:13px; font-weight:700; color:var(--gold-light);
+  }
+  .cdj-badge-option{
+    font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-dim);
+    border:1px solid var(--border-strong); padding:1px 8px; border-radius:20px;
+  }
+  .cdj-complement__note{font-family:var(--font-sans); font-size:12px; color:var(--text-dim); line-height:1.45; margin-bottom:10px;}
+
+  /* Tableau gratuit : 3 colonnes (une par catégorie), numéros + cotes */
+  .cdj-table--grid thead th{
+    text-align:center; color:var(--cat); font-size:11px; letter-spacing:.02em; text-transform:none; padding:9px 4px;
+    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 10%, transparent);
+    border-bottom:2px solid var(--cat);
+  }
+  .cdj-table--grid td{padding:9px 4px; border-top:1px solid var(--border); text-align:center; vertical-align:middle;}
+  .cdj-table--grid tbody tr:first-child td{border-top:none;}
+  .cdj-table--grid td + td, .cdj-table--grid th + th{border-left:1px solid var(--border);}
+  .cdj-table--grid .cell{display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;}
+  .cdj-table--grid .cell .cote{font-size:12px; font-weight:700; color:var(--text-dim);}
+  .cdj-table--grid .vide{color:var(--text-dim); opacity:.5;}
 
   /* ---------- Bannière de déverrouillage Premium (après le gratuit) ---------- */
   .cdj-unlock{
@@ -922,14 +988,6 @@
   <header class="site-header">
     <div class="wrap">
       <div class="logo">Turf Nova <span class="dot">AI</span></div>
-      <nav class="main-nav" id="mainNav">
-        <a href="#resultats">Résultats en direct</a>
-        <a href="#courses">Courses du jour</a>
-        <a href="#ia">Pronostics IA</a>
-        <a href="#faq">FAQ</a>
-        <a href="/blog.html">Blog</a>
-        <a href="#abonnements">Abonnements</a>
-      </nav>
       <div class="header-actions">
         <button class="btn-outline" id="btnThemeToggle" title="Changer d'apparence" aria-label="Basculer entre mode sombre et mode clair">🌙</button>
         <button class="btn-outline" id="btnActiverNotifs" style="display:none;">🔔 <span class="btn-notifs-label">Activer les notifs</span></button>
@@ -957,7 +1015,6 @@
           <h1>L'IA qui <em>devine</em> l'arrivée.</h1>
           <p class="lead">Notre modèle croise forme, terrain, cotes et historique pour livrer un pronostic chiffré, course par course, avant chaque départ.</p>
           <div class="hero-actions">
-            <a href="#resultats" class="btn-gold">Voir les résultats en direct</a>
             <a href="#ia" class="btn-outline">Comment ça marche</a>
           </div>
           <div class="hero-note">12 hippodromes suivis en direct — mise à jour à chaque cote.</div>
@@ -984,18 +1041,9 @@
               <div class="feature-card__meta" id="cdjMeta"></div>
 
               <div class="cdj-gratuit" id="cdjGratuit" style="display:none; margin-top:16px;">
-                <div class="cdj-section-titre">🎁 Pronostic gratuit du jour <span class="cdj-badge-gratuit">10 numéros</span></div>
-                <div class="cdj-categorie">
-                  <div class="cdj-categorie-nom cdj-categorie-nom--sures">🟢 Valeurs sûres</div>
-                  <div class="cdj-numeros" id="cdjValeursSures"></div>
-                </div>
-                <div class="cdj-categorie">
-                  <div class="cdj-categorie-nom cdj-categorie-nom--outsiders">🟡 Outsiders</div>
-                  <div class="cdj-numeros" id="cdjOutsiders"></div>
-                </div>
-                <div class="cdj-categorie">
-                  <div class="cdj-categorie-nom cdj-categorie-nom--tocards">🔴 Tocards</div>
-                  <div class="cdj-numeros" id="cdjTocards"></div>
+                <div class="cdj-panel">
+                  <div class="cdj-section-titre">🎁 Pronostic gratuit du jour <span class="cdj-badge-gratuit">10 numéros</span></div>
+                  <div id="cdjGratuitTable"></div>
                 </div>
 
                 <div class="cdj-unlock" id="cdjUnlock">
@@ -1005,15 +1053,16 @@
                 </div>
               </div>
 
-              <div class="cdj-premium" id="cdjPremiumBox" style="display:none; margin-top:20px;">
+              <div class="cdj-premium" id="cdjPremiumBox" style="display:none; margin-top:16px;">
                 <div class="flap" id="cdjFlap" style="display:none;">
                   <span class="flap-label">Indice de confiance</span>
                   <span class="flap-value"><span id="cdjConfiance">00</span>%</span>
                 </div>
 
                 <div id="cdjPremiumContenu" style="display:none; margin-top:12px;">
-                  <div class="cdj-section-titre cdj-section-titre--premium">🔒 PRONOSTIC PREMIUM course du jour</div>
+                  <div class="cdj-section-titre cdj-section-titre--premium">⭐ Pronostic Premium IA <span class="cdj-badge-premium">6 numéros · abonnés</span></div>
                   <div id="cdjChevaux" style="margin-top:12px;"></div>
+                  <div id="cdjComplement" style="display:none;"></div>
                 </div>
               </div>
 
@@ -1021,29 +1070,6 @@
                 Course commune PMU jouée simultanément dans plusieurs pays de l'UEMOA.
               </p>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="verif-stats" id="verifStats" style="display:none;">
-      <div class="wrap">
-        <div class="verif-stats__head">
-          <span class="live-flag" style="border-color:var(--green); color:var(--green-light);">Chiffres vérifiés</span>
-          <span class="verif-stats__note">Calculés automatiquement à partir des arrivées officielles PMU — aucun chiffre saisi à la main.</span>
-        </div>
-        <div class="verif-stats__grid">
-          <div class="verif-stat">
-            <b id="verifPlace">–</b>
-            <span>de courses avec au moins un "coup sûr" placé dans l'arrivée</span>
-          </div>
-          <div class="verif-stat">
-            <b id="verifQuarte">–</b>
-            <span>Quartés en 8 gagnés (les 4 chevaux d'arrivée dans notre sélection)</span>
-          </div>
-          <div class="verif-stat">
-            <b id="verifTotal">–</b>
-            <span>courses vérifiées sur résultats officiels</span>
           </div>
         </div>
       </div>
@@ -1448,7 +1474,7 @@
           </details>
           <details class="faq-item">
             <summary>Est-ce que le site est gratuit ?</summary>
-            <p>Le pronostic gratuit du jour (10 numéros classés en Valeurs sûres, Outsiders et Tocards) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (8 chevaux classés, coups sûrs, jockeys et cotes détaillés) nécessite un abonnement Derby ou Prestige. Le bilan de performance public, lui, reste visible par tous sans compte.</p>
+            <p>Le pronostic gratuit du jour (10 numéros classés en Valeurs sûres, Outsiders et Tocards) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec coups sûrs, jockeys et cotes détaillés) nécessite un abonnement Derby ou Prestige. Le bilan de performance public, lui, reste visible par tous sans compte.</p>
           </details>
           <details class="faq-item">
             <summary>Les pronostics sont-ils garantis gagnants ?</summary>
@@ -1485,7 +1511,6 @@
         <div>
           <h4>Le site</h4>
           <ul>
-            <li><a href="#resultats">Résultats en direct</a></li>
             <li><a href="#courses">Courses du jour</a></li>
             <li><a href="#ia">Pronostics IA</a></li>
             <li><a href="#faq">FAQ</a></li>
@@ -1519,7 +1544,7 @@
     <div class="auth-modal">
       <button class="auth-close" id="authClose">×</button>
       <h3 id="authTitle">Créer un compte gratuit</h3>
-      <p class="sub" id="authSub">Nécessaire pour voir le Pronostic PREMIUM (8 chevaux classés + coups sûrs).</p>
+      <p class="sub" id="authSub">Nécessaire pour voir le Pronostic PREMIUM (6 chevaux : 3 bases, 2 outsiders, 1 tocard + coups sûrs).</p>
       <div class="auth-error" id="authError"></div>
 
       <div id="authStepCompte">
@@ -2143,7 +2168,7 @@
     authError.textContent = '';
     if(mode === 'signup'){
       authTitle.textContent = 'Créer un compte gratuit';
-      authSub.textContent = 'Nécessaire pour voir le Pronostic PREMIUM (8 chevaux classés + coups sûrs).';
+      authSub.textContent = 'Nécessaire pour voir le Pronostic PREMIUM (6 chevaux : 3 bases, 2 outsiders, 1 tocard + coups sûrs).';
       authStepCompte.style.display = '';
       authSubmit.textContent = 'Créer mon compte';
       document.getElementById('authSwitch').innerHTML = 'Déjà un compte ? <a id="authSwitchLink">Se connecter</a>';
@@ -2380,16 +2405,6 @@
       const statEl = document.querySelector('.stat b span[data-target]');
       if(statEl) statEl.setAttribute('data-target', data.tauxAuMoinsUnCoupSur);
 
-      // Tableau de bord "chiffres vérifiés" en haut de page.
-      if(data.totalCoursesVerifiees >= SEUIL_ECHANTILLON_MIN){
-        const verifSection = document.getElementById('verifStats');
-        verifSection.style.display = '';
-        animateValue(document.getElementById('verifPlace'), data.tauxAuMoinsUnCoupSur, '%');
-        if(data.nombreQuarteGagne != null){
-          animateValue(document.getElementById('verifQuarte'), data.nombreQuarteGagne, '');
-        }
-        animateValue(document.getElementById('verifTotal'), data.totalCoursesVerifiees, '');
-      }
     })
     .catch(() => {});
 
@@ -2466,54 +2481,93 @@
       });
   }
 
-  // Regroupe les 8 chevaux du Premium par cote croissante (le tableau quarte8
-  // est déjà trié du favori du marché au plus gros outsider) en 3 catégories :
-  // Bases (3), Outsiders (3), Tocards (2) — réduit proportionnellement si
-  // l'IA a produit moins de 8 chevaux.
-  function rendreChevauxCourseDuJour(quarte8){
-    const chevauxBox = document.getElementById('cdjChevaux');
-    const total = quarte8.length;
-    const nBases = Math.min(3, total);
-    const nOutsiders = Math.min(3, total - nBases);
-    const nTocards = total - nBases - nOutsiders;
+  const escHtml = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
-    const rendreItem = (c) => `
-      <div class="pick-row" style="margin-bottom:6px;">
-        <div class="silk" style="background:linear-gradient(135deg,#0f4a30 50%,#c9a227 50%);"></div>
-        <div>
-          <div class="pick-name">N°${c.numero} — ${c.cheval}${c.coupSur ? ' <span style="color:var(--gold-light,#c9a227); font-size:11px; font-family:var(--font-mono);">COUP SÛR</span>' : ''}</div>
-          <div class="pick-sub">${c.jockey ? `Jockey/Driver ${c.jockey}` : `${c.position}ᵉ choix IA`}${c.enForme ? ' <span class="forme-badge-inline">🔥 En forme</span>' : ''}</div>
-        </div>
-        <div class="pick-odds">${c.cote != null ? c.cote : ''}</div>
-      </div>
-    `;
-
-    const groupes = [
-      { nom: '🟢 Bases', classe: 'sures', items: quarte8.slice(0, nBases) },
-      { nom: '🟡 Outsiders', classe: 'outsiders', items: quarte8.slice(nBases, nBases + nOutsiders) },
-      { nom: '🔴 Tocards', classe: 'tocards', items: quarte8.slice(nBases + nOutsiders, nBases + nOutsiders + nTocards) },
-    ].filter(g => g.items.length);
-
-    chevauxBox.innerHTML = groupes.map(g => `
-      <div class="cdj-categorie">
-        <div class="cdj-categorie-nom cdj-categorie-nom--${g.classe}">${g.nom}</div>
-        ${g.items.map(rendreItem).join('')}
-      </div>
-    `).join('');
+  // Tableau compact : groupes = [{ nom, classe, items }], avec sous-ligne (jockey / choix IA)
+  // et badge COUP SÛR uniquement pour le Premium.
+  function rendreTableauPronos(groupes, premium){
+    const lignes = groupes.filter(g => g.items && g.items.length).map(g => {
+      const rows = g.items.map(c => {
+        const forme = c.enForme ? ' <span title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
+        const cs = (premium && c.coupSur) ? '<span class="cs">COUP SÛR</span>' : '';
+        const sub = premium
+          ? `<span class="sub">${c.jockey ? escHtml(c.jockey) : escHtml(c.position) + 'ᵉ choix IA'}</span>`
+          : (c.jockey ? `<span class="sub">${escHtml(c.jockey)}</span>` : '');
+        return `<tr class="row cat-${g.classe}">
+          <td><span class="num">${escHtml(c.numero)}</span></td>
+          <td><span class="nom">${escHtml(c.cheval)}${forme}${cs}</span>${sub}</td>
+          <td class="cote">${c.cote != null ? escHtml(c.cote) : '–'}</td>
+        </tr>`;
+      }).join('');
+      return `<tr class="grp cat-${g.classe}"><td colspan="3">${g.nom}<span class="n">· ${g.items.length}</span></td></tr>${rows}`;
+    }).join('');
+    if (!lignes) return '<span class="cdj-numeros-vide">—</span>';
+    return `<table class="cdj-table">
+      <colgroup><col class="c-num"><col><col class="c-cote"></colgroup>
+      <thead><tr><th>N°</th><th>Cheval</th><th class="r">Cote</th></tr></thead>
+      <tbody>${lignes}</tbody></table>`;
   }
 
-  function rendreNumerosGratuits(elId, chevaux){
-    const box = document.getElementById(elId);
-    if (!box) return;
-    if (!chevaux || !chevaux.length) {
-      box.innerHTML = '<span class="cdj-numeros-vide">—</span>';
-      return;
+  // Premium : les 6 meilleurs choix de l'IA (position 1 à 6) sont classés par cote croissante
+  // en 3 Bases, 2 Outsiders, 1 Tocard (réduit proportionnellement s'il y en a moins de 6).
+  // Les choix suivants de l'IA (position 7 et 8) forment le "Complément" optionnel, destiné
+  // à viser un plus gros rapport.
+  function rendreChevauxCourseDuJour(quarte8){
+    const chevauxBox = document.getElementById('cdjChevaux');
+    const complBox = document.getElementById('cdjComplement');
+    const cote = (c) => (c.cote != null && !isNaN(c.cote)) ? Number(c.cote) : Infinity;
+    const parCote = (a, b) => cote(a) - cote(b);
+    const classes = quarte8.slice().sort((a, b) => (a.position ?? 99) - (b.position ?? 99));
+    const six = classes.slice(0, 6).sort(parCote);
+    const complement = classes.slice(6, 8).sort(parCote);
+    const total = six.length;
+    const nBases = Math.min(3, total);
+    const nOutsiders = Math.min(2, total - nBases);
+    const nTocards = Math.min(1, total - nBases - nOutsiders);
+    chevauxBox.innerHTML = rendreTableauPronos([
+      { nom: 'Bases', classe: 'sures', items: six.slice(0, nBases) },
+      { nom: 'Outsiders', classe: 'outsiders', items: six.slice(nBases, nBases + nOutsiders) },
+      { nom: 'Tocard', classe: 'tocards', items: six.slice(nBases + nOutsiders, nBases + nOutsiders + nTocards) },
+    ], true);
+
+    if (complBox) {
+      if (complement.length) {
+        complBox.style.display = '';
+        complBox.className = 'cdj-complement';
+        complBox.innerHTML = `
+          <div class="cdj-complement__titre">➕ Complément · Gros rapport <span class="cdj-badge-option">Option</span></div>
+          <div class="cdj-complement__note">${complement.length} cheval${complement.length > 1 ? 'x' : ''} en plus, à ajouter à ta combinaison si tu veux viser un plus gros rapport.</div>
+          ${rendreTableauPronos([{ nom: 'Complément', classe: 'comp', items: complement }], true)}`;
+      } else {
+        complBox.style.display = 'none';
+        complBox.innerHTML = '';
+      }
     }
-    box.innerHTML = chevaux.map(c => {
-      const titre = c.jockey ? `${c.cheval} — ${c.jockey}` : c.cheval;
-      const badge = c.enForme ? '<span class="forme-badge" title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
-      return `<span class="cdj-numero-chip" title="${titre}">N°${c.numero}${badge}</span>`;
-    }).join('');
+  }
+
+  // Tableau gratuit : numéros et cotes uniquement (pas de nom de cheval), une colonne par catégorie.
+  function rendreGratuitTableau(g){
+    const box = document.getElementById('cdjGratuitTable');
+    if (!box) return;
+    const cols = [
+      { nom: 'Valeurs sûres', classe: 'sures', items: g.valeursSures || [] },
+      { nom: 'Outsiders', classe: 'outsiders', items: g.outsiders || [] },
+      { nom: 'Tocards', classe: 'tocards', items: g.tocards || [] },
+    ];
+    const n = Math.max(...cols.map(c => c.items.length));
+    if (!n) { box.innerHTML = '<span class="cdj-numeros-vide">—</span>'; return; }
+    const head = cols.map(c => `<th class="cat-${c.classe}">${c.nom}</th>`).join('');
+    let body = '';
+    for (let i = 0; i < n; i++) {
+      body += '<tr>' + cols.map(c => {
+        const h = c.items[i];
+        if (!h) return '<td><span class="vide">–</span></td>';
+        const forme = h.enForme ? '<span title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
+        const cote = h.cote != null ? `<span class="cote">${escHtml(h.cote)}</span>` : '';
+        return `<td class="cat-${c.classe}"><span class="cell"><span class="num">${escHtml(h.numero)}</span>${cote}${forme}</span></td>`;
+      }).join('') + '</tr>';
+    }
+    box.innerHTML = `<table class="cdj-table cdj-table--grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   }
 
   // Rassemble les chevaux du gratuit + du Premium (avec cote connue) pour
@@ -2559,9 +2613,7 @@
         // Pronostic gratuit (10 numéros, 3 catégories) : toujours affiché, sans compte ni abonnement.
         if (data.gratuit) {
           gratuit.style.display = '';
-          rendreNumerosGratuits('cdjValeursSures', data.gratuit.valeursSures);
-          rendreNumerosGratuits('cdjOutsiders', data.gratuit.outsiders);
-          rendreNumerosGratuits('cdjTocards', data.gratuit.tocards);
+          rendreGratuitTableau(data.gratuit);
         }
 
         // Bannière d'accroche vers le Premium : si l'utilisateur a déjà un accès actif
@@ -3085,6 +3137,78 @@
     });
     iaChatClose.addEventListener('click', () => iaChatPanel.classList.remove('active'));
   </script>
+
+
+<style id="bottomNavStyle">
+  /* ---------- Barre de navigation flottante (mobile / tablette) ---------- */
+  .bottom-nav{display:none;}
+  @media (min-width:0px){
+    body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+    section[id]{scroll-margin-top:90px;}
+    .bottom-nav{
+      display:flex; align-items:stretch; gap:2px;
+      position:fixed; left:50%; transform:translateX(-50%);
+      bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+      width:calc(100% - 24px); max-width:520px; padding:6px; z-index:997;
+      background:rgba(28,28,31,.86);
+      -webkit-backdrop-filter:blur(14px) saturate(140%); backdrop-filter:blur(14px) saturate(140%);
+      border:1px solid var(--border-strong); border-radius:28px;
+      box-shadow:0 10px 30px rgba(0,0,0,.45);
+    }
+    [data-theme="light"] .bottom-nav{
+      background:rgba(255,255,255,.88);
+      box-shadow:0 10px 30px rgba(76,29,149,.22);
+    }
+    .bottom-nav .bn-item{
+      flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:3px; padding:8px 2px 7px; border-radius:22px; border:1px solid transparent;
+      color:var(--text-dim); font-size:10.5px; font-weight:600; line-height:1.15; text-align:center;
+      -webkit-tap-highlight-color:transparent; transition:background .2s, color .2s, border-color .2s;
+    }
+    .bottom-nav .bn-item svg{width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+    .bottom-nav .bn-item.active{
+      color:var(--gold-light);
+      background:rgba(201,162,39,.16);
+      background:color-mix(in srgb, var(--gold) 18%, transparent);
+      border-color:rgba(201,162,39,.35);
+      border-color:color-mix(in srgb, var(--gold) 40%, transparent);
+    }
+    [data-theme="light"] .bottom-nav .bn-item.active{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.3);}
+    /* On remonte les boutons flottants au-dessus de la barre */
+    .whatsapp-wrap{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+    .ia-chat-wrap{bottom:calc(162px + env(safe-area-inset-bottom, 0px));}
+    .ia-chat-panel{bottom:calc(222px + env(safe-area-inset-bottom, 0px)); height:min(460px, calc(100vh - 260px));}
+  }
+  @media (max-width:340px){ .bottom-nav .bn-item{font-size:9.5px;} }
+</style>
+
+<nav class="bottom-nav" id="bottomNav" aria-label="Navigation principale">
+  <a href="#courses" class="bn-item active" data-key="courses"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span>Courses du jour</span></a>
+  <a href="#ia" class="bn-item" data-key="ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Pronostics IA</span></a>
+  <a href="#abonnements" class="bn-item" data-key="abonnements"><svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg><span>Abonnement</span></a>
+  <a href="/blog.html" class="bn-item" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Blog</span></a>
+  <a href="#faq" class="bn-item" data-key="faq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg><span>FAQ</span></a>
+</nav>
+
+<script>
+  (function(){
+    var nav = document.getElementById('bottomNav'); if(!nav) return;
+    var items = nav.querySelectorAll('.bn-item');
+    function setActive(key){ items.forEach(function(a){ a.classList.toggle('active', a.dataset.key === key); }); }
+    items.forEach(function(a){ a.addEventListener('click', function(){ if(a.dataset.key !== 'blog') setActive(a.dataset.key); }); });
+    var ids = ['courses','ia','abonnements','faq'];
+    function onScroll(){
+      var line = window.innerHeight * 0.4, current = 'courses';
+      ids.forEach(function(id){
+        var el = document.getElementById(id);
+        if(el && el.getBoundingClientRect().top <= line) current = id;
+      });
+      setActive(current);
+    }
+    var t; window.addEventListener('scroll', function(){ clearTimeout(t); t = setTimeout(onScroll, 60); }, {passive:true});
+    onScroll();
+  })();
+</script>
 
 <!-- Cloudflare Web Analytics : remplace TON_TOKEN_ICI par le token fourni dans
      ton tableau de bord Cloudflare → Analytics & Logs → Web Analytics → Add a site.
