@@ -291,6 +291,8 @@ async function getCourseInfo(date, numReunion, numCourse) {
       conditions: course?.conditions || "",
       parcours: course?.parcours || "",
       corde: course?.corde || "",
+      // État du terrain (pénétromètre) si l'API PMU le fournit pour cette course.
+      terrain: course?.penetrometre?.intitule || course?.penetrometre?.libelle || "",
       montantPrix: montant,
       meteo: {
         temperature: meteo.temperature ?? null,
@@ -2233,6 +2235,213 @@ async function recupererJockeysEnForme(env) {
   }
 }
 
+// ===== SELECTION_COMPLEMENT_START =====
+// Sélection "Complément / Gros rapport" du Premium : 2 chevaux choisis par un score
+// chiffré (0-100) calculé à partir de données objectives, indépendamment du classement
+// de l'IA. Les poids sont des points de départ raisonnés (pas une vérité statistique) —
+// à ajuster grâce au suivi réel des résultats (tableau de bord / resultats_verifies).
+const POIDS_SELECTION = {
+  cote: 0.30,       // probabilité implicite du marché (cote)
+  jockey: 0.20,     // taux de réussite du jockey/driver + forme du moment
+  forme: 0.20,      // résultats récents (performances détaillées, sinon musique)
+  aptitude: 0.15,   // résultats sur distance proche / même hippodrome / même terrain
+  carriere: 0.10,   // régularité sur la carrière (victoires et places / courses)
+  conditions: 0.05, // poids porté relatif (plat / obstacle)
+};
+const STATS_JOCKEYS_CACHE_KEY = "stats-jockeys-v1";
+const STATS_JOCKEYS_MIN_COURSES = 8;
+const SELECTION_FIABILITE_MIN = 0.45; // part minimale des critères réellement disponibles
+const SELECTION_INDICE_MIN = 50;      // en dessous, un cheval n'est jamais proposé en complément
+
+const borner = (v, min = 0, max = 1) => Math.max(min, Math.min(max, v));
+const normaliserTexte = (t) => String(t || "").trim().toLowerCase();
+
+// Taux de réussite par jockey/driver sur l'historique stocké en base (courses_features).
+async function recupererStatsJockeys(env) {
+  const cache = await env.CACHE_KV.get(STATS_JOCKEYS_CACHE_KEY, { type: "json" });
+  if (cache) return cache;
+  if (!env.DB) return {};
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT driver,
+              COUNT(*) AS total,
+              SUM(CASE WHEN position_reelle = 1 THEN 1 ELSE 0 END) AS victoires,
+              SUM(CASE WHEN position_reelle BETWEEN 1 AND 3 THEN 1 ELSE 0 END) AS places
+       FROM courses_features
+       WHERE position_reelle IS NOT NULL AND driver IS NOT NULL AND driver != ''
+       GROUP BY driver
+       HAVING total >= ?`
+    )
+      .bind(STATS_JOCKEYS_MIN_COURSES)
+      .all();
+    const map = {};
+    for (const r of results || []) {
+      map[normaliserTexte(r.driver)] = {
+        total: r.total,
+        tauxVictoire: r.victoires / r.total,
+        tauxPlace: r.places / r.total,
+      };
+    }
+    await env.CACHE_KV.put(STATS_JOCKEYS_CACHE_KEY, JSON.stringify(map), { expirationTtl: 6 * 60 * 60 });
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+// Points (0-1) pour une place d'arrivée ; abandon / disqualification / chute = 0.
+function pointsPlace(place, statut) {
+  if (place) return { 1: 1, 2: 0.75, 3: 0.55, 4: 0.35, 5: 0.25 }[place] ?? 0.12;
+  if (statut && statut !== "PLACE") return 0;
+  return null;
+}
+
+function pointsCourseCourue(c) {
+  const soi = (c?.participants || []).find((p) => p.itsHim);
+  if (!soi) return null;
+  return pointsPlace(soi.place?.place, soi.place?.statusArrivee);
+}
+
+const moyenne = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+// Forme récente : 5 dernières courses (plus récentes pondérées davantage) ; à défaut, musique.
+function scoreForme(perf, musique) {
+  const poidsRecence = [1, 0.85, 0.7, 0.55, 0.4];
+  const runs = (perf?.coursesCourues || []).slice(0, 5);
+  let num = 0, den = 0;
+  runs.forEach((c, i) => {
+    const pts = pointsCourseCourue(c);
+    if (pts == null) return;
+    num += pts * poidsRecence[i];
+    den += poidsRecence[i];
+  });
+  if (den > 0) return num / den;
+
+  const tokens = [...String(musique || "").matchAll(/(\d{1,2}|[DTARdtar])[amphscAMPHSC]/g)].slice(0, 5);
+  if (!tokens.length) return null;
+  tokens.forEach((m, i) => {
+    const v = /^\d/.test(m[1]) ? pointsPlace(Number(m[1]) === 0 ? 10 : Number(m[1]), null) : 0;
+    num += v * poidsRecence[i];
+    den += poidsRecence[i];
+  });
+  return den ? num / den : null;
+}
+
+// Aptitude : résultats passés sur distance proche (±12 %), même hippodrome, même terrain.
+function scoreAptitude(perf, courseInfo) {
+  const runs = perf?.coursesCourues || [];
+  if (!runs.length) return null;
+  const distance = Number(courseInfo?.distance) || null;
+  const composantes = [];
+
+  if (distance) {
+    const pts = runs
+      .filter((c) => c.distance && Math.abs(c.distance - distance) / distance <= 0.12)
+      .map(pointsCourseCourue).filter((v) => v != null);
+    if (pts.length) composantes.push(moyenne(pts));
+  }
+  const hippo = normaliserTexte(courseInfo?.hippodrome);
+  if (hippo) {
+    const pts = runs
+      .filter((c) => normaliserTexte(c.hippodrome) === hippo)
+      .map(pointsCourseCourue).filter((v) => v != null);
+    if (pts.length) composantes.push(moyenne(pts));
+  }
+  const terrain = normaliserTexte(courseInfo?.terrain);
+  if (terrain) {
+    const pts = runs
+      .filter((c) => normaliserTexte(c.penetrometre?.intitule || c.terrain) === terrain)
+      .map(pointsCourseCourue).filter((v) => v != null);
+    if (pts.length) composantes.push(moyenne(pts));
+  }
+  return composantes.length ? moyenne(composantes) : null;
+}
+
+function scoreCarriere(p) {
+  const n = p.nombreCourses ?? 0;
+  if (n < 3) return null;
+  const v = p.nombreVictoires ?? 0;
+  const s = p.nombrePlacesSecond ?? 0;
+  const t = p.nombrePlacesTroisieme ?? 0;
+  return borner(((v + 0.6 * s + 0.4 * t) / n) / 0.45);
+}
+
+function scoreJockey(nomJockey, enForme, statsJockeys) {
+  const st = statsJockeys?.[normaliserTexte(nomJockey)];
+  let base = null;
+  if (st && st.total >= STATS_JOCKEYS_MIN_COURSES) {
+    base = 0.5 * borner(st.tauxPlace / 0.55) + 0.5 * borner(st.tauxVictoire / 0.2);
+  }
+  if (enForme) base = base == null ? 0.65 : borner(base + 0.15);
+  return base;
+}
+
+const ATOUTS = {
+  cote: "cote favorable", jockey: "jockey performant", forme: "bonne forme récente",
+  aptitude: "aptitude distance/terrain", carriere: "carrière régulière", conditions: "poids avantageux",
+};
+
+// Calcule l'indice de sûreté (0-100) de chaque partant. Un critère sans donnée est ignoré
+// (les poids restants sont renormalisés) ; trop de données manquantes = cheval écarté.
+function calculerScoresSelection({ participants, performancesParNumero, courseInfo, jockeysEnForme, statsJockeys }) {
+  const partants = (participants || []).filter((p) => !p.nonPartant);
+  if (!partants.length) return [];
+
+  const cotes = partants.map((p) => p.dernierRapportDirect?.rapport).filter((c) => c > 0);
+  const sommeProba = cotes.reduce((s, c) => s + 1 / c, 0);
+  const famille = classifierDiscipline(courseInfo?.discipline, courseInfo?.categorieParticularite);
+  const poidsList = partants.map((p) => p.handicapPoids).filter((x) => x != null);
+  const poidsMoyen = poidsList.length ? poidsList.reduce((a, b) => a + b, 0) / poidsList.length : null;
+
+  return partants.map((p) => {
+    const jockey = p.driver?.nom || p.entraineur?.nom || "";
+    const enForme = jockey ? !!jockeysEnForme?.has(normaliserTexte(jockey)) : false;
+    const cote = p.dernierRapportDirect?.rapport ?? null;
+    const perf = performancesParNumero?.[p.numPmu];
+
+    const criteres = {
+      cote: cote > 0 && sommeProba ? borner(((1 / cote) / sommeProba) / 0.25) : null,
+      jockey: scoreJockey(jockey, enForme, statsJockeys),
+      forme: scoreForme(perf, p.musique),
+      aptitude: scoreAptitude(perf, courseInfo),
+      carriere: scoreCarriere(p),
+      conditions: (famille !== "TROT" && poidsMoyen != null && p.handicapPoids != null)
+        ? borner(0.5 + (poidsMoyen - p.handicapPoids) / 12) : null,
+    };
+
+    let num = 0, den = 0;
+    const contributions = [];
+    for (const [k, w] of Object.entries(POIDS_SELECTION)) {
+      const v = criteres[k];
+      if (v == null) continue;
+      num += w * v;
+      den += w;
+      if (v >= 0.65) contributions.push({ k, c: w * v });
+    }
+    if (den < SELECTION_FIABILITE_MIN) return null;
+
+    return {
+      numero: p.numPmu,
+      cheval: p.nom,
+      jockey,
+      cote,
+      enForme,
+      indice: Math.round((num / den) * 100),
+      atouts: contributions.sort((a, b) => b.c - a.c).slice(0, 2).map((x) => ATOUTS[x.k]),
+    };
+  }).filter(Boolean);
+}
+
+// Complément = les n meilleurs indices parmi les chevaux NON retenus dans les 6 du Premium.
+function choisirComplement(scores, numerosPremium, n = 2) {
+  const exclus = new Set(numerosPremium);
+  return scores
+    .filter((s) => !exclus.has(s.numero) && s.indice >= SELECTION_INDICE_MIN)
+    .sort((a, b) => b.indice - a.indice || (a.cote ?? Infinity) - (b.cote ?? Infinity))
+    .slice(0, n);
+}
+// ===== SELECTION_COMPLEMENT_END =====
+
 function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   const partants = (participants || []).filter((p) => !p.nonPartant);
   if (!partants.length) return null;
@@ -2289,7 +2498,7 @@ async function handleCourseDuJour(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const date = todayParam();
   const { reunion, course } = await getCourseDuJourConfig(env);
-  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const cacheKey = `course-du-jour-full:v2:${date}:${reunion}:${course}`;
 
   let full = await env.CACHE_KV.get(cacheKey, { type: "json" });
 
@@ -2351,6 +2560,23 @@ async function handleCourseDuJour(request, env) {
 
       const gratuit = construireSelectionGratuite(participants, quarte8, jockeysEnForme);
 
+      // Complément Premium : 2 chevaux choisis par score de données (cote, jockey, forme,
+      // aptitude, carrière, poids), hors des 6 chevaux du Premium.
+      let complement = [];
+      if (quarte8 && participants.length) {
+        try {
+          const [performancesParNumero, statsJockeys] = await Promise.all([
+            fetchPerformancesDetaillees(date, reunion, course),
+            recupererStatsJockeys(env),
+          ]);
+          const scores = calculerScoresSelection({ participants, performancesParNumero, courseInfo, jockeysEnForme, statsJockeys });
+          const numerosPremium = quarte8.filter((c) => (c.position ?? 99) <= 6).map((c) => c.numero);
+          complement = choisirComplement(scores, numerosPremium, 2);
+        } catch {
+          complement = [];
+        }
+      }
+
       full = {
         reunion,
         course,
@@ -2360,6 +2586,7 @@ async function handleCourseDuJour(request, env) {
         partants: nbPartants,
         gratuit,
         quarte8,
+        complement,
         confiance,
         iaStatus,
         updatedAt: Date.now(),
@@ -2395,14 +2622,26 @@ async function handleCourseDuJour(request, env) {
     return new Response(JSON.stringify({ ...base, premium: null, premiumVerrouille: false }), { headers: corsHeaders });
   }
 
-  // Pronostic PREMIUM (8 numéros détaillés + coups sûrs) réservé aux comptes avec
+  // Pronostic PREMIUM (6 numéros détaillés + coups sûrs + complément de 2 chevaux) réservé aux comptes avec
   // abonnement actif (Derby ou Prestige) — plus d'essai gratuit, voir verifierAccesPremium.
   const email = await getSessionUser(request, env);
   const acces = email ? await verifierAccesPremium(env, email) : { actif: false };
 
   if (acces.actif) {
     return new Response(
-      JSON.stringify({ ...base, premium: { quarte8: full.quarte8, confiance: full.confiance }, premiumVerrouille: false }),
+      JSON.stringify({
+        ...base,
+        premium: {
+          // 6 chevaux retenus (meilleurs choix de l'IA, ordre par cote conservé) + complément optionnel.
+          quarte8: (() => {
+            const six = full.quarte8.filter((c) => (c.position ?? 99) <= 6);
+            return six.length ? six : full.quarte8.slice(0, 6);
+          })(),
+          complement: full.complement || [],
+          confiance: full.confiance,
+        },
+        premiumVerrouille: false,
+      }),
       { headers: corsHeaders }
     );
   }
