@@ -20,7 +20,7 @@
   :root{
     --bg:#0c0c0d; --bg-alt:#131315; --card:#1c1c1f; --border:rgba(255,255,255,.08); --border-strong:rgba(255,255,255,.16);
     --text:#f3f1ea; --text-dim:#9a978d; --gold:#c9a227; --gold-light:#e4c566;
-    --font-display:'Nunito', sans-serif; --font-body:'Nunito', sans-serif; --font-sans:'Nunito', sans-serif; --font-mono:'Nunito', sans-serif;
+    --font-display:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --font-body:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --font-sans:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; --font-mono:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{background:var(--bg); color:var(--text); font-family:var(--font-body); line-height:1.6;}
@@ -131,56 +131,104 @@
 
 
 <style id="bottomNavStyle">
-  /* ---------- Barre de navigation flottante (mobile / tablette) ---------- */
-  .bottom-nav{display:none;}
-  @media (max-width:960px){
-    nav.main-nav{display:none !important;}
-    body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
-    section[id]{scroll-margin-top:90px;}
-    .bottom-nav{
-      display:flex; align-items:stretch; gap:2px;
-      position:fixed; left:50%; transform:translateX(-50%);
-      bottom:calc(12px + env(safe-area-inset-bottom, 0px));
-      width:calc(100% - 24px); max-width:520px; padding:6px; z-index:997;
-      background:rgba(28,28,31,.86);
-      -webkit-backdrop-filter:blur(14px) saturate(140%); backdrop-filter:blur(14px) saturate(140%);
-      border:1px solid var(--border-strong); border-radius:28px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);
-    }
-    [data-theme="light"] .bottom-nav{
-      background:rgba(255,255,255,.88);
-      box-shadow:0 10px 30px rgba(76,29,149,.22);
-    }
-    .bottom-nav .bn-item{
-      flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:3px; padding:8px 2px 7px; border-radius:22px; border:1px solid transparent;
-      color:var(--text-dim); font-size:10.5px; font-weight:600; line-height:1.15; text-align:center;
-      -webkit-tap-highlight-color:transparent; transition:background .2s, color .2s, border-color .2s;
-    }
-    .bottom-nav .bn-item svg{width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
-    .bottom-nav .bn-item.active{
-      color:var(--gold-light);
-      background:rgba(201,162,39,.16);
-      background:color-mix(in srgb, var(--gold) 18%, transparent);
-      border-color:rgba(201,162,39,.35);
-      border-color:color-mix(in srgb, var(--gold) 40%, transparent);
-    }
-    [data-theme="light"] .bottom-nav .bn-item.active{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.3);}
-    /* On remonte les boutons flottants au-dessus de la barre */
-    .whatsapp-wrap{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
-    .ia-chat-wrap{bottom:calc(162px + env(safe-area-inset-bottom, 0px));}
-    .ia-chat-panel{bottom:calc(222px + env(safe-area-inset-bottom, 0px)); height:min(460px, calc(100vh - 260px));}
+  /* ---------- Police unique : Nunito partout (y compris boutons, champs et listes) ---------- */
+  html, body{font-family:var(--font-body);}
+  body{-webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;}
+  button, input, select, textarea, optgroup, option{font-family:inherit;}
+
+  /* ---------- Barre de navigation flottante ---------- */
+  .bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+    width:calc(100% - 24px); max-width:520px; z-index:997;
+    display:flex; align-items:stretch; gap:2px; padding:6px;
+    background:rgba(24,24,27,.82);
+    -webkit-backdrop-filter:blur(18px) saturate(150%); backdrop-filter:blur(18px) saturate(150%);
+    border:1px solid var(--border-strong); border-radius:28px;
+    box-shadow:0 12px 32px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07);
   }
-  @media (max-width:340px){ .bottom-nav .bn-item{font-size:9.5px;} }
+  [data-theme="light"] .bottom-nav{
+    background:rgba(255,255,255,.86);
+    box-shadow:0 12px 32px rgba(76,29,149,.22), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  /* Pastille qui glisse sous l'onglet actif */
+  .bottom-nav .bn-ind{
+    position:absolute; left:0; top:0; width:0; height:0; border-radius:22px; pointer-events:none; opacity:0; z-index:0;
+    background:rgba(201,162,39,.16);
+    background:color-mix(in srgb, var(--gold) 18%, transparent);
+    border:1px solid rgba(201,162,39,.38);
+    border:1px solid color-mix(in srgb, var(--gold) 42%, transparent);
+    box-shadow:0 0 18px rgba(201,162,39,.18);
+    box-shadow:0 0 18px color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+  .bottom-nav.ready .bn-ind{transition:transform .38s cubic-bezier(.3,.9,.3,1), width .38s cubic-bezier(.3,.9,.3,1), height .38s, opacity .2s;}
+  [data-theme="light"] .bottom-nav .bn-ind{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.32); box-shadow:0 0 16px rgba(124,58,237,.16);}
+  .bottom-nav .bn-item{
+    position:relative; z-index:1; flex:1 1 0; min-width:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    padding:7px 2px 6px; border-radius:22px; border:1px solid transparent;
+    color:var(--text-dim); text-align:center; text-decoration:none;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:color .25s, transform .15s;
+  }
+  .bottom-nav .bn-item:active{transform:scale(.93);}
+  .bottom-nav .bn-item svg{
+    width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+    transition:transform .3s cubic-bezier(.3,.9,.3,1), stroke-width .2s;
+  }
+  .bottom-nav .bn-item span{
+    display:flex; align-items:center; justify-content:center; min-height:2.3em;
+    font-family:var(--font-body); font-size:10px; font-weight:700; line-height:1.15; letter-spacing:0;
+  }
+  .bottom-nav .bn-item.active{color:var(--gold-light);}
+  .bottom-nav .bn-item.active svg{transform:translateY(-1px) scale(1.1); stroke-width:2.1;}
+  /* Sans JavaScript : l'onglet actif garde son propre fond */
+  .bottom-nav:not(.ready) .bn-item.active{
+    background:rgba(201,162,39,.16); background:color-mix(in srgb, var(--gold) 18%, transparent);
+    border-color:rgba(201,162,39,.38);
+  }
+  [data-theme="light"] .bottom-nav:not(.ready) .bn-item.active{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.32);}
+  @media (prefers-reduced-motion:reduce){
+    .bottom-nav.ready .bn-ind, .bottom-nav .bn-item, .bottom-nav .bn-item svg{transition:none;}
+  }
+  @media (max-width:340px){ .bottom-nav .bn-item span{font-size:9.5px;} }
+  body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+  section[id]{scroll-margin-top:90px;}
+  #courseDuJourCard{scroll-margin-top:106px;}
+  /* Boutons flottants remontés au-dessus de la barre */
+  .whatsapp-wrap{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+  .ia-chat-wrap{bottom:calc(162px + env(safe-area-inset-bottom, 0px));}
+  .ia-chat-panel{bottom:calc(222px + env(safe-area-inset-bottom, 0px)); height:min(460px, calc(100vh - 260px));}
 </style>
 
 <nav class="bottom-nav" id="bottomNav" aria-label="Navigation principale">
-  <a href="/#courses" class="bn-item" data-key="courses"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span>Courses du jour</span></a>
+  <a href="/#courseDuJourCard" class="bn-item" data-key="courses"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span>Courses du jour</span></a>
   <a href="/#ia" class="bn-item" data-key="ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Pronostics IA</span></a>
   <a href="/#abonnements" class="bn-item" data-key="abonnements"><svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg><span>Abonnement</span></a>
-  <a href="/blog.html" class="bn-item active" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Blog</span></a>
+  <a href="/blog.html" class="bn-item active" aria-current="true" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Articles</span></a>
   <a href="/#faq" class="bn-item" data-key="faq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg><span>FAQ</span></a>
 </nav>
+<script>
+  /* Pastille animée sous l'onglet actif */
+  (function(){
+    var nav = document.getElementById('bottomNav'); if(!nav) return;
+    var ind = document.createElement('span'); ind.className = 'bn-ind'; ind.setAttribute('aria-hidden','true');
+    nav.insertBefore(ind, nav.firstChild);
+    function place(){
+      var a = nav.querySelector('.bn-item.active');
+      if(!a){ ind.style.opacity = '0'; return; }
+      ind.style.opacity = '1';
+      ind.style.width = a.offsetWidth + 'px'; ind.style.height = a.offsetHeight + 'px';
+      ind.style.transform = 'translate(' + a.offsetLeft + 'px,' + a.offsetTop + 'px)';
+    }
+    place();
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ nav.classList.add('ready'); }); });
+    window.addEventListener('resize', place);
+    window.addEventListener('load', place);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+    if(window.MutationObserver) new MutationObserver(place).observe(nav, {subtree:true, attributes:true, attributeFilter:['class']});
+  })();
+</script>
 
 </body>
 </html>

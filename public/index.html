@@ -75,10 +75,10 @@
     --onyx-text-dim:#b7bdcf;
     --onyx-gold:#e4c566;
     --onyx-border:rgba(255,255,255,.16);
-    --font-display:'Nunito', sans-serif;
-    --font-body:'Nunito', sans-serif;
-    --font-sans:'Nunito', sans-serif;
-    --font-mono:'Nunito', sans-serif;
+    --font-display:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-body:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-sans:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-mono:'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   }
 
   /* ---------- Mode clair ("Nova Violet") — futuriste, violet & blanc ---------- */
@@ -282,6 +282,35 @@
     #btnActiverNotifs .btn-notifs-label{display:none;}
     #btnActiverNotifs{padding:8px 10px;}
   }
+  /* En-tête : contrôles agrandis (cibles tactiles confortables), toujours responsive */
+  .header-actions{gap:14px;}
+  .header-actions .btn-outline, .header-actions .btn-gold{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    min-height:46px; padding:11px 20px; font-size:15px; font-weight:600; white-space:nowrap;
+  }
+  .header-actions #btnThemeToggle{font-size:20px;}
+  .header-actions #btnActiverNotifs{font-size:18px;}
+  .header-actions #btnActiverNotifs .btn-notifs-label{font-size:14.5px; font-weight:600;}
+  .header-actions #btnThemeToggle{width:46px; padding:0;}
+  .header-actions .link-muted{font-size:15px; max-width:200px;}
+  @media (max-width:600px){
+    .site-header .wrap{padding-top:12px; padding-bottom:12px;}
+    .header-actions{flex:1 1 100%; flex-wrap:wrap; justify-content:space-between; gap:10px;}
+    .header-actions .btn-outline, .header-actions .btn-gold{min-height:44px; padding:10px 14px; font-size:14px;}
+    .header-actions #btnThemeToggle{width:44px; padding:0;}
+    .header-actions #btnActiverNotifs{min-width:44px; padding:0 12px; font-size:20px;}
+    .header-actions #btnActiverNotifs .btn-notifs-label{display:none;}
+    .header-actions .link-muted{flex:1 1 0; min-width:0; max-width:none; font-size:14px; text-align:center;}
+    .header-actions #btnCreerCompte, .header-actions #btnDeconnexion{flex:0 0 auto;}
+  }
+  @media (max-width:400px){
+    .header-actions{gap:6px;}
+    .header-actions .btn-outline, .header-actions .btn-gold{padding:10px 11px; font-size:13px;}
+    .header-actions #btnThemeToggle{width:40px; padding:0;}
+    .header-actions #btnActiverNotifs{min-width:40px; padding:0 9px;}
+    .header-actions .link-muted{min-width:80px; font-size:13px;}
+    .header-actions #btnCreerCompte, .header-actions #btnDeconnexion{margin-left:auto;}
+  }
   .btn-gold{
     background:var(--gold); color:#0c0c0d; font-weight:600; font-size:14px;
     padding:11px 20px; border-radius:3px; transition:background .2s, transform .2s;
@@ -353,66 +382,44 @@
   .forme-badge-inline{color:var(--gold-light); font-weight:700; white-space:nowrap;}
   .cdj-numeros-vide{font-family:var(--font-sans); font-size:12.5px; color:var(--text-dim); font-style:italic;}
 
-  /* Tableau compact des sélections (gratuit + premium) */
-  .cdj-table{
-    width:100%; table-layout:fixed; border-collapse:separate; border-spacing:0;
-    font-family:var(--font-sans); font-size:13.5px; color:var(--text);
-    background:var(--card-alt, #212124); border:1px solid var(--border-strong); border-radius:12px; overflow:hidden;
+ /* ---------- Cartes-lignes (pronostic gratuit + premium) ---------- */
+  .fr-list{--on-cat:#0b0b0c; display:flex; flex-direction:column; gap:4px;}
+  [data-theme="light"] .fr-list{--on-cat:#fff;}
+  .fr-grp{
+    display:flex; align-items:center; gap:8px; margin:9px 0 1px;
+    font-family:var(--font-sans); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--cat);
   }
-  .cdj-table col.c-num{width:52px;}
-  .cdj-table col.c-cote{width:58px;}
-  .cdj-table thead th{
-    background:var(--bg-alt); color:var(--text-dim); text-align:left;
-    font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:8px 12px;
+  .fr-grp:first-child{margin-top:2px;}
+  .fr-grp::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--cat); box-shadow:0 0 9px var(--cat);}
+  .fr-grp::after{content:""; flex:1; height:1px; background:linear-gradient(90deg, var(--cat), transparent); opacity:.55;}
+  .fr-grp .n{color:var(--text-dim); font-weight:700; letter-spacing:.04em;}
+  .fr-row{
+    position:relative; overflow:hidden; display:flex; align-items:center; gap:10px; padding:5px 11px 5px 8px;
+    border-radius:11px; border:1px solid var(--border);
+    background:var(--card-alt, #212124);
+    background:linear-gradient(90deg, color-mix(in srgb, var(--cat) 12%, transparent), transparent 60%), var(--card-alt, #212124);
   }
-  .cdj-table th.r, .cdj-table td.r{text-align:right;}
-  .cdj-table tr.grp td{
-    padding:7px 12px; font-size:11.5px; font-weight:700; letter-spacing:.02em; color:var(--cat);
-    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 10%, transparent);
-    border-top:1px solid var(--border); border-left:3px solid var(--cat);
+  .fr-row::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cat);}
+  .fr-num{
+    flex:none; width:30px; height:30px; border-radius:9px; display:grid; place-items:center;
+    font-family:var(--font-mono); font-weight:800; font-size:13.5px; color:var(--on-cat); background:var(--cat);
+    box-shadow:0 3px 10px rgba(0,0,0,.35);
+    box-shadow:0 3px 10px color-mix(in srgb, var(--cat) 38%, transparent);
   }
-  .cdj-table tr.grp .n{font-weight:600; color:var(--text-dim); margin-left:4px;}
-  .cdj-table tr.row td{padding:8px 12px; border-top:1px solid var(--border); vertical-align:middle;}
-  .cdj-table tr.grp + tr.row td{border-top:none;}
-  .cdj-table .num{
-    display:inline-flex; align-items:center; justify-content:center; min-width:30px; height:24px; padding:0 6px;
-    border-radius:7px; font-family:var(--font-mono); font-weight:800; font-size:12.5px;
-    color:var(--cat); border:1px solid var(--cat);
-    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 12%, transparent);
+  .fr-body{flex:1; min-width:0;}
+  .fr-name{font-family:var(--font-sans); font-weight:800; font-size:12px; line-height:1.2; color:var(--text); overflow-wrap:anywhere;}
+  .fr-sub{font-family:var(--font-sans); font-size:10px; color:var(--text-dim); margin-top:1px; line-height:1.25;}
+  .fr-cs{
+    display:inline-block; margin-left:6px; padding:0 5px; border-radius:5px; vertical-align:1px;
+    font-size:8.5px; font-weight:800; letter-spacing:.05em; color:var(--gold-light); border:1px solid var(--gold); white-space:nowrap;
   }
-  .cdj-table .nom{display:block; font-weight:600; color:var(--text); line-height:1.25; overflow-wrap:anywhere;}
-  .cdj-table .sub{display:block; margin-top:1px; font-size:11px; line-height:1.3; color:var(--text-dim);}
-  .cdj-table .cs{
-    display:inline-block; margin-left:6px; padding:1px 6px; border-radius:5px; vertical-align:1px;
-    font-size:9.5px; font-weight:800; letter-spacing:.05em; color:var(--gold-light);
-    border:1px solid var(--gold); white-space:nowrap;
-  }
-  .cdj-table .cote{font-family:var(--font-mono); font-weight:800; font-size:14px; color:var(--gold-light); text-align:right; white-space:nowrap;}
-  .cdj-table tr.row:hover td{background:rgba(255,255,255,.025);}
+  .fr-cote{flex:none; text-align:right; font-family:var(--font-mono); font-weight:800; font-size:14px; line-height:1; color:var(--gold-light);}
+  .fr-cote small{display:block; margin-top:3px; font-family:var(--font-sans); font-size:8px; font-weight:700; letter-spacing:.12em; color:var(--text-dim);}
   .cat-sures{--cat:var(--green-light);}
   .cat-outsiders{--cat:var(--gold);}
   .cat-tocards{--cat:var(--rust-light);}
-
-  /* ---------- Blocs séparés : gratuit / premium ---------- */
-  .cdj-panel{
-    background:var(--card); border:1px solid var(--border-strong); border-radius:14px; padding:14px;
-  }
-  .cdj-panel .cdj-section-titre{margin-bottom:10px; flex-wrap:wrap;}
-  .cdj-premium{
-    background:linear-gradient(160deg, rgba(201,162,39,.12), rgba(201,162,39,.02) 60%), var(--card);
-    border:1px solid rgba(201,162,39,.45); border-radius:14px; padding:14px;
-  }
-  [data-theme="light"] .cdj-premium{
-    background:linear-gradient(160deg, rgba(124,58,237,.10), rgba(124,58,237,.02) 60%), var(--card);
-    border-color:rgba(124,58,237,.4);
-  }
-  .cdj-section-titre--premium{color:var(--gold-light); margin-bottom:10px;}
-  .cdj-badge-premium{
-    font-family:var(--font-sans); font-size:10.5px; text-transform:none; letter-spacing:0; font-weight:700;
-    color:var(--gold-light); border:1px solid var(--gold); padding:2px 9px; border-radius:20px;
-  }
-
   .cat-comp{--cat:var(--gold-light);}
+  .cdj-complement .fr-grp{display:none;}
   .cdj-complement{margin-top:16px; padding-top:14px; border-top:1px dashed var(--border-strong);}
   .cdj-complement__titre{
     display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px;
@@ -424,38 +431,6 @@
   }
   .cdj-complement__note{font-family:var(--font-sans); font-size:12px; color:var(--text-dim); line-height:1.45; margin-bottom:10px;}
 
-  /* ---------- Pronostic gratuit : cartes-lignes par catégorie ---------- */
-  .fr-list{--on-cat:#0b0b0c; display:flex; flex-direction:column; gap:5px;}
-  [data-theme="light"] .fr-list{--on-cat:#fff;}
-  .fr-grp{
-    display:flex; align-items:center; gap:9px; margin:10px 0 1px;
-    font-family:var(--font-sans); font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--cat);
-  }
-  .fr-grp:first-child{margin-top:2px;}
-  .fr-grp::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--cat); box-shadow:0 0 10px var(--cat);}
-  .fr-grp::after{content:""; flex:1; height:1px; background:linear-gradient(90deg, var(--cat), transparent); opacity:.55;}
-  .fr-grp .n{color:var(--text-dim); font-weight:700; letter-spacing:.04em;}
-  .fr-row{
-    position:relative; overflow:hidden; display:flex; align-items:center; gap:11px; padding:6px 12px 6px 9px;
-    border-radius:13px; border:1px solid var(--border);
-    background:var(--card-alt, #212124);
-    background:linear-gradient(90deg, color-mix(in srgb, var(--cat) 12%, transparent), transparent 60%), var(--card-alt, #212124);
-  }
-  .fr-row::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cat);}
-  .fr-num{
-    flex:none; width:35px; height:35px; border-radius:10px; display:grid; place-items:center;
-    font-family:var(--font-mono); font-weight:800; font-size:15.5px; color:var(--on-cat); background:var(--cat);
-    box-shadow:0 4px 14px rgba(0,0,0,.35);
-    box-shadow:0 4px 14px color-mix(in srgb, var(--cat) 38%, transparent);
-  }
-  .fr-body{flex:1; min-width:0;}
-  .fr-name{font-family:var(--font-sans); font-weight:800; font-size:13.5px; line-height:1.2; color:var(--text); overflow-wrap:anywhere;}
-  .fr-sub{font-family:var(--font-sans); font-size:11px; color:var(--text-dim); margin-top:2px; line-height:1.25;}
-  .fr-cote{flex:none; text-align:right; font-family:var(--font-mono); font-weight:800; font-size:16px; line-height:1; color:var(--gold-light);}
-  .fr-cote small{display:block; margin-top:3px; font-family:var(--font-sans); font-size:8.5px; font-weight:700; letter-spacing:.12em; color:var(--text-dim);}
-  .cat-sures{--cat:var(--green-light);}
-  .cat-outsiders{--cat:var(--gold);}
-  .cat-tocards{--cat:var(--rust-light);}
 
   /* ---------- Bannière de déverrouillage Premium (après le gratuit) ---------- */
   .cdj-unlock{
@@ -2503,53 +2478,48 @@
 
   const escHtml = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
-  // Tableau compact : groupes = [{ nom, classe, items }], avec sous-ligne (jockey / choix IA)
-  // et badge COUP SÛR uniquement pour le Premium.
-  function rendreTableauPronos(groupes, premium){
-    const lignes = groupes.filter(g => g.items && g.items.length).map(g => {
-      const rows = g.items.map(c => {
-        const forme = c.enForme ? ' <span title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
-        const cs = (premium && c.coupSur) ? '<span class="cs">COUP SÛR</span>' : '';
-        const sub = premium
-          ? `<span class="sub">${c.indice != null
-              ? 'Indice ' + escHtml(c.indice) + '/100' + (c.atouts && c.atouts.length ? ' · ' + escHtml(c.atouts.join(', ')) : '')
-              : (c.jockey ? escHtml(c.jockey) : escHtml(c.position) + 'ᵉ choix IA')}</span>`
-          : (c.jockey ? `<span class="sub">${escHtml(c.jockey)}</span>` : '');
-        return `<tr class="row cat-${g.classe}">
-          <td><span class="num">${escHtml(c.numero)}</span></td>
-          <td><span class="nom">${escHtml(c.cheval)}${forme}${cs}</span>${sub}</td>
-          <td class="cote">${c.cote != null ? escHtml(c.cote) : '–'}</td>
-        </tr>`;
-      }).join('');
-      return `<tr class="grp cat-${g.classe}"><td colspan="3">${g.nom}<span class="n">· ${g.items.length}</span></td></tr>${rows}`;
-    }).join('');
-    if (!lignes) return '<span class="cdj-numeros-vide">—</span>';
-    return `<table class="cdj-table">
-      <colgroup><col class="c-num"><col><col class="c-cote"></colgroup>
-      <thead><tr><th>N°</th><th>Cheval</th><th class="r">Cote</th></tr></thead>
-      <tbody>${lignes}</tbody></table>`;
+  // Cartes-lignes : groupes = [{ nom, classe, items }]. Gratuit : numéro, nom, jockey, cote.
+  // Premium : + badge COUP SÛR et "Nᵉ choix IA" quand le jockey n'est pas connu.
+  function rendreCartes(groupes, premium){
+    const gs = groupes.filter(g => g.items && g.items.length);
+    if (!gs.length) return '<span class="cdj-numeros-vide">—</span>';
+    return '<div class="fr-list">' + gs.map(g =>
+      `<div class="fr-grp cat-${g.classe}">${g.nom} <span class="n">· ${g.items.length}</span></div>` +
+      g.items.map(h => {
+        const cs = (premium && h.coupSur) ? '<span class="fr-cs">COUP SÛR</span>' : '';
+        let sub;
+        if (premium) {
+          sub = h.jockey ? escHtml(h.jockey) : (h.position != null ? escHtml(h.position) + 'ᵉ choix IA' : '');
+        } else {
+          sub = [h.jockey ? escHtml(h.jockey) : '', h.enForme ? '🔥 en forme' : ''].filter(Boolean).join(' · ');
+        }
+        const forme = (premium && h.enForme) ? ' 🔥' : '';
+        return `<div class="fr-row cat-${g.classe}">
+          <div class="fr-num">${escHtml(h.numero)}</div>
+          <div class="fr-body"><div class="fr-name">${escHtml(h.cheval)}${forme}${cs}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
+          <div class="fr-cote">${h.cote != null ? escHtml(h.cote) : '–'}<small>COTE</small></div>
+        </div>`;
+      }).join('')
+    ).join('') + '</div>';
   }
 
   // Premium : les 6 meilleurs choix de l'IA (position 1 à 6) sont classés par cote croissante
   // en 3 Bases, 2 Outsiders, 1 Tocard (réduit proportionnellement s'il y en a moins de 6).
   // Les choix suivants de l'IA (position 7 et 8) forment le "Complément" optionnel, destiné
   // à viser un plus gros rapport.
-  function rendreChevauxCourseDuJour(quarte8, complementServeur){
+  function rendreChevauxCourseDuJour(quarte8){
     const chevauxBox = document.getElementById('cdjChevaux');
     const complBox = document.getElementById('cdjComplement');
     const cote = (c) => (c.cote != null && !isNaN(c.cote)) ? Number(c.cote) : Infinity;
     const parCote = (a, b) => cote(a) - cote(b);
     const classes = quarte8.slice().sort((a, b) => (a.position ?? 99) - (b.position ?? 99));
     const six = classes.slice(0, 6).sort(parCote);
-    // Complément choisi par le serveur (score de données) ; à défaut, 7e et 8e choix de l'IA.
-    const complement = Array.isArray(complementServeur)
-      ? complementServeur.slice(0, 2).sort(parCote)
-      : classes.slice(6, 8).sort(parCote);
+    const complement = classes.slice(6, 8).sort(parCote);
     const total = six.length;
     const nBases = Math.min(3, total);
     const nOutsiders = Math.min(2, total - nBases);
     const nTocards = Math.min(1, total - nBases - nOutsiders);
-    chevauxBox.innerHTML = rendreTableauPronos([
+    chevauxBox.innerHTML = rendreCartes([
       { nom: 'Bases', classe: 'sures', items: six.slice(0, nBases) },
       { nom: 'Outsiders', classe: 'outsiders', items: six.slice(nBases, nBases + nOutsiders) },
       { nom: 'Tocard', classe: 'tocards', items: six.slice(nBases + nOutsiders, nBases + nOutsiders + nTocards) },
@@ -2561,8 +2531,8 @@
         complBox.className = 'cdj-complement';
         complBox.innerHTML = `
           <div class="cdj-complement__titre">➕ Complément · Gros rapport <span class="cdj-badge-option">Option</span></div>
-          <div class="cdj-complement__note">${complement.length} cheval${complement.length > 1 ? 'x' : ''} en plus, choisi${complement.length > 1 ? 's' : ''} sur nos données (cote, jockey, forme, aptitude, carrière) pour viser un plus gros rapport.</div>
-          ${rendreTableauPronos([{ nom: 'Complément', classe: 'comp', items: complement }], true)}`;
+          <div class="cdj-complement__note">${complement.length} cheval${complement.length > 1 ? 'x' : ''} en plus, à ajouter à ta combinaison si tu veux viser un plus gros rapport.</div>
+          ${rendreCartes([{ nom: 'Complément', classe: 'comp', items: complement }], true)}`;
       } else {
         complBox.style.display = 'none';
         complBox.innerHTML = '';
@@ -2570,28 +2540,15 @@
     }
   }
 
-  // Pronostic gratuit : 10 chevaux en cartes-lignes, regroupés par catégorie
-  // (numéro, nom du cheval, jockey, cote).
+  // Pronostic gratuit : 10 chevaux en cartes-lignes, regroupés par catégorie.
   function rendreGratuitTableau(g){
     const box = document.getElementById('cdjGratuitTable');
     if (!box) return;
-    const groupes = [
+    box.innerHTML = rendreCartes([
       { nom: 'Valeurs sûres', classe: 'sures', items: g.valeursSures || [] },
       { nom: 'Outsiders', classe: 'outsiders', items: g.outsiders || [] },
       { nom: 'Tocards', classe: 'tocards', items: g.tocards || [] },
-    ].filter(x => x.items.length);
-    if (!groupes.length) { box.innerHTML = '<span class="cdj-numeros-vide">—</span>'; return; }
-    box.innerHTML = '<div class="fr-list">' + groupes.map(x =>
-      `<div class="fr-grp cat-${x.classe}">${x.nom} <span class="n">· ${x.items.length}</span></div>` +
-      x.items.map(h => {
-        const sub = [h.jockey ? escHtml(h.jockey) : '', h.enForme ? '🔥 en forme' : ''].filter(Boolean).join(' · ');
-        return `<div class="fr-row cat-${x.classe}">
-          <div class="fr-num">${escHtml(h.numero)}</div>
-          <div class="fr-body"><div class="fr-name">${escHtml(h.cheval)}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
-          <div class="fr-cote">${h.cote != null ? escHtml(h.cote) : '–'}<small>COTE</small></div>
-        </div>`;
-      }).join('')
-    ).join('') + '</div>';
+    ], false);
   }
 
   // Rassemble les chevaux du gratuit + du Premium (avec cote connue) pour
@@ -2669,7 +2626,7 @@
         if (data.premium && data.premium.quarte8 && data.premium.quarte8.length > 0) {
           premiumBox.style.display = '';
           premiumContenu.style.display = '';
-          rendreChevauxCourseDuJour(data.premium.quarte8, data.premium.complement);
+          rendreChevauxCourseDuJour(data.premium.quarte8);
 
           if (data.premium.confiance != null && data.premium.confiance > 0) {
             flap.style.display = '';
@@ -3164,61 +3121,110 @@
 
 
 <style id="bottomNavStyle">
-  /* ---------- Barre de navigation flottante (mobile / tablette) ---------- */
-  .bottom-nav{display:none;}
-  @media (min-width:0px){
-    body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
-    section[id]{scroll-margin-top:90px;}
-    .bottom-nav{
-      display:flex; align-items:stretch; gap:2px;
-      position:fixed; left:50%; transform:translateX(-50%);
-      bottom:calc(12px + env(safe-area-inset-bottom, 0px));
-      width:calc(100% - 24px); max-width:520px; padding:6px; z-index:997;
-      background:rgba(28,28,31,.86);
-      -webkit-backdrop-filter:blur(14px) saturate(140%); backdrop-filter:blur(14px) saturate(140%);
-      border:1px solid var(--border-strong); border-radius:28px;
-      box-shadow:0 10px 30px rgba(0,0,0,.45);
-    }
-    [data-theme="light"] .bottom-nav{
-      background:rgba(255,255,255,.88);
-      box-shadow:0 10px 30px rgba(76,29,149,.22);
-    }
-    .bottom-nav .bn-item{
-      flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:3px; padding:8px 2px 7px; border-radius:22px; border:1px solid transparent;
-      color:var(--text-dim); font-size:10.5px; font-weight:600; line-height:1.15; text-align:center;
-      -webkit-tap-highlight-color:transparent; transition:background .2s, color .2s, border-color .2s;
-    }
-    .bottom-nav .bn-item svg{width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
-    .bottom-nav .bn-item.active{
-      color:var(--gold-light);
-      background:rgba(201,162,39,.16);
-      background:color-mix(in srgb, var(--gold) 18%, transparent);
-      border-color:rgba(201,162,39,.35);
-      border-color:color-mix(in srgb, var(--gold) 40%, transparent);
-    }
-    [data-theme="light"] .bottom-nav .bn-item.active{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.3);}
-    /* On remonte les boutons flottants au-dessus de la barre */
-    .whatsapp-wrap{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
-    .ia-chat-wrap{bottom:calc(162px + env(safe-area-inset-bottom, 0px));}
-    .ia-chat-panel{bottom:calc(222px + env(safe-area-inset-bottom, 0px)); height:min(460px, calc(100vh - 260px));}
+  /* ---------- Police unique : Nunito partout (y compris boutons, champs et listes) ---------- */
+  html, body{font-family:var(--font-body);}
+  body{-webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; text-rendering:optimizeLegibility;}
+  button, input, select, textarea, optgroup, option{font-family:inherit;}
+
+  /* ---------- Barre de navigation flottante ---------- */
+  .bottom-nav{
+    position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+    width:calc(100% - 24px); max-width:520px; z-index:997;
+    display:flex; align-items:stretch; gap:2px; padding:6px;
+    background:rgba(24,24,27,.82);
+    -webkit-backdrop-filter:blur(18px) saturate(150%); backdrop-filter:blur(18px) saturate(150%);
+    border:1px solid var(--border-strong); border-radius:28px;
+    box-shadow:0 12px 32px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.07);
   }
-  @media (max-width:340px){ .bottom-nav .bn-item{font-size:9.5px;} }
+  [data-theme="light"] .bottom-nav{
+    background:rgba(255,255,255,.86);
+    box-shadow:0 12px 32px rgba(76,29,149,.22), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  /* Pastille qui glisse sous l'onglet actif */
+  .bottom-nav .bn-ind{
+    position:absolute; left:0; top:0; width:0; height:0; border-radius:22px; pointer-events:none; opacity:0; z-index:0;
+    background:rgba(201,162,39,.16);
+    background:color-mix(in srgb, var(--gold) 18%, transparent);
+    border:1px solid rgba(201,162,39,.38);
+    border:1px solid color-mix(in srgb, var(--gold) 42%, transparent);
+    box-shadow:0 0 18px rgba(201,162,39,.18);
+    box-shadow:0 0 18px color-mix(in srgb, var(--gold) 22%, transparent);
+  }
+  .bottom-nav.ready .bn-ind{transition:transform .38s cubic-bezier(.3,.9,.3,1), width .38s cubic-bezier(.3,.9,.3,1), height .38s, opacity .2s;}
+  [data-theme="light"] .bottom-nav .bn-ind{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.32); box-shadow:0 0 16px rgba(124,58,237,.16);}
+  .bottom-nav .bn-item{
+    position:relative; z-index:1; flex:1 1 0; min-width:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    padding:7px 2px 6px; border-radius:22px; border:1px solid transparent;
+    color:var(--text-dim); text-align:center; text-decoration:none;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition:color .25s, transform .15s;
+  }
+  .bottom-nav .bn-item:active{transform:scale(.93);}
+  .bottom-nav .bn-item svg{
+    width:22px; height:22px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+    transition:transform .3s cubic-bezier(.3,.9,.3,1), stroke-width .2s;
+  }
+  .bottom-nav .bn-item span{
+    display:flex; align-items:center; justify-content:center; min-height:2.3em;
+    font-family:var(--font-body); font-size:10px; font-weight:700; line-height:1.15; letter-spacing:0;
+  }
+  .bottom-nav .bn-item.active{color:var(--gold-light);}
+  .bottom-nav .bn-item.active svg{transform:translateY(-1px) scale(1.1); stroke-width:2.1;}
+  /* Sans JavaScript : l'onglet actif garde son propre fond */
+  .bottom-nav:not(.ready) .bn-item.active{
+    background:rgba(201,162,39,.16); background:color-mix(in srgb, var(--gold) 18%, transparent);
+    border-color:rgba(201,162,39,.38);
+  }
+  [data-theme="light"] .bottom-nav:not(.ready) .bn-item.active{background:rgba(124,58,237,.12); border-color:rgba(124,58,237,.32);}
+  @media (prefers-reduced-motion:reduce){
+    .bottom-nav.ready .bn-ind, .bottom-nav .bn-item, .bottom-nav .bn-item svg{transition:none;}
+  }
+  @media (max-width:340px){ .bottom-nav .bn-item span{font-size:9.5px;} }
+  body{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+  section[id]{scroll-margin-top:90px;}
+  #courseDuJourCard{scroll-margin-top:106px;}
+  /* Boutons flottants remontés au-dessus de la barre */
+  .whatsapp-wrap{bottom:calc(96px + env(safe-area-inset-bottom, 0px));}
+  .ia-chat-wrap{bottom:calc(162px + env(safe-area-inset-bottom, 0px));}
+  .ia-chat-panel{bottom:calc(222px + env(safe-area-inset-bottom, 0px)); height:min(460px, calc(100vh - 260px));}
 </style>
 
 <nav class="bottom-nav" id="bottomNav" aria-label="Navigation principale">
-  <a href="#courses" class="bn-item active" data-key="courses"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span>Courses du jour</span></a>
+  <a href="#courseDuJourCard" class="bn-item active" aria-current="true" data-key="courses"><svg viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/></svg><span>Courses du jour</span></a>
   <a href="#ia" class="bn-item" data-key="ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Pronostics IA</span></a>
   <a href="#abonnements" class="bn-item" data-key="abonnements"><svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg><span>Abonnement</span></a>
-  <a href="/blog.html" class="bn-item" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Blog</span></a>
+  <a href="/blog.html" class="bn-item" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Articles</span></a>
   <a href="#faq" class="bn-item" data-key="faq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg><span>FAQ</span></a>
 </nav>
+<script>
+  /* Pastille animée sous l'onglet actif */
+  (function(){
+    var nav = document.getElementById('bottomNav'); if(!nav) return;
+    var ind = document.createElement('span'); ind.className = 'bn-ind'; ind.setAttribute('aria-hidden','true');
+    nav.insertBefore(ind, nav.firstChild);
+    function place(){
+      var a = nav.querySelector('.bn-item.active');
+      if(!a){ ind.style.opacity = '0'; return; }
+      ind.style.opacity = '1';
+      ind.style.width = a.offsetWidth + 'px'; ind.style.height = a.offsetHeight + 'px';
+      ind.style.transform = 'translate(' + a.offsetLeft + 'px,' + a.offsetTop + 'px)';
+    }
+    place();
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ nav.classList.add('ready'); }); });
+    window.addEventListener('resize', place);
+    window.addEventListener('load', place);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+    if(window.MutationObserver) new MutationObserver(place).observe(nav, {subtree:true, attributes:true, attributeFilter:['class']});
+  })();
+</script>
 
 <script>
   (function(){
     var nav = document.getElementById('bottomNav'); if(!nav) return;
     var items = nav.querySelectorAll('.bn-item');
-    function setActive(key){ items.forEach(function(a){ a.classList.toggle('active', a.dataset.key === key); }); }
+    function setActive(key){ items.forEach(function(a){ var on = a.dataset.key === key; a.classList.toggle('active', on); if(on){ a.setAttribute('aria-current','true'); } else { a.removeAttribute('aria-current'); } }); }
     items.forEach(function(a){ a.addEventListener('click', function(){ if(a.dataset.key !== 'blog') setActive(a.dataset.key); }); });
     var ids = ['courses','ia','abonnements','faq'];
     function onScroll(){
