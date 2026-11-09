@@ -381,7 +381,7 @@
     background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 12%, transparent);
   }
   .cdj-table .nom{display:block; font-weight:600; color:var(--text); line-height:1.25; overflow-wrap:anywhere;}
-  .cdj-table .sub{display:block; margin-top:1px; font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cdj-table .sub{display:block; margin-top:1px; font-size:11px; line-height:1.3; color:var(--text-dim);}
   .cdj-table .cs{
     display:inline-block; margin-left:6px; padding:1px 6px; border-radius:5px; vertical-align:1px;
     font-size:9.5px; font-weight:800; letter-spacing:.05em; color:var(--gold-light);
@@ -424,18 +424,38 @@
   }
   .cdj-complement__note{font-family:var(--font-sans); font-size:12px; color:var(--text-dim); line-height:1.45; margin-bottom:10px;}
 
-  /* Tableau gratuit : 3 colonnes (une par catégorie), numéros + cotes */
-  .cdj-table--grid thead th{
-    text-align:center; color:var(--cat); font-size:11px; letter-spacing:.02em; text-transform:none; padding:9px 4px;
-    background:rgba(255,255,255,.04); background:color-mix(in srgb, var(--cat) 10%, transparent);
-    border-bottom:2px solid var(--cat);
+  /* ---------- Pronostic gratuit : cartes-lignes par catégorie ---------- */
+  .fr-list{--on-cat:#0b0b0c; display:flex; flex-direction:column; gap:5px;}
+  [data-theme="light"] .fr-list{--on-cat:#fff;}
+  .fr-grp{
+    display:flex; align-items:center; gap:9px; margin:10px 0 1px;
+    font-family:var(--font-sans); font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--cat);
   }
-  .cdj-table--grid td{padding:9px 4px; border-top:1px solid var(--border); text-align:center; vertical-align:middle;}
-  .cdj-table--grid tbody tr:first-child td{border-top:none;}
-  .cdj-table--grid td + td, .cdj-table--grid th + th{border-left:1px solid var(--border);}
-  .cdj-table--grid .cell{display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;}
-  .cdj-table--grid .cell .cote{font-size:12px; font-weight:700; color:var(--text-dim);}
-  .cdj-table--grid .vide{color:var(--text-dim); opacity:.5;}
+  .fr-grp:first-child{margin-top:2px;}
+  .fr-grp::before{content:""; width:8px; height:8px; border-radius:50%; background:var(--cat); box-shadow:0 0 10px var(--cat);}
+  .fr-grp::after{content:""; flex:1; height:1px; background:linear-gradient(90deg, var(--cat), transparent); opacity:.55;}
+  .fr-grp .n{color:var(--text-dim); font-weight:700; letter-spacing:.04em;}
+  .fr-row{
+    position:relative; overflow:hidden; display:flex; align-items:center; gap:11px; padding:6px 12px 6px 9px;
+    border-radius:13px; border:1px solid var(--border);
+    background:var(--card-alt, #212124);
+    background:linear-gradient(90deg, color-mix(in srgb, var(--cat) 12%, transparent), transparent 60%), var(--card-alt, #212124);
+  }
+  .fr-row::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--cat);}
+  .fr-num{
+    flex:none; width:35px; height:35px; border-radius:10px; display:grid; place-items:center;
+    font-family:var(--font-mono); font-weight:800; font-size:15.5px; color:var(--on-cat); background:var(--cat);
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+    box-shadow:0 4px 14px color-mix(in srgb, var(--cat) 38%, transparent);
+  }
+  .fr-body{flex:1; min-width:0;}
+  .fr-name{font-family:var(--font-sans); font-weight:800; font-size:13.5px; line-height:1.2; color:var(--text); overflow-wrap:anywhere;}
+  .fr-sub{font-family:var(--font-sans); font-size:11px; color:var(--text-dim); margin-top:2px; line-height:1.25;}
+  .fr-cote{flex:none; text-align:right; font-family:var(--font-mono); font-weight:800; font-size:16px; line-height:1; color:var(--gold-light);}
+  .fr-cote small{display:block; margin-top:3px; font-family:var(--font-sans); font-size:8.5px; font-weight:700; letter-spacing:.12em; color:var(--text-dim);}
+  .cat-sures{--cat:var(--green-light);}
+  .cat-outsiders{--cat:var(--gold);}
+  .cat-tocards{--cat:var(--rust-light);}
 
   /* ---------- Bannière de déverrouillage Premium (après le gratuit) ---------- */
   .cdj-unlock{
@@ -2491,7 +2511,9 @@
         const forme = c.enForme ? ' <span title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
         const cs = (premium && c.coupSur) ? '<span class="cs">COUP SÛR</span>' : '';
         const sub = premium
-          ? `<span class="sub">${c.jockey ? escHtml(c.jockey) : escHtml(c.position) + 'ᵉ choix IA'}</span>`
+          ? `<span class="sub">${c.indice != null
+              ? 'Indice ' + escHtml(c.indice) + '/100' + (c.atouts && c.atouts.length ? ' · ' + escHtml(c.atouts.join(', ')) : '')
+              : (c.jockey ? escHtml(c.jockey) : escHtml(c.position) + 'ᵉ choix IA')}</span>`
           : (c.jockey ? `<span class="sub">${escHtml(c.jockey)}</span>` : '');
         return `<tr class="row cat-${g.classe}">
           <td><span class="num">${escHtml(c.numero)}</span></td>
@@ -2512,14 +2534,17 @@
   // en 3 Bases, 2 Outsiders, 1 Tocard (réduit proportionnellement s'il y en a moins de 6).
   // Les choix suivants de l'IA (position 7 et 8) forment le "Complément" optionnel, destiné
   // à viser un plus gros rapport.
-  function rendreChevauxCourseDuJour(quarte8){
+  function rendreChevauxCourseDuJour(quarte8, complementServeur){
     const chevauxBox = document.getElementById('cdjChevaux');
     const complBox = document.getElementById('cdjComplement');
     const cote = (c) => (c.cote != null && !isNaN(c.cote)) ? Number(c.cote) : Infinity;
     const parCote = (a, b) => cote(a) - cote(b);
     const classes = quarte8.slice().sort((a, b) => (a.position ?? 99) - (b.position ?? 99));
     const six = classes.slice(0, 6).sort(parCote);
-    const complement = classes.slice(6, 8).sort(parCote);
+    // Complément choisi par le serveur (score de données) ; à défaut, 7e et 8e choix de l'IA.
+    const complement = Array.isArray(complementServeur)
+      ? complementServeur.slice(0, 2).sort(parCote)
+      : classes.slice(6, 8).sort(parCote);
     const total = six.length;
     const nBases = Math.min(3, total);
     const nOutsiders = Math.min(2, total - nBases);
@@ -2536,7 +2561,7 @@
         complBox.className = 'cdj-complement';
         complBox.innerHTML = `
           <div class="cdj-complement__titre">➕ Complément · Gros rapport <span class="cdj-badge-option">Option</span></div>
-          <div class="cdj-complement__note">${complement.length} cheval${complement.length > 1 ? 'x' : ''} en plus, à ajouter à ta combinaison si tu veux viser un plus gros rapport.</div>
+          <div class="cdj-complement__note">${complement.length} cheval${complement.length > 1 ? 'x' : ''} en plus, choisi${complement.length > 1 ? 's' : ''} sur nos données (cote, jockey, forme, aptitude, carrière) pour viser un plus gros rapport.</div>
           ${rendreTableauPronos([{ nom: 'Complément', classe: 'comp', items: complement }], true)}`;
       } else {
         complBox.style.display = 'none';
@@ -2545,29 +2570,28 @@
     }
   }
 
-  // Tableau gratuit : numéros et cotes uniquement (pas de nom de cheval), une colonne par catégorie.
+  // Pronostic gratuit : 10 chevaux en cartes-lignes, regroupés par catégorie
+  // (numéro, nom du cheval, jockey, cote).
   function rendreGratuitTableau(g){
     const box = document.getElementById('cdjGratuitTable');
     if (!box) return;
-    const cols = [
+    const groupes = [
       { nom: 'Valeurs sûres', classe: 'sures', items: g.valeursSures || [] },
       { nom: 'Outsiders', classe: 'outsiders', items: g.outsiders || [] },
       { nom: 'Tocards', classe: 'tocards', items: g.tocards || [] },
-    ];
-    const n = Math.max(...cols.map(c => c.items.length));
-    if (!n) { box.innerHTML = '<span class="cdj-numeros-vide">—</span>'; return; }
-    const head = cols.map(c => `<th class="cat-${c.classe}">${c.nom}</th>`).join('');
-    let body = '';
-    for (let i = 0; i < n; i++) {
-      body += '<tr>' + cols.map(c => {
-        const h = c.items[i];
-        if (!h) return '<td><span class="vide">–</span></td>';
-        const forme = h.enForme ? '<span title="Jockey en forme (2+ victoires ce mois-ci)">🔥</span>' : '';
-        const cote = h.cote != null ? `<span class="cote">${escHtml(h.cote)}</span>` : '';
-        return `<td class="cat-${c.classe}"><span class="cell"><span class="num">${escHtml(h.numero)}</span>${cote}${forme}</span></td>`;
-      }).join('') + '</tr>';
-    }
-    box.innerHTML = `<table class="cdj-table cdj-table--grid"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    ].filter(x => x.items.length);
+    if (!groupes.length) { box.innerHTML = '<span class="cdj-numeros-vide">—</span>'; return; }
+    box.innerHTML = '<div class="fr-list">' + groupes.map(x =>
+      `<div class="fr-grp cat-${x.classe}">${x.nom} <span class="n">· ${x.items.length}</span></div>` +
+      x.items.map(h => {
+        const sub = [h.jockey ? escHtml(h.jockey) : '', h.enForme ? '🔥 en forme' : ''].filter(Boolean).join(' · ');
+        return `<div class="fr-row cat-${x.classe}">
+          <div class="fr-num">${escHtml(h.numero)}</div>
+          <div class="fr-body"><div class="fr-name">${escHtml(h.cheval)}</div>${sub ? `<div class="fr-sub">${sub}</div>` : ''}</div>
+          <div class="fr-cote">${h.cote != null ? escHtml(h.cote) : '–'}<small>COTE</small></div>
+        </div>`;
+      }).join('')
+    ).join('') + '</div>';
   }
 
   // Rassemble les chevaux du gratuit + du Premium (avec cote connue) pour
@@ -2645,7 +2669,7 @@
         if (data.premium && data.premium.quarte8 && data.premium.quarte8.length > 0) {
           premiumBox.style.display = '';
           premiumContenu.style.display = '';
-          rendreChevauxCourseDuJour(data.premium.quarte8);
+          rendreChevauxCourseDuJour(data.premium.quarte8, data.premium.complement);
 
           if (data.premium.confiance != null && data.premium.confiance > 0) {
             flap.style.display = '';
