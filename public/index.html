@@ -293,6 +293,8 @@
   .header-actions #btnActiverNotifs .btn-notifs-label{font-size:14.5px; font-weight:600;}
   .header-actions #btnThemeToggle{width:46px; padding:0;}
   .header-actions .link-muted{font-size:15px; max-width:200px;}
+  .header-actions #btnActiverNotifs:disabled{opacity:1; cursor:default;}
+  .header-actions #btnActiverNotifs.notifs-on{border-color:var(--green-light); color:var(--green-light);}
   @media (max-width:600px){
     .site-header .wrap{padding-top:12px; padding-bottom:12px;}
     .header-actions{flex:1 1 100%; flex-wrap:wrap; justify-content:space-between; gap:10px;}
@@ -300,6 +302,12 @@
     .header-actions #btnThemeToggle{width:44px; padding:0;}
     .header-actions #btnActiverNotifs{min-width:44px; padding:0 12px; font-size:20px;}
     .header-actions #btnActiverNotifs .btn-notifs-label{display:none;}
+    .header-actions #btnActiverNotifs.notifs-on{position:relative;}
+    .header-actions #btnActiverNotifs.notifs-on::after{
+      content:"✓"; position:absolute; top:-6px; right:-6px; width:17px; height:17px; border-radius:50%;
+      display:grid; place-items:center; font-size:10px; font-weight:800; line-height:1;
+      background:var(--green-light); color:#0b0b0c; box-shadow:0 0 0 2px var(--bg, #0c0c0d);
+    }
     .header-actions .link-muted{flex:1 1 0; min-width:0; max-width:none; font-size:14px; text-align:center;}
     .header-actions #btnCreerCompte, .header-actions #btnDeconnexion{flex:0 0 auto;}
   }
@@ -985,7 +993,7 @@
       <div class="logo">Turf Nova <span class="dot">AI</span></div>
       <div class="header-actions">
         <button class="btn-outline" id="btnThemeToggle" title="Changer d'apparence" aria-label="Basculer entre mode sombre et mode clair">🌙</button>
-        <button class="btn-outline" id="btnActiverNotifs" style="display:none;">🔔 <span class="btn-notifs-label">Activer les notifs</span></button>
+        <button class="btn-outline" id="btnActiverNotifs" title="Activer les notifications" aria-label="Activer les notifications">🔔 <span class="btn-notifs-label">Activer les notifs</span></button>
         <a href="#" class="link-muted" id="loginLink">Se connecter</a>
         <button class="btn-outline" id="btnCreerCompte">Créer un compte</button>
         <button class="btn-outline" id="btnDeconnexion" style="display:none;">Déconnexion</button>
@@ -1506,6 +1514,7 @@
         <div>
           <h4>Le site</h4>
           <ul>
+            <li><a href="#" id="lienVisiteGuidee">Visite guidée</a></li>
             <li><a href="#courses">Courses du jour</a></li>
             <li><a href="#ia">Pronostics IA</a></li>
             <li><a href="#faq">FAQ</a></li>
@@ -1964,7 +1973,7 @@
   }
 
   // --- Notifications push : "le pronostic du jour est prêt" ---
-  // Clé publique VAPID (non secrète) — doit correspondre à VAPID_PUBLIC_KEY dans wrangler.jsonc.
+  // Clé publique VAPID (inchangée : c'est celle avec laquelle les notifications fonctionnent déjà).
   const VAPID_PUBLIC_KEY = "BGlx6yE1k4txICbec8BoOmAIuxVFcqU6g1pPgmDOWPy0PyKExHN-lqMrpXWUMEVnBwapovzKCQcsNX7udsisfno";
 
   function urlBase64ToUint8Array(base64String) {
@@ -1986,19 +1995,31 @@
   function majBoutonNotifs(actives) {
     if (notifBanniere) notifBanniere.style.display = 'none';
     if (!btnActiverNotifs) return;
-    const label = btnActiverNotifs.querySelector('.btn-notifs-label');
     if (actives) {
       btnActiverNotifs.innerHTML = '🔔 <span class="btn-notifs-label">Notifs activées</span>';
       btnActiverNotifs.disabled = true;
-    } else if (label) {
-      label.textContent = 'Activer les notifs';
-      btnActiverNotifs.disabled = false;
+      btnActiverNotifs.classList.add('notifs-on');
+      btnActiverNotifs.title = 'Notifications activées';
+      btnActiverNotifs.setAttribute('aria-label', 'Notifications activées');
     }
+  }
+
+  function messageNotifsIndisponibles() {
+    const estIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const installe = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (estIOS && !installe) {
+      return "Sur iPhone / iPad, les notifications ne fonctionnent qu'une fois le site ajouté à l'écran d'accueil : appuie sur Partager, choisis « Sur l'écran d'accueil », puis ouvre Turf Nova AI depuis son icône et reviens ici.";
+    }
+    return "Les notifications ne sont pas disponibles dans ce navigateur (ou dans cet aperçu). Ouvre le site directement dans Chrome, Edge, Firefox ou Safari pour les activer.";
   }
 
   async function activerNotificationsPush() {
     if (!notifsSupportees) {
-      alert("Les notifications ne sont pas prises en charge par ce navigateur.");
+      alert(messageNotifsIndisponibles());
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      alert("Les notifications sont bloquées pour ce site. Autorise-les dans les réglages du navigateur (⋮ ou cadenas → Paramètres du site → Notifications), puis réessaie.");
       return;
     }
     try {
@@ -2014,30 +2035,36 @@
         });
       }
 
-      await fetch(`${API_BASE}/api/push/subscribe`, {
+      const res = await fetch(`${API_BASE}/api/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscription.toJSON()),
       });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
 
       majBoutonNotifs(true);
     } catch (e) {
       console.error('[push] abonnement impossible', e);
+      alert("L'activation des notifications a échoué. Réessaie dans un instant.");
     }
   }
 
-  if (btnActiverNotifs && notifsSupportees) {
-    btnActiverNotifs.style.display = 'inline-block';
+  // Le bouton est toujours visible : si le navigateur ne gère pas les notifications,
+  // un clic explique pourquoi au lieu de laisser le bouton disparaître.
+  if (btnActiverNotifs) {
+    btnActiverNotifs.style.display = '';
     btnActiverNotifs.addEventListener('click', activerNotificationsPush);
+  }
 
-    // Si déjà abonné (visite précédente), le bouton reflète l'état dès le chargement,
-    // et la bannière d'incitation ne s'affiche pas puisque c'est déjà fait.
+  if (btnActiverNotifs && notifsSupportees) {
+    // Si déjà abonné (visite précédente), le bouton reflète l'état dès le chargement ;
+    // sinon on affiche la bannière d'incitation.
     navigator.serviceWorker.ready
       .then((registration) => registration.pushManager.getSubscription())
       .then((subscription) => {
         if (subscription) {
           majBoutonNotifs(true);
-        } else if (notifBanniere && !localStorage.getItem(NOTIF_BANNIERE_FERMEE_KEY)) {
+        } else if (notifBanniere && Notification.permission !== 'denied' && !localStorage.getItem(NOTIF_BANNIERE_FERMEE_KEY)) {
           notifBanniere.style.display = 'block';
         }
       })
@@ -3226,17 +3253,229 @@
     var items = nav.querySelectorAll('.bn-item');
     function setActive(key){ items.forEach(function(a){ var on = a.dataset.key === key; a.classList.toggle('active', on); if(on){ a.setAttribute('aria-current','true'); } else { a.removeAttribute('aria-current'); } }); }
     items.forEach(function(a){ a.addEventListener('click', function(){ if(a.dataset.key !== 'blog') setActive(a.dataset.key); }); });
-    var ids = ['courses','ia','abonnements','faq'];
+    var ids = [['calculateur','courses'],['resultats','courses'],['courses','courses'],['ia','ia'],['stats','ia'],['abonnements','abonnements'],['cta-final','abonnements'],['avis','abonnements'],['faq','faq']];
     function onScroll(){
       var line = window.innerHeight * 0.4, current = 'courses';
-      ids.forEach(function(id){
-        var el = document.getElementById(id);
-        if(el && el.getBoundingClientRect().top <= line) current = id;
+      ids.forEach(function(p){
+        var el = document.getElementById(p[0]);
+        if(el && el.getBoundingClientRect().top <= line) current = p[1];
       });
       setActive(current);
     }
     var t; window.addEventListener('scroll', function(){ clearTimeout(t); t = setTimeout(onScroll, 60); }, {passive:true});
     onScroll();
+  })();
+</script>
+
+<style id="lightFixes">
+  /* ---------- Corrections du mode jour ---------- */
+  html{color-scheme:dark;}
+  [data-theme="light"]{color-scheme:light;}
+  [data-theme="light"] .track-caption{color:#6d28d9;}
+  [data-theme="light"] .legal-note{color:rgba(237,233,254,.82);}
+  [data-theme="light"] .brand-desc{color:rgba(237,233,254,.8);}
+  [data-theme="light"] footer h4{color:#c4b5fd;}
+  [data-theme="light"] #resultsFlag.live-flag.demo{color:#d8ccff;}
+  [data-theme="light"] .btn-gold:disabled, [data-theme="light"] .btn-gold[disabled]{background:#ebe7f7; color:#6b6280; opacity:1; box-shadow:none;}
+  [data-theme="light"] #iaSearchBtn:disabled, [data-theme="light"] #iaSearchBtn[disabled]{opacity:1; background:#ebe7f7; color:#6b6280;}
+  [data-theme="light"] .cdj-badge-gratuit{background:#187a50; color:#fff;}
+  /* Les fenêtres (inscription, paiement…) passent au-dessus de la barre du bas et des boutons flottants */
+  .auth-overlay{z-index:1100;}
+</style>
+<style id="tourStyle">
+  /* ---------- Visite guidée ---------- */
+  .tour{position:fixed; inset:0; z-index:10000; display:none; touch-action:none;}
+  .tour.open{display:block;}
+  .tour-dim{position:absolute; inset:0; background:rgba(5,5,8,.8); transition:opacity .3s; opacity:0;}
+  .tour.no-target .tour-dim{opacity:1;}
+  .tour-spot{
+    position:fixed; border-radius:14px; pointer-events:none; opacity:0;
+    box-shadow:0 0 0 3000px rgba(5,5,8,.8); border:2px solid var(--gold);
+    transition:top .35s cubic-bezier(.3,.9,.3,1), left .35s cubic-bezier(.3,.9,.3,1), width .35s cubic-bezier(.3,.9,.3,1), height .35s cubic-bezier(.3,.9,.3,1), opacity .25s;
+  }
+  .tour:not(.no-target) .tour-spot{opacity:1; animation:tourPulse 1.8s ease-in-out infinite;}
+  @keyframes tourPulse{0%,100%{outline:0 solid rgba(201,162,39,.0);} 50%{outline:6px solid rgba(201,162,39,.22);}}
+  .tour-card{
+    position:fixed; width:min(340px, calc(100vw - 24px)); box-sizing:border-box;
+    background:var(--card); color:var(--text); border:1px solid var(--border-strong); border-radius:18px;
+    padding:16px 16px 14px; box-shadow:0 18px 50px rgba(0,0,0,.55);
+    font-family:var(--font-body); opacity:0; transform:translateY(8px); transition:opacity .25s, transform .25s;
+  }
+  .tour.open .tour-card.show{opacity:1; transform:none;}
+  .tour-step{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--gold-light); margin-bottom:6px;}
+  .tour-title{font-size:17px; font-weight:800; line-height:1.25; margin:0 0 6px; color:var(--text);}
+  .tour-text{font-size:13.5px; line-height:1.5; color:var(--text-dim); margin:0;}
+  .tour-tip{margin-top:8px; font-size:12px; line-height:1.4; color:var(--text-dim); padding:7px 10px; border-radius:10px; background:rgba(255,255,255,.05); border:1px dashed var(--border-strong);}
+  .tour-cta{
+    display:block; width:100%; margin-top:12px; min-height:44px; padding:10px 14px; border:0; border-radius:12px; cursor:pointer;
+    background:var(--gold); color:#0b0b0c; font-family:inherit; font-size:14px; font-weight:800;
+  }
+  [data-theme="light"] .tour-cta{color:#fff;}
+  .tour-nav{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:12px;}
+  .tour-skip{background:none; border:0; padding:8px 4px; font-family:inherit; font-size:12.5px; font-weight:700; color:var(--text-dim); cursor:pointer;}
+  .tour-dots{display:flex; gap:5px;}
+  .tour-dots i{width:6px; height:6px; border-radius:50%; background:var(--border-strong); transition:all .25s;}
+  .tour-dots i.on{width:18px; border-radius:4px; background:var(--gold);}
+  .tour-btns{display:flex; gap:6px;}
+  .tour-btn{
+    min-height:38px; min-width:38px; padding:0 14px; border-radius:11px; cursor:pointer; font-family:inherit; font-size:13.5px; font-weight:800;
+    border:1px solid var(--border-strong); background:transparent; color:var(--text);
+  }
+  .tour-btn.primary{background:var(--text); color:var(--bg, #0c0c0d); border-color:transparent;}
+  .tour-btn[hidden], .tour-cta[hidden], .tour-tip[hidden]{display:none !important;}
+  .tour-btn:focus-visible, .tour-cta:focus-visible, .tour-skip:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .tour-btn:focus:not(:focus-visible){outline:none;}
+  @media (prefers-reduced-motion:reduce){ .tour *{transition:none !important; animation:none !important;} }
+</style>
+
+<div class="tour" id="tour" role="dialog" aria-modal="true" aria-labelledby="tourTitre" aria-hidden="true">
+  <div class="tour-dim"></div>
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard">
+    <div class="tour-step" id="tourEtape"></div>
+    <h3 class="tour-title" id="tourTitre"></h3>
+    <p class="tour-text" id="tourTexte"></p>
+    <div class="tour-tip" id="tourAstuce" hidden></div>
+    <button class="tour-cta" id="tourCta" type="button" hidden></button>
+    <div class="tour-nav">
+      <button class="tour-skip" id="tourPasser" type="button">Passer</button>
+      <div class="tour-dots" id="tourPoints" aria-hidden="true"></div>
+      <div class="tour-btns">
+        <button class="tour-btn" id="tourPrec" type="button" aria-label="Étape précédente">‹</button>
+        <button class="tour-btn primary" id="tourSuiv" type="button">Suivant</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script id="tourScript">
+  /* Visite guidée : notifications, compte (inscription / connexion), abonnement */
+  (function(){
+    var KEY = 'turfNovaTourDone';
+    var root = document.getElementById('tour'); if(!root) return;
+    var spot = document.getElementById('tourSpot'), card = document.getElementById('tourCard');
+    var el = function(id){ return document.getElementById(id); };
+    var $etape = el('tourEtape'), $titre = el('tourTitre'), $texte = el('tourTexte'), $astuce = el('tourAstuce'),
+        $cta = el('tourCta'), $points = el('tourPoints'), $prec = el('tourPrec'), $suiv = el('tourSuiv'), $passer = el('tourPasser');
+
+    function visible(e){ return e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden'; }
+    function connecte(){ var b = el('btnDeconnexion'); return !!(b && visible(b)); }
+
+    var ETAPES = [
+      { titre:"Bienvenue sur Turf Nova AI 👋",
+        texte:"En moins d'une minute, découvre comment recevoir le pronostic du jour, créer ton compte et débloquer le Premium.",
+        suivant:"Commencer" },
+      { cible:function(){ return [el('btnActiverNotifs')]; },
+        titre:"Reçois le pronostic du jour",
+        texte:"Touche la cloche 🔔, puis « Autoriser » quand ton navigateur te le demande. Tu es prévenu dès que le pronostic est prêt.",
+        astuce:"Sur iPhone : ajoute d'abord le site à l'écran d'accueil (Partager → Sur l'écran d'accueil).",
+        cta:{ texte:"Activer les notifications", action:function(){ var b = el('btnActiverNotifs'); if(b) b.click(); } } },
+      { cible:function(){ return [el('loginLink'), el('btnCreerCompte')]; },
+        ignorer:function(){ return connecte(); },
+        titre:"Crée ton compte gratuit",
+        texte:"Touche « Créer un compte » pour t'inscrire en quelques secondes. Tu as déjà un compte ? Touche « Se connecter ».",
+        cta:{ texte:"Créer mon compte", action:function(){ var b = el('btnCreerCompte'); if(b) b.click(); } } },
+      { cible:function(){ return [document.querySelector('#bottomNav a[data-key="abonnements"]')]; },
+        titre:"Passe en Premium",
+        texte:"Dans « Abonnement », choisis ta formule (Derby ou Prestige) et paie par Mobile Money ou carte bancaire. Le Pronostic Premium se débloque ensuite sur ton compte.",
+        cta:{ texte:"Voir les abonnements", action:function(){ var s = el('abonnements'); if(s) s.scrollIntoView({behavior:'smooth'}); } } },
+      { titre:"Tu es prêt ! 🏇",
+        texte:"Retrouve les courses du jour, les pronostics IA et la FAQ dans la barre du bas. Tu peux relancer cette visite à tout moment depuis « Visite guidée », en bas de page.",
+        suivant:"Terminer" }
+    ];
+
+    var actives = [], idx = 0, ouverte = false;
+
+    function termine(){ try{ localStorage.setItem(KEY, '1'); }catch(e){} }
+
+    function rectCible(e){
+      var els = (e.cible ? e.cible() : []).filter(visible);
+      if(!els.length) return null;
+      var l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+      els.forEach(function(n){ var q = n.getBoundingClientRect(); l = Math.min(l,q.left); t = Math.min(t,q.top); r = Math.max(r,q.right); b = Math.max(b,q.bottom); });
+      return { left:l, top:t, width:r-l, height:b-t };
+    }
+
+    function place(){
+      if(!ouverte) return;
+      var e = actives[idx], rect = e.cible ? rectCible(e) : null;
+      root.classList.toggle('no-target', !rect);
+      var vw = window.innerWidth, vh = window.innerHeight, cw = card.offsetWidth, ch = card.offsetHeight, top, left;
+      if(rect){
+        var pad = 6;
+        spot.style.left = (rect.left - pad) + 'px'; spot.style.top = (rect.top - pad) + 'px';
+        spot.style.width = (rect.width + pad*2) + 'px'; spot.style.height = (rect.height + pad*2) + 'px';
+        spot.style.boxShadow = '0 0 0 ' + (Math.max(vw, vh) + 120) + 'px rgba(5,5,8,.8)';
+        var dessous = vh - (rect.top + rect.height + pad), dessus = rect.top - pad;
+        if(dessous >= ch + 16 || dessous >= dessus) top = rect.top + rect.height + pad + 12;
+        else top = rect.top - pad - 12 - ch;
+        left = rect.left + rect.width/2 - cw/2;
+      } else {
+        top = (vh - ch)/2; left = (vw - cw)/2;
+      }
+      left = Math.max(12, Math.min(left, vw - cw - 12));
+      top = Math.max(12, Math.min(top, vh - ch - 12));
+      card.style.left = left + 'px'; card.style.top = top + 'px';
+    }
+
+    function affiche(i){
+      idx = i; var e = actives[i];
+      card.classList.remove('show');
+      var cible = e.cible ? e.cible() : [];
+      var besoinHaut = cible.some(function(n){ return n && n.closest && n.closest('.site-header'); });
+      if(besoinHaut) window.scrollTo({top:0, behavior:'instant'});
+      $etape.textContent = (i === 0 || i === actives.length-1) ? '' : 'Étape ' + i + ' sur ' + (actives.length-2);
+      $etape.style.display = $etape.textContent ? '' : 'none';
+      $titre.textContent = e.titre; $texte.textContent = e.texte;
+      if(e.astuce){ $astuce.hidden = false; $astuce.textContent = e.astuce; } else { $astuce.hidden = true; }
+      if(e.cta){ $cta.hidden = false; $cta.textContent = e.cta.texte; } else { $cta.hidden = true; }
+      $suiv.textContent = e.suivant || 'Suivant';
+      $prec.hidden = (i === 0);
+      $passer.style.visibility = (i === actives.length-1) ? 'hidden' : 'visible';
+      $points.innerHTML = actives.map(function(_, k){ return '<i class="' + (k === i ? 'on' : '') + '"></i>'; }).join('');
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){ place(); card.classList.add('show'); $suiv.focus({preventScroll:true}); }); });
+    }
+
+    function ouvrir(force){
+      actives = ETAPES.filter(function(e){ return !(e.ignorer && e.ignorer()); });
+      ouverte = true; root.classList.add('open'); root.setAttribute('aria-hidden','false');
+      window.scrollTo({top:0, behavior:'instant'});
+      setTimeout(function(){ affiche(0); }, 60);
+    }
+    function ferme(){
+      ouverte = false; root.classList.remove('open'); root.setAttribute('aria-hidden','true'); card.classList.remove('show');
+      termine();
+    }
+    function suivant(){ if(idx >= actives.length-1){ ferme(); } else { affiche(idx+1); } }
+    function precedent(){ if(idx > 0) affiche(idx-1); }
+
+    $suiv.addEventListener('click', suivant);
+    $prec.addEventListener('click', precedent);
+    $passer.addEventListener('click', ferme);
+    $cta.addEventListener('click', function(){ var a = actives[idx].cta && actives[idx].cta.action; ferme(); if(a) setTimeout(a, 120); });
+    document.addEventListener('keydown', function(ev){
+      if(!ouverte) return;
+      if(ev.key === 'Escape') ferme();
+      else if(ev.key === 'ArrowRight') suivant();
+      else if(ev.key === 'ArrowLeft') precedent();
+    });
+    root.addEventListener('wheel', function(ev){ ev.preventDefault(); }, {passive:false});
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', function(){ if(ouverte) place(); }, {passive:true});
+
+    var lien = el('lienVisiteGuidee');
+    if(lien) lien.addEventListener('click', function(ev){ ev.preventDefault(); ouvrir(true); });
+    window.lancerVisiteGuidee = function(){ ouvrir(true); };
+
+    // Lancement automatique : une seule fois, pour un visiteur non connecté, hors lien direct (#ancre).
+    var dejaVue = false; try{ dejaVue = !!localStorage.getItem(KEY); }catch(e){}
+    if(!dejaVue && !location.hash && !/[?&]notour\b/.test(location.search)){
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          var modalOuvert = document.querySelector('.auth-overlay.open');
+          if(!connecte() && !modalOuvert && !ouverte) ouvrir(false);
+        }, 2500);
+      });
+    }
   })();
 </script>
 

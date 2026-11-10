@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script>try{if(localStorage.getItem('tn-theme')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administration — Turf Nova AI</title>
 <meta name="robots" content="noindex, nofollow">
@@ -228,6 +229,25 @@
     .content h1{font-size:19px;}
   }
   button, input, select, textarea, optgroup, option{font-family:inherit;}
+</style>
+<style id="themeLight">
+  /* ---------- Mode jour (même palette « Nova Violet » que l'accueil) ---------- */
+  html{color-scheme:dark;}
+  [data-theme="light"]{
+    color-scheme:light;
+    --bg:#ffffff; --bg-alt:#f6f3ff; --card:#ffffff; --card-alt:#f4f0fe;
+    --border:rgba(109,40,217,.12); --border-strong:rgba(109,40,217,.24);
+    --text:#1a1030; --text-dim:#6b6280; --gold:#7c3aed; --gold-light:#6d28d9;
+    --green-light:#127a49; --rust:#b23d0f; --rust-light:#96350d; --red:#c53030;
+  }
+  [data-theme="light"] .logo{color:var(--text);}
+  [data-theme="light"] .login-screen{background:radial-gradient(circle at 30% 20%, #f4f0fe 0%, #ffffff 70%);}
+  [data-theme="light"] .login-card .mark, [data-theme="light"] .topbar .mark{color:var(--text);}
+  [data-theme="light"] .login-btn, [data-theme="light"] .btn-primary{color:#fff;}
+  [data-theme="light"] tbody tr:hover td{background:rgba(109,40,217,.05);}
+  [data-theme="light"] #usersTable tr, [data-theme="light"] #articlesTable tr, [data-theme="light"] #verifTable tr{background:rgba(109,40,217,.03);}
+  [data-theme="light"] .tag.prestige, [data-theme="light"] .tag.actif{background:rgba(18,122,73,.12);}
+  [data-theme="light"] .tag.desactive, [data-theme="light"] .tag.expire{background:rgba(178,61,15,.12);}
 </style>
 </head>
 <body>

@@ -2903,6 +2903,19 @@ async function envoyerPushUnitaire(env, subscription, payloadObj) {
   return { ok: res.ok, status: res.status, expired: res.status === 404 || res.status === 410 };
 }
 
+// Crée la table des abonnements push si elle n'existe pas encore (sans effet sinon).
+async function assurerTablePush(env) {
+  if (!env.DB) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+       endpoint TEXT PRIMARY KEY,
+       p256dh TEXT NOT NULL,
+       auth TEXT NOT NULL,
+       created_at INTEGER
+     )`
+  ).run();
+}
+
 async function handlePushSubscribe(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   let body;
@@ -2921,6 +2934,7 @@ async function handlePushSubscribe(request, env) {
 
   if (!env.DB) return new Response(JSON.stringify({ error: "Indisponible" }), { status: 503, headers: corsHeaders });
 
+  await assurerTablePush(env);
   await env.DB.prepare(
     `INSERT OR IGNORE INTO push_subscriptions (endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?)`
   )
@@ -2958,6 +2972,7 @@ async function envoyerNotificationPronosticDuJour(env) {
   if (dejaEnvoyee) return;
   await env.CACHE_KV.put(verrou, "1", { expirationTtl: 86400 });
 
+  await assurerTablePush(env);
   const abonnes = await env.DB.prepare(`SELECT endpoint, p256dh, auth FROM push_subscriptions`).all();
   const subs = abonnes.results || [];
   if (subs.length === 0) return;
