@@ -25,7 +25,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "Le pronostic du jour est disponible.",
     icon: "/img/icon-192.png",
-    badge: "/img/icon-192.png",
+    badge: "/img/badge-192.png",
     data: { url: data.url || "/" },
   };
   event.waitUntil(self.registration.showNotification(title, options));

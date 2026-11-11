@@ -2979,7 +2979,7 @@ async function envoyerNotificationPronosticDuJour(env) {
 
   const payload = {
     title: "🐎 Le pronostic du jour est prêt",
-    body: "Quarté en 8 et coups sûrs disponibles dès maintenant sur Turf Nova AI.",
+    body: "Retrouve la sélection de l'IA, les coups sûrs et l'indice de confiance sur Turf Nova AI.",
     url: "/",
   };
 

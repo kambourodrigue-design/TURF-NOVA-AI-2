@@ -6,6 +6,7 @@
 <title>TURF NOVA AI — Pronostics hippiques par intelligence artificielle</title>
 <meta name="description" content="Pronostics hippiques PMU générés par 3 intelligences artificielles : Quarté en 8, coups sûrs et indice de confiance pour chaque réunion. Taux de réussite vérifiés sur les résultats officiels PMU.">
 <meta name="robots" content="index, follow">
+<link rel="preload" as="image" href="/img/logo-splash.png">
 <link rel="canonical" href="https://turf-nova-ai-2.kambourodrigue.workers.dev/">
 
 <!-- Open Graph / réseaux sociaux -->
@@ -958,8 +959,40 @@
     }
   } catch {}
 </script>
+<style id="brandStyle">
+  /* ---------- Écran de démarrage ---------- */
+  #splash{
+    position:fixed; inset:0; z-index:20000; background:#0c0c0d;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;
+    transition:opacity .45s ease, visibility .45s;
+  }
+  #splash.hide{opacity:0; visibility:hidden;}
+  #splash img{width:min(62vw, 260px); height:auto; animation:splashPulse 1.8s ease-in-out infinite;}
+  .splash-bar{width:120px; height:3px; border-radius:3px; background:rgba(255,255,255,.16); overflow:hidden;}
+  .splash-bar i{display:block; width:40%; height:100%; border-radius:3px; background:#c9a227; animation:splashBar 1.1s ease-in-out infinite;}
+  @keyframes splashPulse{0%,100%{transform:scale(1); opacity:.92;} 50%{transform:scale(1.04); opacity:1;}}
+  @keyframes splashBar{0%{transform:translateX(-110%);} 100%{transform:translateX(280%);}}
+  @media (prefers-reduced-motion:reduce){ #splash img, .splash-bar i{animation:none;} #splash{transition:none;} }
+</style>
+<noscript><style>#splash{display:none !important;}</style></noscript>
 </head>
 <body>
+
+  <div id="splash" aria-hidden="true">
+    <img src="/img/logo-splash.png" alt="" width="335" height="232">
+    <div class="splash-bar"><i></i></div>
+  </div>
+  <script>
+    /* Écran de démarrage : une seule fois par session (= à chaque lancement de l'appli installée). */
+    (function(){
+      var s = document.getElementById('splash'); if(!s) return;
+      try{ if(sessionStorage.getItem('tnSplash')){ s.remove(); return; } sessionStorage.setItem('tnSplash','1'); }catch(e){}
+      var fait = false, t0 = Date.now();
+      function cacher(){ if(fait) return; fait = true; s.classList.add('hide'); setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 600); }
+      window.addEventListener('load', function(){ setTimeout(cacher, Math.max(0, 700 - (Date.now() - t0))); });
+      setTimeout(cacher, 4000);
+    })();
+  </script>
 
   <div class="install-banniere" id="installBanniere" style="display:none;">
     <div class="wrap install-banniere__inner">
@@ -3223,7 +3256,7 @@
   <a href="#ia" class="bn-item" data-key="ia"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span>Pronostics IA</span></a>
   <a href="#abonnements" class="bn-item" data-key="abonnements"><svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg><span>Abonnement</span></a>
   <a href="/blog.html" class="bn-item" data-key="blog"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span>Articles</span></a>
-  <a href="#faq" class="bn-item" data-key="faq"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/></svg><span>FAQ</span></a>
+  <a href="#visite" class="bn-item" data-key="tour" id="bnTour" role="button" aria-label="Lancer la visite guidée"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg><span>Visite guidée</span></a>
 </nav>
 <script>
   /* Pastille animée sous l'onglet actif */
@@ -3252,8 +3285,8 @@
     var nav = document.getElementById('bottomNav'); if(!nav) return;
     var items = nav.querySelectorAll('.bn-item');
     function setActive(key){ items.forEach(function(a){ var on = a.dataset.key === key; a.classList.toggle('active', on); if(on){ a.setAttribute('aria-current','true'); } else { a.removeAttribute('aria-current'); } }); }
-    items.forEach(function(a){ a.addEventListener('click', function(){ if(a.dataset.key !== 'blog') setActive(a.dataset.key); }); });
-    var ids = [['calculateur','courses'],['resultats','courses'],['courses','courses'],['ia','ia'],['stats','ia'],['abonnements','abonnements'],['cta-final','abonnements'],['avis','abonnements'],['faq','faq']];
+    items.forEach(function(a){ a.addEventListener('click', function(){ if(a.dataset.key !== 'blog' && a.dataset.key !== 'tour') setActive(a.dataset.key); }); });
+    var ids = [['calculateur','courses'],['resultats','courses'],['courses','courses'],['ia','ia'],['stats','ia'],['abonnements','abonnements'],['cta-final','abonnements'],['avis','abonnements'],['faq','']];
     function onScroll(){
       var line = window.innerHeight * 0.4, current = 'courses';
       ids.forEach(function(p){
@@ -3379,7 +3412,7 @@
         texte:"Dans « Abonnement », choisis ta formule (Derby ou Prestige) et paie par Mobile Money ou carte bancaire. Le Pronostic Premium se débloque ensuite sur ton compte.",
         cta:{ texte:"Voir les abonnements", action:function(){ var s = el('abonnements'); if(s) s.scrollIntoView({behavior:'smooth'}); } } },
       { titre:"Tu es prêt ! 🏇",
-        texte:"Retrouve les courses du jour, les pronostics IA et la FAQ dans la barre du bas. Tu peux relancer cette visite à tout moment depuis « Visite guidée », en bas de page.",
+        texte:"Retrouve les courses du jour, les pronostics IA et les articles dans la barre du bas. Pour revoir cette visite, appuie à tout moment sur « Visite guidée » dans cette même barre.",
         suivant:"Terminer" }
     ];
 
@@ -3464,11 +3497,18 @@
 
     var lien = el('lienVisiteGuidee');
     if(lien) lien.addEventListener('click', function(ev){ ev.preventDefault(); ouvrir(true); });
+    var bnTour = el('bnTour');
+    if(bnTour) bnTour.addEventListener('click', function(ev){ ev.preventDefault(); if(!ouverte) ouvrir(true); });
+    var demandee = /[?&]visite=1\b/.test(location.search);
+    if(demandee){
+      try{ history.replaceState(null, '', location.pathname + location.hash); }catch(e){}
+      window.addEventListener('load', function(){ setTimeout(function(){ if(!ouverte) ouvrir(true); }, 1300); });
+    }
     window.lancerVisiteGuidee = function(){ ouvrir(true); };
 
     // Lancement automatique : une seule fois, pour un visiteur non connecté, hors lien direct (#ancre).
     var dejaVue = false; try{ dejaVue = !!localStorage.getItem(KEY); }catch(e){}
-    if(!dejaVue && !location.hash && !/[?&]notour\b/.test(location.search)){
+    if(!dejaVue && !demandee && !location.hash && !/[?&]notour\b/.test(location.search)){
       window.addEventListener('load', function(){
         setTimeout(function(){
           var modalOuvert = document.querySelector('.auth-overlay.open');
