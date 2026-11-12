@@ -304,7 +304,7 @@ async function getCourseInfo(date, numReunion, numCourse) {
   }
 }
 
-// --- Pronostics IA (4 modèles combinés) — Quarté en 8 chevaux + 2 coups sûrs ---
+// --- Pronostics IA (3 modèles combinés) — Quarté en 8 chevaux + 2 coups sûrs ---
 
 // Réduit un nombre entier à un chiffre unique (1-9) par addition successive des chiffres.
 function reduireChiffre(n) {
@@ -850,7 +850,7 @@ function buildPromptChat(question, courses, courseDuJour) {
     const chevaux = courseDuJour.quarte8
       .map((c) => `N°${c.numero} ${c.cheval}${c.coupSur ? " (coup sûr IA)" : ""}`)
       .join(", ");
-    blocCourseDuJour = `\n\nCourse du jour mise en avant (${courseDuJour.reunion} ${courseDuJour.course}, ${courseDuJour.hippodrome}) — pronostic Quarté en 8 de nos IA, confiance ${courseDuJour.confiance}% : ${chevaux}`;
+    blocCourseDuJour = `\n\nCourse du jour mise en avant (${courseDuJour.reunion} ${courseDuJour.course}, ${courseDuJour.hippodrome}) — pronostic de nos IA, confiance ${courseDuJour.confiance}% : ${chevaux}`;
   }
 
   return `Tu es l'assistant du site Turf Nova AI (pronostics hippiques PMU). Réponds en français, en 5 phrases maximum, uniquement à partir des données ci-dessous. Le "favori" est juste le cheval à la cote la plus basse, ce n'est pas un pronostic IA — ne le présente jamais comme tel. Si la question ne peut pas être répondue avec ces données (course non listée, info absente), dis-le clairement plutôt que d'inventer un cheval ou une cote. Ne donne jamais de conseil du type "mise tout" et rappelle brièvement, si pertinent, que les paris comportent un risque.
@@ -1023,7 +1023,7 @@ async function chargerPredictionVerrouillee(env, date, reunion, course) {
 
 // Calcule (ou lit en cache) le consensus IA pour une course donnée.
 // Partagée entre le pronostic à la demande (handlePronosticIA) et le calcul
-// du "Top courses du jour" — pour ne jamais payer deux fois l'appel aux 4 IA
+// du "Top courses du jour" — pour ne jamais payer deux fois l'appel aux 3 IA
 // pour la même course dans la même fenêtre de cache.
 //
 // Une fois un pronostic généré pour une course, il est VERROUILLÉ en base
@@ -1563,7 +1563,7 @@ async function envoyerEmailBienvenue(env, email) {
   const html = emailShell(
     "Bienvenue sur Turf Nova AI 🐎",
     `<p style="font-size:14px; line-height:1.6;">Ton compte est créé — tu as dès maintenant accès au pronostic gratuit du jour (10 numéros) sur la course mise en avant.</p>
-     <p style="font-size:14px; line-height:1.6;">Passe au plan Prestige ou Derby pour débloquer le Pronostic Premium (8 numéros détaillés, coups sûrs, analyse complète) sur la course du jour.</p>
+     <p style="font-size:14px; line-height:1.6;">Passe au plan Prestige ou Derby pour débloquer le Pronostic Premium (sélection détaillée, coups sûrs, analyse complète) sur la course du jour.</p>
      <a href="https://${env.SITE_DOMAIN || "turf-nova-ai.com"}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Voir le pronostic du jour</a>`
   );
   await envoyerEmail(env, { to: email, subject: "Bienvenue sur Turf Nova AI", html });
@@ -1573,7 +1573,7 @@ async function envoyerEmailPaiementConfirme(env, email, plan) {
   const html = emailShell(
     "Paiement confirmé ✓",
     `<p style="font-size:14px; line-height:1.6;">Ton abonnement <b>${plan}</b> est actif. Merci pour ta confiance !</p>
-     <p style="font-size:14px; line-height:1.6;">Tu as désormais un accès complet au Pronostic Premium (8 numéros détaillés) sur toutes les courses, sans limite.</p>
+     <p style="font-size:14px; line-height:1.6;">Tu as désormais un accès complet au Pronostic Premium (sélection détaillée) sur toutes les courses, sans limite.</p>
      <a href="https://${env.SITE_DOMAIN || "turf-nova-ai.com"}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Accéder au site</a>`
   );
   await envoyerEmail(env, { to: email, subject: "Ton abonnement Turf Nova AI est actif", html });
@@ -2389,6 +2389,8 @@ async function handleCourseDuJour(request, env) {
     updatedAt: full.updatedAt,
     // Pronostic gratuit (10 numéros, 3 catégories) — toujours renvoyé, sans compte ni abonnement.
     gratuit: full.gratuit,
+    // Indice de confiance : affiché aussi dans la partie gratuite.
+    confiance: full.confiance ?? null,
   };
 
   if (!full.quarte8) {
