@@ -564,10 +564,22 @@ function pause(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Modèle DeepSeek utilisé pour les pronostics.
+//  - "deepseek-v4-pro"   = celui du mode « Expert » de l'application DeepSeek
+//                         (1,6 T de paramètres) — réponses plus fines, environ 10x plus cher ;
+//  - "deepseek-v4-flash" = celui du mode « Instant » (284 Md de paramètres) — plus léger.
+// Pour revenir au modèle léger, il suffit de remplacer par "deepseek-v4-flash".
+const DEEPSEEK_MODELE = "deepseek-v4-pro";
+// Effort de raisonnement : low / high / max. "max" est le plus poussé mais aussi le plus lent
+// (risque de dépasser le délai puis de basculer sur le repli) ; "high" est un bon compromis.
+const DEEPSEEK_EFFORT = "high";
+const DEEPSEEK_DELAI_S = 70;
+
 async function callDeepSeekUneFois(prompt, apiKey) {
   if (!apiKey) throw new Error("Clé API manquante");
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 55_000);
+  const timeoutId = setTimeout(() => controller.abort(), DEEPSEEK_DELAI_S * 1000);
+  const debut = Date.now();
   let res;
   try {
     res = await fetch("https://api.deepseek.com/chat/completions", {
@@ -588,9 +600,9 @@ async function callDeepSeekUneFois(prompt, apiKey) {
         // Note : le mode thinking ignore temperature/top_p, donc on ne les
         // envoie pas. max_tokens ne couvre QUE la réponse finale (après le
         // raisonnement), qui reste minuscule ici (petit objet JSON).
-        model: "deepseek-v4-flash",
+        model: DEEPSEEK_MODELE,
         thinking: { type: "enabled" },
-        reasoning_effort: "max",
+        reasoning_effort: DEEPSEEK_EFFORT,
         response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
         max_tokens: 8000,
@@ -599,7 +611,7 @@ async function callDeepSeekUneFois(prompt, apiKey) {
     });
   } catch (e) {
     if (e.name === "AbortError") {
-      throw new Error("DeepSeek n'a pas répondu à temps (délai de 55s dépassé)");
+      throw new Error(`DeepSeek n'a pas répondu à temps (délai de ${DEEPSEEK_DELAI_S}s dépassé)`);
     }
     throw e;
   } finally {
@@ -619,6 +631,7 @@ async function callDeepSeekUneFois(prompt, apiKey) {
       `Réponse DeepSeek non conforme (JSON illisible) — finish_reason: ${data.choices?.[0]?.finish_reason || "?"}, longueur contenu: ${text.length}`
     );
   }
+  console.log(`[deepseek] ${DEEPSEEK_MODELE} (effort ${DEEPSEEK_EFFORT}) — réponse en ${Math.round((Date.now() - debut) / 1000)}s`);
   return { ...parsed, source: "DeepSeek" };
 }
 
@@ -692,6 +705,7 @@ async function callDeepSeekChatRepli(prompt, apiKey, erreurOrigine) {
   const text = data.choices?.[0]?.message?.content || "";
   const parsed = parseQuarteJSON(text);
   if (!parsed) throw erreurOrigine;
+  console.warn(`[deepseek] REPLI sur deepseek-v4-flash (sans raisonnement) car ${DEEPSEEK_MODELE} a échoué : ${(erreurOrigine && erreurOrigine.message) || erreurOrigine}`);
   return { ...parsed, source: "DeepSeek" };
 }
 
@@ -2242,10 +2256,8 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
 
   // Ordre de confiance de l'IA (position 1 = son choix le plus sûr) pour les
   // chevaux qu'elle a retenus, complété si besoin par les chevaux restants
-  // triés par cote croissante pour atteindre 10. Contrairement à l'ancienne
-  // version, on NE re-trie PLUS l'ensemble par cote : le classement gratuit
-  // suit désormais le raisonnement de l'IA (le tri par cote est réservé au
-  // Premium, voir plus bas).
+  // triés par cote croissante pour atteindre 10. On NE re-trie PLUS l'ensemble
+  // par cote : le classement suit le raisonnement de l'IA (comme le Premium).
   const dejaChoisisNumeros = new Set((quarte8 || []).map((c) => c.numero));
   const dejaChoisis = (quarte8 || [])
     .slice()
@@ -2339,12 +2351,11 @@ async function handleCourseDuJour(request, env) {
                 enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
               };
             })
-            // Le Premium est désormais classé par cote croissante (favori du
-            // marché en tête) plutôt que par l'ordre de confiance de l'IA —
-            // c'est maintenant le gratuit qui suit ce dernier (voir
-            // construireSelectionGratuite). Chevaux sans cote connue relégués
-            // en fin de liste plutôt que de casser le tri.
-            .sort((a, b) => (a.cote ?? Infinity) - (b.cote ?? Infinity));
+            // Le Premium suit le classement de l'IA (position 1 = son meilleur choix)
+            // et non plus l'ordre des cotes : à l'arrivée, un ou deux chevaux à cote
+            // moyenne ou élevée s'immiscent souvent parmi les meilleurs. La cote reste
+            // renvoyée pour chaque cheval, à titre d'information.
+            .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
           confiance = consensus.confiance;
         }
       }

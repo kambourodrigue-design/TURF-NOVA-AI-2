@@ -417,6 +417,8 @@
   .fr-body{flex:1; min-width:0;}
   .fr-name{font-family:var(--font-sans); font-weight:800; font-size:12px; line-height:1.2; color:var(--text); overflow-wrap:anywhere;}
   .fr-sub{font-family:var(--font-sans); font-size:10px; color:var(--text-dim); margin-top:1px; line-height:1.25;}
+  .fr-rang{color:var(--gold-light); font-weight:800;}
+  .cdj-premium-note{margin:-2px 0 12px; font-family:var(--font-body); font-size:12.5px; line-height:1.5; color:var(--text-dim);}
   .fr-cs{
     display:inline-block; margin-left:6px; padding:0 5px; border-radius:5px; vertical-align:1px;
     font-size:8.5px; font-weight:800; letter-spacing:.05em; color:var(--gold-light); border:1px solid var(--gold); white-space:nowrap;
@@ -1073,6 +1075,7 @@
               <div class="cdj-premium" id="cdjPremiumBox" style="display:none; margin-top:16px;">
                 <div id="cdjPremiumContenu" style="display:none;">
                   <div class="cdj-section-titre cdj-section-titre--premium">⭐ Pronostic Premium IA <span class="cdj-badge-premium">6 numéros · abonnés</span></div>
+                <p class="cdj-premium-note">Classés par l'IA, du meilleur choix au moins bon — pas selon les cotes : un cheval à cote moyenne ou élevée peut figurer parmi les meilleurs.</p>
                   <div id="cdjChevaux" style="margin-top:12px;"></div>
                   <div id="cdjComplement" style="display:none;"></div>
                 </div>
@@ -2525,7 +2528,8 @@
         const cs = (premium && h.coupSur) ? '<span class="fr-cs">COUP SÛR</span>' : '';
         let sub;
         if (premium) {
-          sub = h.jockey ? escHtml(h.jockey) : (h.position != null ? escHtml(h.position) + 'ᵉ choix IA' : '');
+          const rang = (h.position != null) ? `<b class="fr-rang">${h.position === 1 ? '1er' : escHtml(h.position) + 'ᵉ'} choix IA</b>` : '';
+          sub = [rang, h.jockey ? escHtml(h.jockey) : ''].filter(Boolean).join(' · ');
         } else {
           sub = [h.jockey ? escHtml(h.jockey) : '', h.enForme ? '🔥 en forme' : ''].filter(Boolean).join(' · ');
         }
@@ -2539,18 +2543,21 @@
     ).join('') + '</div>';
   }
 
-  // Premium : les 6 meilleurs choix de l'IA (position 1 à 6) sont classés par cote croissante
-  // en 3 Bases, 2 Outsiders, 1 Tocard (réduit proportionnellement s'il y en a moins de 6).
-  // Les choix suivants de l'IA (position 7 et 8) forment le "Complément" optionnel, destiné
-  // à viser un plus gros rapport.
-  function rendreChevauxCourseDuJour(quarte8){
+  // Premium : les 6 meilleurs choix de l'IA (position 1 à 6), dans l'ordre de l'IA — et non
+  // selon les cotes : un cheval à cote moyenne ou élevée peut figurer parmi les meilleurs.
+  // Répartition : 3 Bases (choix 1 à 3), 2 Outsiders (choix 4 et 5), 1 Tocard (choix 6),
+  // réduite proportionnellement s'il y en a moins de 6. Les choix 7 et 8 de l'IA forment le
+  // "Complément" optionnel (gros rapport).
+  function rendreChevauxCourseDuJour(quarte8, complementServeur){
     const chevauxBox = document.getElementById('cdjChevaux');
     const complBox = document.getElementById('cdjComplement');
-    const cote = (c) => (c.cote != null && !isNaN(c.cote)) ? Number(c.cote) : Infinity;
-    const parCote = (a, b) => cote(a) - cote(b);
-    const classes = quarte8.slice().sort((a, b) => (a.position ?? 99) - (b.position ?? 99));
-    const six = classes.slice(0, 6).sort(parCote);
-    const complement = classes.slice(6, 8).sort(parCote);
+    const parPosition = (a, b) => (a.position ?? 99) - (b.position ?? 99);
+    const classes = quarte8.slice().sort(parPosition);
+    const six = classes.slice(0, 6);
+    // Complément choisi par le serveur si fourni ; à défaut, 7e et 8e choix de l'IA.
+    const complement = Array.isArray(complementServeur)
+      ? complementServeur.slice(0, 2).sort(parPosition)
+      : classes.slice(6, 8);
     const total = six.length;
     const nBases = Math.min(3, total);
     const nOutsiders = Math.min(2, total - nBases);
