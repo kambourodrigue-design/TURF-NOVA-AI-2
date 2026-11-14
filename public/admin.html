@@ -140,7 +140,7 @@
     font-family:var(--font-mono); font-size:10.5px; padding:3px 9px; border-radius:20px; font-weight:600; white-space:nowrap;
   }
   .tag.gratuit{background:rgba(255,255,255,.08); color:var(--text-dim);}
-  .tag.prestige{background:rgba(63,179,127,.15); color:var(--green-light);}
+  .tag.prestige, .tag.mensuel, .tag.annuel{background:rgba(63,179,127,.15); color:var(--green-light);}
   .tag.actif{background:rgba(63,179,127,.15); color:var(--green-light);}
   .tag.desactive{background:rgba(209,83,26,.15); color:var(--rust);}
   .tag.expire{background:rgba(209,83,26,.15); color:var(--rust);}
@@ -246,7 +246,7 @@
   [data-theme="light"] .login-btn, [data-theme="light"] .btn-primary{color:#fff;}
   [data-theme="light"] tbody tr:hover td{background:rgba(109,40,217,.05);}
   [data-theme="light"] #usersTable tr, [data-theme="light"] #articlesTable tr, [data-theme="light"] #verifTable tr{background:rgba(109,40,217,.03);}
-  [data-theme="light"] .tag.prestige, [data-theme="light"] .tag.actif{background:rgba(18,122,73,.12);}
+  [data-theme="light"] .tag.prestige, [data-theme="light"] .tag.mensuel, [data-theme="light"] .tag.annuel, [data-theme="light"] .tag.actif{background:rgba(18,122,73,.12);}
   [data-theme="light"] .tag.desactive, [data-theme="light"] .tag.expire{background:rgba(178,61,15,.12);}
 </style>
 </head>
@@ -430,7 +430,7 @@
                 <label>Destinataires
                   <select id="mktSegment" class="plan-select">
                     <option value="tous">Tous les comptes actifs</option>
-                    <option value="abonnes">Abonnés actifs (Derby / Prestige)</option>
+                    <option value="abonnes">Abonnés actifs (Premium)</option>
                     <option value="gratuit">Comptes gratuits (pas d'abonnement actif)</option>
                   </select>
                 </label>
@@ -546,7 +546,7 @@
   // "gratuit" n'est plus proposé comme choix ici : c'est un état automatique
   // (appliqué par le cron d'expiration quand un abonnement payant se termine),
   // pas un plan qu'un admin doit assigner à la main.
-  const PLANS = ['quinzaine', 'prestige'];
+  const PLANS = ['mensuel', 'annuel', 'quinzaine', 'prestige'];
   let dernierUtilisateurs = [];
 
   function renderUtilisateurs(utilisateurs){

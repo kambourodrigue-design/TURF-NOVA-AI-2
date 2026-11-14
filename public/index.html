@@ -1067,7 +1067,7 @@
 
                 <div class="cdj-unlock" id="cdjUnlock">
                   <div class="cdj-unlock__titre" id="cdjUnlockTitre">🔓 Déverrouiller le Pronostic Premium IA en 6 numéros</div>
-                  <div class="cdj-unlock__cond" id="cdjUnlockCond">Accessible dès que tu as créé un compte gratuit et souscrit à l'une des formules d'abonnement (Derby ou Prestige).</div>
+                  <div class="cdj-unlock__cond" id="cdjUnlockCond">Accessible dès que tu as créé un compte gratuit et souscrit à l'abonnement Premium (mensuel ou annuel).</div>
                   <a href="#abonnements" class="btn-gold" id="cdjUnlockBtn">Voir les abonnements</a>
                 </div>
               </div>
@@ -1202,6 +1202,11 @@
             </div>
           </div>
           <button class="btn-gold ia-search-submit" id="iaSearchBtn" disabled>Voir le pronostic IA</button>
+          <div class="ia-quota" id="iaQuota" hidden>
+            <div class="ia-quota__ligne"><span>Analyses de courses ce mois-ci</span><b id="iaQuotaTexte">15 / 15</b></div>
+            <div class="ia-quota__barre" aria-hidden="true"><i id="iaQuotaBarre"></i></div>
+            <p class="ia-quota__note">Les courses déjà analysées par l'IA ne comptent pas. Le compteur repart à zéro le 1er de chaque mois.</p>
+          </div>
           <div id="iaSearchResult"></div>
         </div>
 
@@ -1313,42 +1318,34 @@
       <div class="wrap">
         <div class="section-head">
           <div>
-            <div class="eyebrow">Abonnements</div>
-            <h2>Choisissez votre place sur l'hippodrome</h2>
+            <div class="eyebrow">Abonnement</div>
+            <h2>Une seule formule, deux façons de payer</h2>
           </div>
-          <p>Deux formules, de l'accès rapide à l'analyse complète.</p>
+          <p>Le même accès complet au Pronostic Premium, au mois ou à l'année.</p>
         </div>
 
-        <div class="pricing-grid">
-          <div class="plan">
-            <div class="enclos">Tribune</div>
-            <h3>Derby</h3>
-            <div class="price">35 000 FCFA <span>/ 2 semaines</span></div>
-            <p style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-top:-14px; margin-bottom:16px;">≈ 53 € — carte bancaire ou Mobile Money</p>
+        <div class="pricing-grid pricing-grid--single">
+          <div class="plan featured plan-unique">
+            <div class="enclos">Premium</div>
+            <h3>Abonnement Premium</h3>
+            <div class="billing-toggle" role="tablist" aria-label="Durée de l'abonnement">
+              <button type="button" class="bt-opt active" role="tab" aria-selected="true" data-plan="mensuel" data-prix="25 000" data-unite="/ mois" data-note="≈ 38 € — carte bancaire ou Mobile Money" data-cta="S'abonner — mensuel">Mensuel</button>
+              <button type="button" class="bt-opt" role="tab" aria-selected="false" data-plan="annuel" data-prix="50 000" data-unite="/ an" data-note="≈ 76 € — soit environ 4 167 FCFA par mois" data-cta="S'abonner — annuel">Annuel <span class="bt-badge">Meilleure offre</span></button>
+            </div>
+            <div class="price"><span id="prixPlan">25 000 FCFA</span> <span id="prixUnite">/ mois</span></div>
+            <p class="price-note" id="prixNote">≈ 38 € — carte bancaire ou Mobile Money</p>
             <ul>
               <li>Pronostic PREMIUM course du jour</li>
-              <li>Indice de confiance détaillé</li>
-              <li>Alertes de mouvement de cotes</li>
-              <li>Idéal pour tester sur une quinzaine de réunions</li>
-            </ul>
-            <button class="btn-gold plan-btn" data-plan="quinzaine">Choisir Derby</button>
-          </div>
-
-          <div class="plan featured">
-            <div class="enclos">Pesage</div>
-            <h3>Prestige</h3>
-            <div class="price">60 000 FCFA <span>/ 2 mois</span></div>
-            <p style="font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin-top:-14px; margin-bottom:16px;">≈ 91 € — carte bancaire ou Mobile Money</p>
-            <ul>
-              <li>Pronostic PREMIUM course du jour</li>
-              <li>Indice de confiance détaillé</li>
+              <li>Classement établi par l'IA, coups sûrs signalés</li>
+              <li>Complément « Gros rapport » en option</li>
+              <li>Jusqu'à 15 analyses IA d'autres courses par mois</li>
               <li>Alertes de mouvement de cotes</li>
               <li>Historique des performances du modèle</li>
               <li>Analyse allure et terrain par cheval</li>
               <li>Rapports quinté détaillés</li>
               <li>Accès prioritaire au support</li>
             </ul>
-            <button class="btn-gold plan-btn" data-plan="prestige">Passer à Prestige</button>
+            <button class="btn-gold plan-btn" id="btnPlanUnique" data-plan="mensuel">S'abonner — mensuel</button>
           </div>
         </div>
         <p style="font-family:var(--font-display); font-style:italic; font-size:14px; font-weight:500; color:var(--text-dim); letter-spacing:.01em; text-align:center; margin-top:18px;">
@@ -1381,7 +1378,7 @@
             <p class="quote-text">L'indice de confiance a changé ma façon de composer mes tickets. Je ne joue plus au flair, je croise avec le score.</p>
             <div class="quote-person">
               <div class="avatar a1">M</div>
-              <div class="who"><b>Marc D.</b><span>Abonné Prestige — 2 ans</span></div>
+              <div class="who"><b>Marc D.</b><span>Abonné Premium — 2 ans</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1389,7 +1386,7 @@
             <p class="quote-text">Les alertes de mouvement de cotes m'ont évité plusieurs mauvaises surprises avant le départ. Précieux sur les quintés.</p>
             <div class="quote-person">
               <div class="avatar a2">S</div>
-              <div class="who"><b>Sophie L.</b><span>Abonnée Prestige</span></div>
+              <div class="who"><b>Sophie L.</b><span>Abonnée Premium</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1397,7 +1394,7 @@
             <p class="quote-text">Enfin un pronostic qui explique son raisonnement au lieu de balancer un nom. Ça se voit que le modèle est sérieux.</p>
             <div class="quote-person">
               <div class="avatar a3">K</div>
-              <div class="who"><b>Karim B.</b><span>Abonné Prestige — 8 mois</span></div>
+              <div class="who"><b>Karim B.</b><span>Abonné Premium — 8 mois</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1405,7 +1402,7 @@
             <p class="quote-text">Le bilan public m'a convaincu avant même de m'abonner — voir les vrais chiffres de couverture plutôt qu'une promesse en l'air, ça change tout.</p>
             <div class="quote-person">
               <div class="avatar a4">A</div>
-              <div class="who"><b>Awa T.</b><span>Abonnée Prestige — 3 mois</span></div>
+              <div class="who"><b>Awa T.</b><span>Abonnée Premium — 3 mois</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1413,7 +1410,7 @@
             <p class="quote-text">Je joue depuis Abidjan et je suivais déjà le turf français. Avec l'indice de confiance, je passe deux fois moins de temps à éplucher la musique de chaque cheval.</p>
             <div class="quote-person">
               <div class="avatar a5">Y</div>
-              <div class="who"><b>Yves K.</b><span>Abonné Prestige — 1 an</span></div>
+              <div class="who"><b>Yves K.</b><span>Abonné Premium — 1 an</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1421,7 +1418,7 @@
             <p class="quote-text">L'assistant qui répond aux questions sur les courses du jour est bluffant — je lui demande direct qui est le coup sûr avant de composer mon ticket.</p>
             <div class="quote-person">
               <div class="avatar a6">F</div>
-              <div class="who"><b>Fatou N.</b><span>Abonnée Prestige — 5 mois</span></div>
+              <div class="who"><b>Fatou N.</b><span>Abonnée Premium — 5 mois</span></div>
             </div>
           </div>
           <div class="quote-card">
@@ -1429,7 +1426,7 @@
             <p class="quote-text">Les coups sûrs désignés par les 3 IA quand elles sont d'accord, c'est le signal que j'attends avant de miser sérieusement. Rarement déçu.</p>
             <div class="quote-person">
               <div class="avatar a7">B</div>
-              <div class="who"><b>Boubacar S.</b><span>Abonné Prestige — 2 ans</span></div>
+              <div class="who"><b>Boubacar S.</b><span>Abonné Premium — 2 ans</span></div>
             </div>
           </div>
         </div>
@@ -1489,11 +1486,15 @@
           </details>
           <details class="faq-item">
             <summary>Est-ce que le site est gratuit ?</summary>
-            <p>Le pronostic gratuit du jour (10 numéros classés en Valeurs sûres, Outsiders et Tocards) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec coups sûrs, jockeys et cotes détaillés) nécessite un abonnement Derby ou Prestige. Le bilan de performance public, lui, reste visible par tous sans compte.</p>
+            <p>Le pronostic gratuit du jour (10 numéros classés en Valeurs sûres, Outsiders et Tocards) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec coups sûrs, jockeys et cotes détaillés) nécessite un abonnement Premium (mensuel ou annuel). Le bilan de performance public, lui, reste visible par tous sans compte.</p>
           </details>
           <details class="faq-item">
             <summary>Les pronostics sont-ils garantis gagnants ?</summary>
             <p>Non — aucun pronostic, humain ou IA, ne peut garantir un résultat. Turf Nova AI fournit un indice de confiance basé sur l'analyse des données disponibles avant chaque départ, pas une certitude. Le bilan de performance public affiche les vrais chiffres de couverture, calculés automatiquement sur les résultats officiels, pour juger sur pièces.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Combien d'analyses de courses puis-je lancer ?</summary>
+            <p>Le Pronostic Premium de la course du jour est inclus sans limite. Pour les autres courses, chaque abonné peut lancer jusqu'à 15 analyses IA par mois ; le compteur repart à zéro le 1er de chaque mois. Les courses déjà analysées par l'IA, par toi ou par un autre abonné, restent consultables sans limite et ne comptent pas dans ton quota.</p>
           </details>
           <details class="faq-item">
             <summary>Comment fonctionne l'assistant qui répond aux questions ?</summary>
@@ -1501,7 +1502,7 @@
           </details>
           <details class="faq-item">
             <summary>Puis-je annuler mon abonnement à tout moment ?</summary>
-            <p>Oui. L'abonnement Prestige n'est pas engageant : tu peux l'arrêter quand tu veux depuis ton compte, l'accès reste actif jusqu'à la fin de la période déjà payée.</p>
+            <p>Oui. L'abonnement Premium n'est pas engageant : tu peux l'arrêter quand tu veux depuis ton compte, l'accès reste actif jusqu'à la fin de la période déjà payée.</p>
           </details>
           <details class="faq-item">
             <summary>Le site couvre-t-il toutes les réunions PMU ?</summary>
@@ -1536,8 +1537,8 @@
         <div>
           <h4>Abonnements</h4>
           <ul>
-            <li><a href="#abonnements">Derby — 35 000 FCFA/2 semaines</a></li>
-            <li><a href="#abonnements">Pesage — 60 000 FCFA/2 mois</a></li>
+            <li><a href="#abonnements">Premium mensuel — 25 000 FCFA</a></li>
+            <li><a href="#abonnements">Premium annuel — 50 000 FCFA</a></li>
           </ul>
         </div>
         <div>
@@ -1582,7 +1583,7 @@
   <div class="auth-overlay" id="paiementOverlay">
     <div class="auth-modal">
       <button class="auth-close" id="paiementClose">×</button>
-      <h3 id="paiementTitre">Paiement — Abonnement Prestige</h3>
+      <h3 id="paiementTitre">Paiement — Abonnement Premium</h3>
       <p class="sub">Un numéro de téléphone est nécessaire pour le paiement (Mobile Money ou carte).</p>
       <div class="auth-error" id="paiementError"></div>
       <div class="auth-field">
@@ -1822,6 +1823,23 @@
     });
   }
 
+  // --- Quota mensuel d'analyses de courses (abonnés) ---
+  function majQuotaIA(q){
+    const box = document.getElementById('iaQuota');
+    if(!box) return;
+    if(!q){ box.hidden = true; return; }
+    box.hidden = false;
+    document.getElementById('iaQuotaTexte').textContent = `${q.restant} restantes sur ${q.max}`;
+    document.getElementById('iaQuotaBarre').style.width = Math.round((q.restant / q.max) * 100) + '%';
+    box.dataset.niveau = q.restant === 0 ? 'vide' : (q.restant <= 3 ? 'bas' : 'ok');
+  }
+  function chargerQuotaIA(){
+    fetch(`${API_BASE}/api/abonnement/me`)
+      .then(res => res.ok ? res.json() : null)
+      .then(d => majQuotaIA(d && d.quota_ia ? d.quota_ia : null))
+      .catch(() => {});
+  }
+
   iaSearchBtn.addEventListener('click', () => {
     const reunion = selectedReunion;
     const course = selectedCourse;
@@ -1846,11 +1864,15 @@
         if(res.status === 402){
           throw new Error('abonnement_requis');
         }
+        if(res.status === 429){
+          return res.json().then(d => { majQuotaIA(d.quota); const e = new Error('quota_atteint'); e.msg = d.message; throw e; });
+        }
         return res.json();
       })
       .then(data => {
         skeleton.remove();
         iaSearchBtn.disabled = false;
+        if(data.quota) majQuotaIA(data.quota);
         if(!data.consensus){
           iaSearchResult.innerHTML = `<div class="ia-search-error">Pronostic IA indisponible pour cette course.</div>`;
           return;
@@ -1877,6 +1899,10 @@
         iaSearchBtn.disabled = false;
         if(err.message === 'abonnement_requis'){
           iaSearchResult.innerHTML = `<div class="auth-required-msg">Ton accès aux pronostics IA est terminé ou pas encore activé. <a href="#abonnements">Voir les abonnements</a></div>`;
+          return;
+        }
+        if(err.message === 'quota_atteint'){
+          iaSearchResult.innerHTML = `<div class="auth-required-msg">${err.msg || 'Tu as atteint ton quota mensuel d\'analyses de courses.'}</div>`;
           return;
         }
         if(err.message === 'auth_required'){
@@ -1929,9 +1955,13 @@
         if(res.status === 402){
           throw new Error('abonnement_requis');
         }
+        if(res.status === 429){
+          return res.json().then(d => { majQuotaIA(d.quota); const e = new Error('quota_atteint'); e.msg = d.message; throw e; });
+        }
         return res.json();
       })
       .then(data => {
+        if(data.quota) majQuotaIA(data.quota);
         if(!data.consensus){
           skeleton.replaceWith(creerBoutonPronosticIA(reunion, course, 'Pronostic IA indisponible'));
           return;
@@ -1958,6 +1988,13 @@
         skeleton.replaceWith(box);
       })
       .catch((err) => {
+        if(err.message === 'quota_atteint'){
+          const box = document.createElement('div');
+          box.className = 'auth-required-msg';
+          box.textContent = err.msg || 'Tu as atteint ton quota mensuel d\'analyses de courses.';
+          skeleton.replaceWith(box);
+          return;
+        }
         if(err.message === 'abonnement_requis'){
           const box = document.createElement('div');
           box.className = 'auth-required-msg';
@@ -2267,6 +2304,7 @@
     loginLink.style.pointerEvents = 'none';
     btnDeconnexion.style.display = 'inline-flex';
     btnCreerCompte.style.display = 'none';
+    chargerQuotaIA();
   }
 
   function reinitialiserHeaderCompte(){
@@ -2275,6 +2313,7 @@
     loginLink.style.pointerEvents = '';
     btnDeconnexion.style.display = 'none';
     btnCreerCompte.style.display = '';
+    majQuotaIA(null);
   }
 
   btnDeconnexion.addEventListener('click', () => {
@@ -2342,6 +2381,23 @@
     btn.addEventListener('click', () => choisirPlan(btn));
   });
 
+  // --- Abonnement : bascule mensuel / annuel (une seule formule) ---
+  (function(){
+    const options = document.querySelectorAll('.billing-toggle .bt-opt');
+    const btn = document.getElementById('btnPlanUnique');
+    if(!options.length || !btn) return;
+    options.forEach(opt => {
+      opt.addEventListener('click', () => {
+        options.forEach(o => { o.classList.toggle('active', o === opt); o.setAttribute('aria-selected', o === opt ? 'true' : 'false'); });
+        document.getElementById('prixPlan').textContent = opt.dataset.prix + ' FCFA';
+        document.getElementById('prixUnite').textContent = opt.dataset.unite;
+        document.getElementById('prixNote').textContent = opt.dataset.note;
+        btn.dataset.plan = opt.dataset.plan;
+        btn.textContent = opt.dataset.cta;
+      });
+    });
+  })();
+
   // --- Paiement Chariow ---
   const paiementOverlay = document.getElementById('paiementOverlay');
   const paiementTitre = document.getElementById('paiementTitre');
@@ -2351,7 +2407,7 @@
   const paiementError = document.getElementById('paiementError');
   let planEnCours = null;
 
-  const NOMS_PLANS = { prestige: 'Prestige', quinzaine: 'Derby' };
+  const NOMS_PLANS = { mensuel: 'Premium mensuel', annuel: 'Premium annuel', prestige: 'Prestige', quinzaine: 'Derby' };
 
   function ouvrirPaiement(plan){
     planEnCours = plan;
@@ -2420,7 +2476,7 @@
     const pricingSection = document.getElementById('abonnements');
     if(!pricingSection) return;
     const planPaye = params.get('plan');
-    const nomPlanPaye = { prestige: 'Prestige', quinzaine: 'Derby' }[planPaye] || 'Prestige';
+    const nomPlanPaye = { mensuel: 'Premium mensuel', annuel: 'Premium annuel', prestige: 'Prestige', quinzaine: 'Derby' }[planPaye] || 'Premium';
     const banniere = document.createElement('div');
     banniere.style.cssText = 'max-width:1180px; margin:0 auto 24px; padding:16px 20px; border-radius:6px; font-family:var(--font-mono); font-size:13px; background:var(--card); border:1px solid var(--gold); color:var(--gold-light);';
     banniere.textContent = `Paiement reçu ✓ — ton abonnement ${nomPlanPaye} est activé automatiquement (quelques secondes de délai possible). Reconnecte-toi si besoin.`;
@@ -2666,7 +2722,7 @@
         }
 
         // Bannière d'accroche vers le Premium : si l'utilisateur a déjà un accès actif
-        // (compte connecté + abonnement Derby/Prestige en cours), inutile de lui proposer
+        // (compte connecté + abonnement Premium en cours), inutile de lui proposer
         // de "voir les abonnements" — on le renvoie directement vers son pronostic déjà
         // débloqué juste en dessous.
         const unlockTitre = document.getElementById('cdjUnlockTitre');
@@ -2680,7 +2736,7 @@
             unlockBtn.href = '#cdjPremiumBox';
           } else {
             unlockTitre.textContent = '🔓 Déverrouiller le Pronostic Premium IA en 6 numéros';
-            unlockCond.textContent = "Accessible dès que tu as créé un compte gratuit et souscrit à l'une des formules d'abonnement (Derby ou Prestige).";
+            unlockCond.textContent = "Accessible dès que tu as créé un compte gratuit et souscrit à l'abonnement Premium (mensuel ou annuel).";
             unlockBtn.textContent = 'Voir les abonnements';
             unlockBtn.href = '#abonnements';
           }
@@ -3318,6 +3374,42 @@
   /* Les fenêtres (inscription, paiement…) passent au-dessus de la barre du bas et des boutons flottants */
   .auth-overlay{z-index:1100;}
 </style>
+<style id="pricingStyle">
+  /* ---------- Abonnement : une seule formule, mensuel / annuel ---------- */
+  .pricing-grid--single{grid-template-columns:minmax(0, 480px); justify-content:center;}
+  .plan-unique h3{margin-bottom:14px;}
+  .billing-toggle{display:flex; gap:6px; padding:5px; border-radius:14px; background:var(--bg-alt); border:1px solid var(--border-strong); margin-bottom:6px;}
+  .bt-opt{
+    flex:1; min-height:46px; padding:8px 10px; border:0; border-radius:10px; cursor:pointer; background:transparent; color:var(--text-dim);
+    font-family:var(--font-body); font-size:14px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap;
+    transition:background .2s, color .2s, box-shadow .2s;
+  }
+  .bt-opt.active{background:var(--gold); color:#0b0b0c; box-shadow:0 6px 18px -8px rgba(201,162,39,.7);}
+  [data-theme="light"] .bt-opt.active{color:#fff; box-shadow:0 6px 18px -8px rgba(124,58,237,.7);}
+  .bt-badge{font-size:9.5px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:2px 7px; border-radius:20px; background:rgba(0,0,0,.18); color:inherit;}
+  .bt-opt:not(.active) .bt-badge{background:rgba(201,162,39,.16); color:var(--gold-light);}
+  .plan-unique .price{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
+  .plan-unique .price{margin:16px 0 20px;}
+  .plan-unique .price #prixPlan{font-size:clamp(27px, 8vw, 36px); font-weight:800; line-height:1; color:var(--gold-light);}
+  .plan-unique .price #prixUnite{font-size:16px; font-weight:700; color:var(--text-dim);}
+  .plan-unique::before, .plan-unique::after{display:none !important;}
+  .price-note{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim); margin:-14px 0 16px;}
+</style>
+<style id="quotaStyle">
+  /* ---------- Quota mensuel d'analyses ---------- */
+  .ia-quota{margin-top:14px; padding:12px 14px; border-radius:12px; background:var(--bg-alt); border:1px solid var(--border-strong); font-family:var(--font-body);}
+  .ia-quota[hidden]{display:none;}
+  .ia-quota__ligne{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; font-weight:700; color:var(--text);}
+  .ia-quota__ligne b{font-family:var(--font-mono); font-size:14px; color:var(--gold-light);}
+  .ia-quota__barre{height:7px; margin-top:9px; border-radius:6px; background:var(--border-strong); overflow:hidden;}
+  .ia-quota__barre i{display:block; height:100%; width:0; border-radius:6px; background:linear-gradient(90deg, #22c55e, #84cc16); transition:width .6s cubic-bezier(.3,.9,.3,1);}
+  .ia-quota[data-niveau="bas"] .ia-quota__barre i{background:linear-gradient(90deg, #f59e0b, #f97316);}
+  .ia-quota[data-niveau="vide"] .ia-quota__barre i{background:linear-gradient(90deg, #ef4444, #f97316);}
+  .ia-quota[data-niveau="bas"] .ia-quota__ligne b{color:#f59e0b;}
+  .ia-quota[data-niveau="vide"] .ia-quota__ligne b{color:#ef4444;}
+  .ia-quota__note{margin:8px 0 0; font-size:11.5px; line-height:1.45; color:var(--text-dim);}
+  @media (prefers-reduced-motion:reduce){ .ia-quota__barre i{transition:none;} }
+</style>
 <style id="cdjStyle">
   /* ---------- Carte « Course du jour » : en-tête agrandi ---------- */
   #courseDuJourCard.feature-card{border-radius:16px; border-color:var(--border-strong);}
@@ -3497,7 +3589,7 @@
         cta:{ texte:"Créer mon compte", action:function(){ var b = el('btnCreerCompte'); if(b) b.click(); } } },
       { cible:function(){ return [document.querySelector('#bottomNav a[data-key="abonnements"]')]; },
         titre:"Passe en Premium",
-        texte:"Dans « Abonnement », choisis ta formule (Derby ou Prestige) et paie par Mobile Money ou carte bancaire. Le Pronostic Premium se débloque ensuite sur ton compte.",
+        texte:"Dans « Abonnement », choisis mensuel ou annuel et paie par Mobile Money ou carte bancaire. Le Pronostic Premium se débloque ensuite sur ton compte.",
         cta:{ texte:"Voir les abonnements", action:function(){ var s = el('abonnements'); if(s) s.scrollIntoView({behavior:'smooth'}); } } },
       { titre:"Tu es prêt ! 🏇",
         texte:"Retrouve les courses du jour, les pronostics IA et les articles dans la barre du bas. Pour revoir cette visite, appuie à tout moment sur « Visite guidée » dans cette même barre.",

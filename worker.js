@@ -181,6 +181,253 @@ async function verifierPredictionsEnAttente(env) {
   }
 }
 
+// ============================================================================
+// ARCHIVE LONG TERME — TOUTES les courses (pas seulement celles pronostiquées)
+// ----------------------------------------------------------------------------
+// Avant : courses_features / resultats_verifies ne contenaient que les courses
+// pour lesquelles un visiteur avait demandé un pronostic, et seul le podium
+// (5 premiers) de la course du jour était vérifié.
+// Maintenant : chaque course du programme PMU (réunions, partants, cotes,
+// arrivée complète, historique détaillé des chevaux) est archivée dans deux
+// tables dédiées, indépendamment de tout pronostic. Jointure possible avec
+// `predictions` / `resultats_verifies` via (date, reunion, course).
+// Format de `date` = celui de PMU (DDMMYYYY), comme le reste de la base ;
+// `date_iso` (YYYY-MM-DD) sert au tri et aux requêtes par période.
+// ============================================================================
+const ARCHIVE_PROFONDEUR_JOURS = 60;     // jusqu'où remonter (jours) lors du rattrapage
+const ARCHIVE_MAX_COURSES_PAR_RUN = 12;  // limite de sous-requêtes Workers : ~3 par course
+const ARCHIVE_KV_JOURS_OK = "archive:jours-ok";
+const CRON_ARCHIVE = "*/30 * * * *";     // à déclarer dans wrangler.jsonc (triggers.crons)
+let archiveTablesPretes = false;
+
+function dateParamDepuis(d) {
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `${dd}${mm}${d.getUTCFullYear()}`;
+}
+function dateISODepuisParam(p) {
+  return `${p.slice(4)}-${p.slice(2, 4)}-${p.slice(0, 2)}`;
+}
+
+async function assurerTablesArchive(env) {
+  if (!env.DB || archiveTablesPretes) return;
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS archive_courses (
+         date TEXT NOT NULL, date_iso TEXT NOT NULL, reunion TEXT NOT NULL, course TEXT NOT NULL,
+         hippodrome TEXT, discipline TEXT, distance INTEGER, allocation INTEGER, nb_partants INTEGER,
+         heure TEXT,
+         termine INTEGER NOT NULL DEFAULT 0,   -- 0 = pas encore d'arrivée, 1 = arrivée archivée, 2 = jamais d'arrivée (annulée/non publiée)
+         arrivee_json TEXT,                    -- arrivée complète [{place, numero, nom}]
+         archived_at INTEGER, updated_at INTEGER,
+         PRIMARY KEY (date, reunion, course)
+       )`
+    ),
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS archive_partants (
+         date TEXT NOT NULL, date_iso TEXT NOT NULL, reunion TEXT NOT NULL, course TEXT NOT NULL, num_pmu INTEGER NOT NULL,
+         cheval TEXT, driver TEXT, entraineur TEXT, age INTEGER, sexe TEXT, musique TEXT,
+         cote REAL, corde INTEGER, poids REAL, oeilleres TEXT, gains_carriere REAL,
+         non_partant INTEGER DEFAULT 0,
+         place_arrivee INTEGER,                -- place réelle (NULL = non classé / pas d'arrivée)
+         historique_json TEXT,                 -- 5 dernières courses (performances-détaillées PMU)
+         updated_at INTEGER,
+         PRIMARY KEY (date, reunion, course, num_pmu)
+       )`
+    ),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_courses_date ON archive_courses (date_iso)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_cheval ON archive_partants (cheval, date_iso)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_date ON archive_partants (date_iso)`),
+  ]);
+  archiveTablesPretes = true;
+}
+
+// Version compacte et stable de l'historique PMU d'un cheval (5 dernières courses).
+function compacterHistorique(perf) {
+  if (!perf || !Array.isArray(perf.coursesCourues)) return null;
+  const lignes = perf.coursesCourues.slice(0, 5).map((c) => {
+    const soi = (c.participants || []).find((p) => p.itsHim);
+    return {
+      date: c.date ?? null,
+      hippodrome: c.hippodrome || null,
+      discipline: c.discipline || null,
+      distance: c.distance ?? null,
+      allocation: c.allocation ?? null,
+      nb: c.nbParticipants ?? null,
+      place: soi?.place?.place ?? null,
+      statut: soi?.place?.statusArrivee ?? null,
+      rk: soi?.reductionKilometrique ?? null,
+    };
+  });
+  return lignes.length ? JSON.stringify(lignes) : null;
+}
+
+// Archive UNE course (partants + arrivée complète + historique). Retourne true si une arrivée a été trouvée.
+async function archiverCourse(env, dateParam, numReunion, infoCourse, hippodrome, avantHier) {
+  const reunionCode = `R${numReunion}`;
+  const numCourse = infoCourse.numOrdre ?? infoCourse.numExterne;
+  const courseCode = `C${numCourse}`;
+  const dateISO = dateISODepuisParam(dateParam);
+
+  const [data, perfs] = await Promise.all([
+    fetchJSON(`${PMU_BASE}/programme/${dateParam}/${reunionCode}/${courseCode}/participants`),
+    fetchPerformancesDetaillees(dateParam, reunionCode, courseCode),
+  ]);
+  const participants = data.participants || [];
+  const arrives = participants
+    .filter((p) => p.ordreArrivee != null && p.ordreArrivee > 0)
+    .sort((a, b) => a.ordreArrivee - b.ordreArrivee);
+  const arriveeComplete = arrives.map((p) => ({ place: p.ordreArrivee, numero: p.numPmu, nom: p.nom }));
+
+  // Une course d'un jour déjà ancien sans aucune arrivée ne sera jamais complétée (annulée,
+  // résultat non publié) : on la marque 2 pour ne plus la retenter à chaque passage.
+  const termine = arrives.length > 0 ? 1 : dateISO < avantHier ? 2 : 0;
+  const now = Date.now();
+
+  const stmts = [
+    env.DB.prepare(
+      `INSERT INTO archive_courses
+         (date, date_iso, reunion, course, hippodrome, discipline, distance, allocation, nb_partants, heure, termine, arrivee_json, archived_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (date, reunion, course) DO UPDATE SET
+         hippodrome = excluded.hippodrome, discipline = excluded.discipline, distance = excluded.distance,
+         allocation = excluded.allocation, nb_partants = excluded.nb_partants, heure = excluded.heure,
+         termine = excluded.termine, arrivee_json = excluded.arrivee_json, updated_at = excluded.updated_at`
+    ).bind(
+      dateParam, dateISO, reunionCode, courseCode, hippodrome || "",
+      infoCourse.discipline || infoCourse.specialite || "", infoCourse.distance ?? null,
+      infoCourse.montantPrix ?? infoCourse.montantTotalOffert ?? null,
+      participants.filter((p) => !p.nonPartant).length, formatHeure(infoCourse.heureDepart),
+      termine, arriveeComplete.length ? JSON.stringify(arriveeComplete) : null, now, now
+    ),
+  ];
+
+  for (const p of participants) {
+    if (p.numPmu == null) continue;
+    stmts.push(
+      env.DB.prepare(
+        `INSERT INTO archive_partants
+           (date, date_iso, reunion, course, num_pmu, cheval, driver, entraineur, age, sexe, musique, cote, corde, poids, oeilleres, gains_carriere, non_partant, place_arrivee, historique_json, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (date, reunion, course, num_pmu) DO UPDATE SET
+           cote = excluded.cote, non_partant = excluded.non_partant, place_arrivee = excluded.place_arrivee,
+           musique = excluded.musique, gains_carriere = excluded.gains_carriere,
+           historique_json = COALESCE(excluded.historique_json, archive_partants.historique_json),
+           updated_at = excluded.updated_at`
+      ).bind(
+        dateParam, dateISO, reunionCode, courseCode, p.numPmu, p.nom || "",
+        p.driver?.nom || "", p.entraineur?.nom || "", p.age ?? null, p.sexe || "", p.musique || "",
+        p.dernierRapportDirect?.rapport ?? null, p.placeCorde ?? null, p.handicapPoids ?? null,
+        p.oeilleres || "", p.gainsParticipant?.gainsCarriere ?? null, p.nonPartant ? 1 : 0,
+        p.ordreArrivee > 0 ? p.ordreArrivee : null, compacterHistorique(perfs[p.numPmu]), now
+      )
+    );
+  }
+
+  for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+  return arrives.length > 0;
+}
+
+// Archive les courses d'une journée qui ne sont pas encore terminées en base, dans la limite du budget.
+async function archiverJournee(env, dateParam, budget, avantHier) {
+  const programme = await fetchJSON(`${PMU_BASE}/programme/${dateParam}`);
+  const toutes = [];
+  for (const r of programme.programme?.reunions || []) {
+    const numReunion = r.numOfficiel ?? r.numExterne;
+    const hippodrome = r.hippodrome?.libelleCourt || r.libelleCourt || "";
+    for (const c of r.courses || []) toutes.push({ numReunion, hippodrome, c });
+  }
+
+  const faites = await env.DB.prepare(
+    `SELECT reunion, course FROM archive_courses WHERE date = ? AND termine IN (1, 2)`
+  ).bind(dateParam).all();
+  const dejaOk = new Set((faites.results || []).map((r) => `${r.reunion}${r.course}`));
+  const aFaire = toutes.filter(({ numReunion, c }) => !dejaOk.has(`R${numReunion}C${c.numOrdre ?? c.numExterne}`));
+
+  let traitees = 0;
+  let erreurs = 0;
+  for (const { numReunion, hippodrome, c } of aFaire) {
+    if (traitees >= budget) break;
+    try {
+      await archiverCourse(env, dateParam, numReunion, c, hippodrome, avantHier);
+    } catch (e) {
+      erreurs++;
+      console.error(`[archive] R${numReunion} ${dateParam} —`, e.message);
+    }
+    traitees++;
+  }
+  return { total: toutes.length, traitees, erreurs, restantes: Math.max(0, aFaire.length - traitees) };
+}
+
+// Parcourt les jours du plus récent au plus ancien (aujourd'hui, hier, puis rattrapage de l'historique)
+// et archive tout ce qui manque, dans la limite de `budget` courses par appel.
+async function archiverHistoriqueCourses(env, { profondeur = ARCHIVE_PROFONDEUR_JOURS, budget = ARCHIVE_MAX_COURSES_PAR_RUN } = {}) {
+  if (!env.DB) return { ok: false, raison: "Base D1 indisponible" };
+  await assurerTablesArchive(env);
+
+  const jourOk = new Set((await env.CACHE_KV.get(ARCHIVE_KV_JOURS_OK, { type: "json" })) || []);
+  const maintenant = new Date();
+  const avantHier = dateISODepuisParam(dateParamDepuis(new Date(maintenant.getTime() - 2 * 86400000)));
+  let reste = budget;
+  const bilan = { ok: true, traitees: 0, erreurs: 0, jours: [], termine: false };
+
+  for (let i = 0; i <= profondeur && reste > 0; i++) {
+    const dateParam = dateParamDepuis(new Date(maintenant.getTime() - i * 86400000));
+    const dateISO = dateISODepuisParam(dateParam);
+    if (jourOk.has(dateISO)) continue;
+    try {
+      const r = await archiverJournee(env, dateParam, reste, avantHier);
+      reste -= r.traitees;
+      bilan.traitees += r.traitees;
+      bilan.erreurs += r.erreurs;
+      bilan.jours.push({ date: dateISO, ...r });
+      // Un jour n'est « clos » (plus jamais revisité) que s'il est ancien et sans course restante.
+      if (r.restantes === 0 && r.erreurs === 0 && dateISO < avantHier) jourOk.add(dateISO);
+    } catch (e) {
+      bilan.jours.push({ date: dateISO, erreur: e.message });
+      console.error(`[archive] programme ${dateParam} —`, e.message);
+    }
+  }
+  bilan.termine = reste > 0; // budget non épuisé = tout est à jour sur la période
+  await env.CACHE_KV.put(ARCHIVE_KV_JOURS_OK, JSON.stringify([...jourOk]));
+  return bilan;
+}
+
+async function statsArchive(env) {
+  await assurerTablesArchive(env);
+  const c = await env.DB.prepare(
+    `SELECT COUNT(*) AS courses, SUM(termine = 1) AS avec_arrivee, SUM(termine = 2) AS sans_arrivee,
+            MIN(date_iso) AS du, MAX(date_iso) AS au, COUNT(DISTINCT date_iso) AS jours
+     FROM archive_courses`
+  ).first();
+  const p = await env.DB.prepare(
+    `SELECT COUNT(*) AS lignes, COUNT(DISTINCT cheval) AS chevaux, SUM(historique_json IS NOT NULL) AS avec_historique
+     FROM archive_partants`
+  ).first();
+  return { ...c, ...p };
+}
+
+async function handleAdminArchive(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  if (!env.DB) return new Response(JSON.stringify({ error: "Base D1 indisponible" }), { status: 503, headers: corsHeaders });
+
+  try {
+    if (request.method === "POST") {
+      let body = {};
+      try { body = await request.json(); } catch { /* corps optionnel */ }
+      const budget = Math.max(1, Math.min(25, parseInt(body.budget, 10) || ARCHIVE_MAX_COURSES_PAR_RUN));
+      const profondeur = Math.max(0, Math.min(365, parseInt(body.profondeur, 10) || ARCHIVE_PROFONDEUR_JOURS));
+      const bilan = await archiverHistoriqueCourses(env, { profondeur, budget });
+      return new Response(JSON.stringify({ bilan, stats: await statsArchive(env) }), { headers: corsHeaders });
+    }
+    return new Response(JSON.stringify({ stats: await statsArchive(env) }), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
+
 async function loadResultatsDuJour(env) {
   const date = todayParam();
   const programme = await fetchJSON(`${PMU_BASE}/programme/${date}`);
@@ -737,6 +984,73 @@ async function callClaude(prompt, apiKey) {
   return { ...parsed, source: "Claude" };
 }
 
+// GPT-6 Sol (OpenAI, 2 $ / 10 $ par M tokens) — API « Responses ». Clé à définir : OPENAI_API_KEY (wrangler secret put OPENAI_API_KEY).
+// Sans clé, l'appel échoue proprement (Promise.allSettled) et les autres IA continuent seules.
+const GPT_SOL_MODELE = "gpt-6-sol";
+const GPT_SOL_EFFORT = "high"; // none | low | medium | high | xhigh | max — plus haut = plus lent et plus cher
+const GPT_SOL_DELAI_S = 120; // la recherche web + le raisonnement « high » allongent la réponse
+// Recherche web native OpenAI (outil « web_search » de l'API Responses) : facturée à l'appel EN PLUS des
+// tokens. Mettre false pour la désactiver (retour au comportement sans internet).
+const GPT_SOL_RECHERCHE_WEB = true;
+
+async function callGPTSol(prompt, apiKey, contexte = {}) {
+  if (!apiKey) throw new Error("Clé OpenAI manquante (OPENAI_API_KEY)");
+  const dateAffichee = contexte.date ? `${String(contexte.date).slice(0, 2)}/${String(contexte.date).slice(2, 4)}/${String(contexte.date).slice(4)}` : "";
+  const contexteWeb = [contexte.reunion && contexte.course ? `${contexte.reunion} ${contexte.course}` : "", contexte.hippodrome, dateAffichee]
+    .filter(Boolean)
+    .join(", ");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GPT_SOL_DELAI_S * 1000);
+  const debut = Date.now();
+  let res;
+  try {
+    res = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: GPT_SOL_MODELE,
+        instructions:
+          "Tu réponds STRICTEMENT avec l'objet JSON demandé, sans texte, explication ni balise markdown avant ou après. Le premier caractère de ta réponse doit être { et le dernier }." +
+          (GPT_SOL_RECHERCHE_WEB
+            ? ` Tu disposes d'une recherche web : avant de répondre, cherche les pronostics et analyses publiés pour cette course${contexteWeb ? ` (${contexteWeb})` : ""} sur Turfoo, PMU, Zeturf et ParisTurf, ainsi que les informations de dernière minute (non-partants, terrain, déferrage, changements de driver). Utilise-les comme éléments de validation et de recoupement : la pondération du prompt reste prioritaire. N'invente jamais un pronostic ou une information que tu n'as pas réellement trouvé. Aucune citation ni lien dans ta réponse : uniquement le JSON.`
+            : ""),
+        input: prompt,
+        ...(GPT_SOL_RECHERCHE_WEB ? { tools: [{ type: "web_search", search_context_size: "low" }] } : {}),
+        reasoning: { effort: GPT_SOL_EFFORT },
+        max_output_tokens: 16000, // le raisonnement « high » consomme aussi ce budget
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error(`GPT Sol n'a pas répondu à temps (délai de ${GPT_SOL_DELAI_S}s dépassé)`);
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`GPT Sol a répondu ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  // Format brut de l'API Responses : output[] contient des blocs "reasoning" puis un bloc "message"
+  // dont content[] porte les "output_text".
+  const text =
+    data.output_text ||
+    (data.output || [])
+      .filter((o) => o.type === "message")
+      .flatMap((o) => o.content || [])
+      .filter((c) => c.type === "output_text")
+      .map((c) => c.text)
+      .join("");
+  const parsed = parseQuarteJSON(text || "");
+  if (!parsed) {
+    throw new Error(`Réponse GPT Sol non conforme (JSON illisible) — status: ${data.status || "?"}, longueur: ${(text || "").length}`);
+  }
+  const nbRecherches = (data.output || []).filter((o) => o.type === "web_search_call").length;
+  console.log(`[gpt-sol] ${GPT_SOL_MODELE} (effort ${GPT_SOL_EFFORT}, ${nbRecherches} recherche(s) web) — réponse en ${Math.round((Date.now() - debut) / 1000)}s`);
+  return { ...parsed, source: "GPT Sol" };
+}
+
 // --- Chat IA (question libre sur les courses du jour) ---
 // Réutilise Groq/DeepSeek en mode texte libre (pas de JSON structuré ici).
 
@@ -1075,7 +1389,8 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
 
   const results = await Promise.allSettled([
     callDeepSeek(prompt, env.DEEPSEEK_API_KEY),
-    // Gemini, Groq et Claude désactivés — DeepSeek seul est utilisé pour les pronostics.
+    callGPTSol(prompt, env.OPENAI_API_KEY, { date, reunion, course, hippodrome: courseInfo.hippodrome }),
+    // Gemini, Groq et Claude désactivés — DeepSeek et GPT Sol sont utilisés pour les pronostics.
     // Réactiver en remettant les lignes ci-dessous dans le tableau si besoin :
     // callGemini(prompt, env.GEMINI_API_KEY),
     // callGroq(prompt, env.GROQ_API_KEY),
@@ -1184,6 +1499,40 @@ async function enregistrerFeatures(env, date, reunion, course, participants, cou
   }
 }
 
+// --- Quota mensuel d'analyses de courses (abonnés) ---
+// Chaque abonné peut lancer au plus QUOTA_IA_PAR_MOIS analyses IA de courses « à la demande »
+// (hors Course du jour) par mois civil. Seules les VRAIES générations (appel payant à l'API)
+// consomment le quota : une course déjà analysée (en cache ou verrouillée en base, par ce
+// visiteur ou un autre) est servie sans limite et sans rien décompter.
+const QUOTA_IA_PAR_MOIS = 15;
+const cleQuotaIA = (email) => `quota-ia:${new Date().toISOString().slice(0, 7)}:${String(email).toLowerCase()}`;
+
+async function lireQuotaIA(env, email) {
+  const n = parseInt(await env.CACHE_KV.get(cleQuotaIA(email)), 10);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function ecrireQuotaIA(env, email, n) {
+  // 45 jours : la clé du mois en cours expire d'elle-même peu après la fin du mois.
+  await env.CACHE_KV.put(cleQuotaIA(email), String(Math.max(0, n)), { expirationTtl: 45 * 24 * 60 * 60 });
+}
+
+function etatQuotaIA(n) {
+  return { utilise: Math.min(n, QUOTA_IA_PAR_MOIS), max: QUOTA_IA_PAR_MOIS, restant: Math.max(0, QUOTA_IA_PAR_MOIS - n) };
+}
+
+// L'administrateur n'est pas limité (tests, vérifications).
+function estAdminEmail(env, email) {
+  return !!env.ADMIN_EMAIL && String(email).toLowerCase() === String(env.ADMIN_EMAIL).trim().toLowerCase();
+}
+
+// Vrai si le pronostic de cette course existe déjà (cache KV ou verrouillé en base) :
+// le servir ne coûte aucun appel à l'API.
+async function pronosticDejaDisponible(date, reunion, course, env) {
+  if (await env.CACHE_KV.get(`pronostic:${date}:${reunion}:${course}`)) return true;
+  return !!(await chargerPredictionVerrouillee(env, date, reunion, course));
+}
+
 async function handlePronosticIA(request, env) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -1203,7 +1552,7 @@ async function handlePronosticIA(request, env) {
     return new Response(
       JSON.stringify({
         error: "abonnement_requis",
-        message: "Un abonnement actif (Derby ou Prestige) est nécessaire pour voir le Pronostic Premium.",
+        message: "Un abonnement Premium actif est nécessaire pour voir le Pronostic Premium.",
       }),
       { status: 402, headers: corsHeaders }
     );
@@ -1221,10 +1570,40 @@ async function handlePronosticIA(request, env) {
   }
 
   const date = todayParam();
+
+  // --- Quota mensuel : on ne décompte qu'une vraie génération (course pas encore analysée) ---
+  const illimite = estAdminEmail(env, email);
+  let utilise = illimite ? 0 : await lireQuotaIA(env, email);
+  let reserve = false;
+  if (!illimite && !(await pronosticDejaDisponible(date, reunion, course, env))) {
+    if (utilise >= QUOTA_IA_PAR_MOIS) {
+      return new Response(
+        JSON.stringify({
+          error: "quota_atteint",
+          message: `Tu as utilisé tes ${QUOTA_IA_PAR_MOIS} analyses de courses de ce mois-ci. Le quota se renouvelle le 1er du mois prochain. Les courses déjà analysées restent consultables sans limite.`,
+          quota: etatQuotaIA(utilise),
+        }),
+        { status: 429, headers: corsHeaders }
+      );
+    }
+    // On réserve la place avant de lancer l'IA (évite de dépasser avec des clics simultanés),
+    // et on la rend si la génération n'aboutit pas.
+    utilise += 1;
+    await ecrireQuotaIA(env, email, utilise);
+    reserve = true;
+  }
+  const rendreLaPlace = async () => {
+    if (!reserve) return;
+    reserve = false;
+    utilise = Math.max(0, utilise - 1);
+    await ecrireQuotaIA(env, email, utilise);
+  };
+
   let resultat;
   try {
     resultat = await obtenirPronosticConsensus(date, reunion, course, env);
   } catch (e) {
+    await rendreLaPlace();
     return new Response(
       JSON.stringify({ error: "Impossible de récupérer les partants", details: e.message }),
       { status: 502, headers: corsHeaders }
@@ -1232,18 +1611,27 @@ async function handlePronosticIA(request, env) {
   }
 
   if (!resultat.consensus) {
+    await rendreLaPlace();
     return new Response(
       JSON.stringify({ error: "Aucune prédiction IA disponible" }),
       { status: 502, headers: corsHeaders }
     );
   }
 
+  // Si un autre visiteur a généré cette course entre-temps, rien n'a été facturé à l'API pour nous.
+  if (reserve && resultat.source !== "live") await rendreLaPlace();
+
   // Sigles publics des IA (pas les noms complets des fournisseurs).
-  const SIGLES_IA = { Gemini: "GM", Groq: "GQ", DeepSeek: "DS", Claude: "CL" };
+  const SIGLES_IA = { Gemini: "GM", Groq: "GQ", DeepSeek: "DS", Claude: "CL", "GPT Sol": "GS" };
   const { sources, ...consensusPublic } = resultat.consensus;
   consensusPublic.sources = (sources || []).map((s) => SIGLES_IA[s] || s);
   return new Response(
-    JSON.stringify({ source: resultat.source, consensus: consensusPublic, updatedAt: resultat.updatedAt }),
+    JSON.stringify({
+      source: resultat.source,
+      consensus: consensusPublic,
+      updatedAt: resultat.updatedAt,
+      quota: illimite ? null : etatQuotaIA(utilise),
+    }),
     { headers: corsHeaders }
   );
 }
@@ -1577,7 +1965,7 @@ async function envoyerEmailBienvenue(env, email) {
   const html = emailShell(
     "Bienvenue sur Turf Nova AI 🐎",
     `<p style="font-size:14px; line-height:1.6;">Ton compte est créé — tu as dès maintenant accès au pronostic gratuit du jour (10 numéros) sur la course mise en avant.</p>
-     <p style="font-size:14px; line-height:1.6;">Passe au plan Prestige ou Derby pour débloquer le Pronostic Premium (sélection détaillée, coups sûrs, analyse complète) sur la course du jour.</p>
+     <p style="font-size:14px; line-height:1.6;">Passe à l'abonnement Premium (mensuel ou annuel) pour débloquer le Pronostic Premium (sélection détaillée, coups sûrs, analyse complète) sur la course du jour.</p>
      <a href="https://${env.SITE_DOMAIN || "turf-nova-ai.com"}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Voir le pronostic du jour</a>`
   );
   await envoyerEmail(env, { to: email, subject: "Bienvenue sur Turf Nova AI", html });
@@ -1586,14 +1974,19 @@ async function envoyerEmailBienvenue(env, email) {
 async function envoyerEmailPaiementConfirme(env, email, plan) {
   const html = emailShell(
     "Paiement confirmé ✓",
-    `<p style="font-size:14px; line-height:1.6;">Ton abonnement <b>${plan}</b> est actif. Merci pour ta confiance !</p>
+    `<p style="font-size:14px; line-height:1.6;">Ton abonnement <b>${NOMS_PLANS[plan] || plan}</b> est actif. Merci pour ta confiance !</p>
      <p style="font-size:14px; line-height:1.6;">Tu as désormais un accès complet au Pronostic Premium (sélection détaillée) sur toutes les courses, sans limite.</p>
      <a href="https://${env.SITE_DOMAIN || "turf-nova-ai.com"}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Accéder au site</a>`
   );
   await envoyerEmail(env, { to: email, subject: "Ton abonnement Turf Nova AI est actif", html });
 }
 
-const PLANS_VALIDES = ["gratuit", "prestige", "quinzaine"];
+// Formule actuelle : un seul abonnement « Premium », en version mensuelle ou annuelle.
+// "prestige" et "quinzaine" (anciennes formules Prestige / Derby) restent valides pour que les
+// abonnés déjà inscrits gardent leur accès jusqu'à la fin de leur période payée.
+const PLANS_VALIDES = ["gratuit", "mensuel", "annuel", "prestige", "quinzaine"];
+const PLANS_PAYANTS = ["mensuel", "annuel", "prestige", "quinzaine"];
+const NOMS_PLANS = { mensuel: "Premium mensuel", annuel: "Premium annuel", prestige: "Prestige", quinzaine: "Derby" };
 
 // Détermine si un compte a un accès Premium actif (plan payant en cours). Le plan
 // "essai" a été retiré : le pronostic PREMIUM est désormais réservé aux seuls
@@ -1608,7 +2001,7 @@ async function verifierAccesPremium(env, email) {
   if (!sub || sub.plan === "gratuit") return { actif: false };
   if (sub.status !== "active") return { actif: false };
 
-  if (sub.plan === "prestige" || sub.plan === "quinzaine") {
+  if (PLANS_PAYANTS.includes(sub.plan)) {
     if (sub.expires_at && sub.expires_at < Date.now()) {
       return { actif: false };
     }
@@ -1634,7 +2027,12 @@ async function handleAbonnementMe(request, env) {
   if (!sub) {
     return new Response(JSON.stringify({ plan: "gratuit", status: "active" }), { headers: corsHeaders });
   }
-  return new Response(JSON.stringify(sub), { headers: corsHeaders });
+  const reponse = { ...sub };
+  const acces = await verifierAccesPremium(env, email);
+  if (acces.actif && !estAdminEmail(env, email)) {
+    reponse.quota_ia = etatQuotaIA(await lireQuotaIA(env, email));
+  }
+  return new Response(JSON.stringify(reponse), { headers: corsHeaders });
 }
 
 // Choix instantané du plan gratuit uniquement — les plans payants sont payés via un lien
@@ -1644,14 +2042,23 @@ async function handleAbonnementMe(request, env) {
 // Le produit "Abonnement Prestige — 1 mois" doit être créé et publié sur Chariow.
 
 const CHARIOW_API_BASE = "https://api.chariow.com/v1";
+// Les prix sont définis dans Chariow (pas dans ce code) : créer deux produits —
+//   • « Abonnement Premium — mensuel » à 25 000 FCFA
+//   • « Abonnement Premium — annuel »  à 50 000 FCFA
+// puis coller ci-dessous leurs identifiants (de la forme "prd_xxxxxxxx").
 const PRODUITS_CHARIOW = {
+  mensuel: "prd_REMPLACER_MENSUEL",
+  annuel: "prd_REMPLACER_ANNUEL",
+  // Anciennes formules : conservées pour les paiements encore en cours / activations manuelles.
   prestige: "prd_7w9pduoj",
-  quinzaine: "prd_eijpfgbq", // Plan "Derby" (2 semaines)
+  quinzaine: "prd_eijpfgbq", // ancien plan "Derby" (2 semaines)
 };
 
 // Durée d'accès accordée par plan payant, utilisée à l'activation (webhook et activation manuelle admin).
 const DUREE_PLAN_MS = {
-  prestige: 60 * 24 * 60 * 60 * 1000, // Plan "Prestige" — 2 mois
+  mensuel: 30 * 24 * 60 * 60 * 1000, // Premium mensuel — 30 jours
+  annuel: 365 * 24 * 60 * 60 * 1000, // Premium annuel — 365 jours
+  prestige: 60 * 24 * 60 * 60 * 1000, // ancien plan "Prestige" — 2 mois
   quinzaine: 14 * 24 * 60 * 60 * 1000,
 };
 
@@ -1699,10 +2106,17 @@ async function handlePaiementInitier(request, env) {
     body = {};
   }
 
-  const plan = String(body.plan || "prestige");
+  const plan = String(body.plan || "mensuel");
   const productId = PRODUITS_CHARIOW[plan];
   if (!productId) {
     return new Response(JSON.stringify({ error: "Plan payant inconnu" }), { status: 400, headers: corsHeaders });
+  }
+  // Tant que l'identifiant du produit Chariow n'a pas été renseigné, on ne tente pas le paiement.
+  if (productId.includes("REMPLACER")) {
+    return new Response(
+      JSON.stringify({ error: "Cette formule n'est pas encore disponible au paiement. Réessaie bientôt." }),
+      { status: 503, headers: corsHeaders }
+    );
   }
 
   const userRaw = await env.CACHE_KV.get(`user:${email}`);
@@ -1784,23 +2198,36 @@ async function handleChariowWebhook(request, env) {
     }
 
     const appEmail = sale.custom_metadata?.app_email || sale.customer?.email;
-    const appPlan = sale.custom_metadata?.app_plan || "prestige";
+    const appPlan = sale.custom_metadata?.app_plan || "mensuel";
     if (!appEmail || !env.DB) {
       return new Response("ok", { status: 200 });
     }
 
     const now = Date.now();
-    const dureeMs = DUREE_PLAN_MS[appPlan] || DUREE_PLAN_MS.prestige;
+    const dureeMs = DUREE_PLAN_MS[appPlan] || DUREE_PLAN_MS.mensuel;
 
     const existant = await env.DB.prepare(`SELECT expires_at FROM subscriptions WHERE email = ?`).bind(appEmail).first();
     const baseDepart = existant?.expires_at && existant.expires_at > now ? existant.expires_at : now;
     const expiresAt = baseDepart + dureeMs;
 
-    await env.DB.prepare(
-      `INSERT INTO subscriptions (email, plan, status, started_at, expires_at)
-       VALUES (?, ?, 'active', ?, ?)
-       ON CONFLICT(email) DO UPDATE SET plan = excluded.plan, status = 'active', expires_at = excluded.expires_at`
-    ).bind(appEmail, appPlan, now, expiresAt).run();
+    const ecrire = (nomPlan) =>
+      env.DB.prepare(
+        `INSERT INTO subscriptions (email, plan, status, started_at, expires_at)
+         VALUES (?, ?, 'active', ?, ?)
+         ON CONFLICT(email) DO UPDATE SET plan = excluded.plan, status = 'active', expires_at = excluded.expires_at`
+      ).bind(appEmail, nomPlan, now, expiresAt).run();
+    try {
+      await ecrire(appPlan);
+    } catch (errPlan) {
+      // Si la base refuse les nouveaux noms de plan (contrainte héritée des anciennes formules),
+      // on enregistre l'accès sous l'ancien nom "prestige" : la durée (expires_at) reste la bonne.
+      if (appPlan === "mensuel" || appPlan === "annuel") {
+        console.warn(`[paiement] plan "${appPlan}" refusé par la base, repli sur "prestige" : ${errPlan.message}`);
+        await ecrire("prestige");
+      } else {
+        throw errPlan;
+      }
+    }
 
     await envoyerEmailPaiementConfirme(env, appEmail, appPlan);
 
@@ -1977,7 +2404,7 @@ async function handleAdminUtilisateurs(request, env) {
 }
 
 // Envoi d'un mail marketing à un segment de clients (compte admin uniquement).
-// segment : "tous" | "gratuit" (aucun abonnement payant actif) | "abonnes" (Derby/Prestige actifs).
+// segment : "tous" | "gratuit" (aucun abonnement payant actif) | "abonnes" (abonnements Premium actifs).
 async function handleAdminEmailMarketing(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const admin = await requireAdmin(request, env);
@@ -2330,10 +2757,11 @@ async function handleCourseDuJour(request, env) {
         const { consensus } = await obtenirPronosticConsensus(date, reunion, course, env);
 
         iaStatus = [
-          { ia: "DeepSeek", ok: !!consensus, raison: consensus ? null : "Pas de consensus disponible" },
-          { ia: "Gemini", ok: false, raison: "Désactivée (DeepSeek uniquement)" },
-          { ia: "Groq", ok: false, raison: "Désactivée (DeepSeek uniquement)" },
-          { ia: "Claude", ok: false, raison: "Désactivée (DeepSeek uniquement)" },
+          { ia: "DeepSeek", ok: !!consensus && (consensus.sources || []).includes("DeepSeek"), raison: consensus ? ((consensus.sources || []).includes("DeepSeek") ? null : "N'a pas répondu pour cette course") : "Pas de consensus disponible" },
+          { ia: "GPT Sol", ok: !!consensus && (consensus.sources || []).includes("GPT Sol"), raison: consensus ? ((consensus.sources || []).includes("GPT Sol") ? null : "Pas de réponse (clé OPENAI_API_KEY absente ou erreur)") : "Pas de consensus disponible" },
+          { ia: "Gemini", ok: false, raison: "Désactivée" },
+          { ia: "Groq", ok: false, raison: "Désactivée" },
+          { ia: "Claude", ok: false, raison: "Désactivée" },
         ];
 
         if (consensus && consensus.confiance > 0) {
@@ -2409,7 +2837,7 @@ async function handleCourseDuJour(request, env) {
   }
 
   // Pronostic PREMIUM (8 numéros détaillés + coups sûrs) réservé aux comptes avec
-  // abonnement actif (Derby ou Prestige) — plus d'essai gratuit, voir verifierAccesPremium.
+  // abonnement Premium actif — plus d'essai gratuit, voir verifierAccesPremium.
   const email = await getSessionUser(request, env);
   const acces = email ? await verifierAccesPremium(env, email) : { actif: false };
 
@@ -3115,6 +3543,10 @@ export default {
       return handleAdminAbonnementStatut(request, env);
     }
 
+    if (url.pathname === "/api/admin/archive-historique") {
+      return handleAdminArchive(request, env);
+    }
+
     if (url.pathname === "/api/admin/stats-visites") {
       return handleAdminStatsVisites(request, env);
     }
@@ -3144,6 +3576,11 @@ export default {
   async scheduled(event, env, ctx) {
     if (event.cron === "0 6 * * *") {
       ctx.waitUntil(envoyerNotificationPronosticDuJour(env));
+      return;
+    }
+    // Archivage de TOUTES les courses (aujourd'hui, hier, puis rattrapage de l'historique).
+    if (event.cron === CRON_ARCHIVE) {
+      ctx.waitUntil(archiverHistoriqueCourses(env));
       return;
     }
     ctx.waitUntil(expirerAbonnements(env));
