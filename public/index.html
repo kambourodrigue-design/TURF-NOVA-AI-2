@@ -376,7 +376,7 @@
     text-shadow:0 0 14px rgba(228,197,102,.3);
   }
 
-  /* ---------- Pronostic gratuit du jour (10 numéros) ---------- */
+  /* ---------- Pronostic gratuit du jour (5 valeurs sûres) ---------- */
   .cdj-section-titre{
     font-family:var(--font-mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
     color:var(--text); display:flex; align-items:center; gap:8px; margin-bottom:12px;
@@ -1067,7 +1067,7 @@
 
               <div class="cdj-gratuit" id="cdjGratuit" style="display:none; margin-top:16px;">
                 <div class="cdj-panel">
-                  <div class="cdj-section-titre">🎁 Pronostic gratuit du jour <span class="cdj-badge-gratuit">10 numéros</span></div>
+                  <div class="cdj-section-titre">🎁 Pronostic gratuit du jour <span class="cdj-badge-gratuit">5 valeurs sûres</span></div>
                   <div class="conf-card" id="cdjFlapGratuit" style="display:none;">
                     <div class="conf-top">
                       <span class="conf-label">Indice de confiance</span>
@@ -1085,7 +1085,7 @@
                 </div>
 
                 <div class="cdj-unlock" id="cdjUnlock">
-                  <div class="cdj-unlock__titre" id="cdjUnlockTitre">🔓 Déverrouiller le Pronostic Premium IA en 6 numéros</div>
+                  <div class="cdj-unlock__titre" id="cdjUnlockTitre">🔓 Passe à Premium : vraies bases, faux favoris, outsiders et tocards</div>
                   <div class="cdj-unlock__cond" id="cdjUnlockCond">Accessible dès que tu as créé un compte gratuit et souscrit à l'abonnement Premium (mensuel ou annuel).</div>
                   <a href="#abonnements" class="btn-gold" id="cdjUnlockBtn">Voir les abonnements</a>
                 </div>
@@ -1096,6 +1096,7 @@
                   <div class="cdj-section-titre cdj-section-titre--premium">⭐ Pronostic Premium IA <span class="cdj-badge-premium">6 numéros · abonnés</span></div>
                 <p class="cdj-premium-note">Classés par l'IA, du meilleur choix au moins bon — pas selon les cotes : un cheval à cote moyenne ou élevée peut figurer parmi les meilleurs.</p>
                   <div id="cdjChevaux" style="margin-top:12px;"></div>
+                  <div id="cdjFauxFavoris" style="display:none; margin-top:14px;"></div>
                   <div id="cdjComplement" style="display:none;"></div>
                 </div>
               </div>
@@ -1505,7 +1506,7 @@
           </details>
           <details class="faq-item">
             <summary>Est-ce que le site est gratuit ?</summary>
-            <p>Le pronostic gratuit du jour (10 numéros classés en Valeurs sûres, Outsiders et Tocards) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec coups sûrs, jockeys et cotes détaillés) nécessite un abonnement Premium (mensuel ou annuel). Le bilan de performance public, lui, reste visible par tous sans compte.</p>
+            <p>La sélection gratuite du jour (les 5 valeurs sûres, c'est-à-dire les favoris du marché) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec les faux favoris à éviter, les coups sûrs, les jockeys et les cotes détaillés) nécessite un abonnement Premium (mensuel ou annuel). Le bilan de performance public, lui, reste visible par tous sans compte.</p>
           </details>
           <details class="faq-item">
             <summary>Les pronostics sont-ils garantis gagnants ?</summary>
@@ -2683,15 +2684,27 @@
     }
   }
 
-  // Pronostic gratuit : 10 chevaux en cartes-lignes, regroupés par catégorie.
-  function rendreGratuitTableau(g){
+  // Pronostic gratuit : les 5 valeurs sûres (favoris du marché) + accroche vers le Premium.
+  function rendreGratuitTableau(g, estPremium){
     const box = document.getElementById('cdjGratuitTable');
     if (!box) return;
+    const autres = (g.nbAutres != null && g.nbAutres > 0) ? ` Les ${g.nbAutres} autres partants (outsiders, tocards) sont analysés par l'IA pour les abonnés.` : '';
     box.innerHTML = rendreCartes([
       { nom: 'Valeurs sûres', classe: 'sures', items: g.valeursSures || [] },
-      { nom: 'Outsiders', classe: 'outsiders', items: g.outsiders || [] },
-      { nom: 'Tocards', classe: 'tocards', items: g.tocards || [] },
-    ], false);
+    ], false) + (estPremium ? '' : `<p class="cdj-premium-note" style="margin-top:12px;">Ce sont les 5 favoris du marché (cotes les plus basses). Lesquels sont de <b>vraies bases</b> ? Lesquels sont de <b>faux favoris</b> ?${autres} Passe à Premium pour le savoir.</p>`);
+  }
+
+  // Premium : favoris du marché que l'IA n'a pas retenus dans son classement.
+  function rendreFauxFavoris(fauxFavoris){
+    const box = document.getElementById('cdjFauxFavoris');
+    if (!box) return;
+    if (!Array.isArray(fauxFavoris)) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    box.style.display = '';
+    box.innerHTML = fauxFavoris.length
+      ? `<div class="cdj-section-titre">⚠️ Faux favoris <span class="cdj-badge-option">à éviter</span></div>
+         <p class="cdj-premium-note">Favoris du marché que l'IA n'a pas retenus dans son classement : à éviter ou à jouer avec prudence.</p>`
+        + rendreCartes([{ nom: 'Faux favoris', classe: 'tocards', items: fauxFavoris }], false)
+      : `<div class="cdj-premium-note">✅ Aucun faux favori : l'IA retient les 5 favoris du marché dans son classement.</div>`;
   }
 
   // Rassemble les chevaux du gratuit + du Premium (avec cote connue) pour
@@ -2743,10 +2756,10 @@
           : `<span class="cdj-hippo">Course du jour</span>`;
         meta.textContent = '';
 
-        // Pronostic gratuit (10 numéros, 3 catégories) : toujours affiché, sans compte ni abonnement.
+        // Sélection gratuite (5 valeurs sûres) : toujours affichée, sans compte ni abonnement.
         if (data.gratuit) {
           gratuit.style.display = '';
-          rendreGratuitTableau(data.gratuit);
+          rendreGratuitTableau(data.gratuit, !!(data.premium && data.premium.quarte8 && data.premium.quarte8.length > 0));
         }
 
         // Indice de confiance : visible pour tout le monde, dans la partie gratuite.
@@ -2780,7 +2793,7 @@
             unlockBtn.textContent = 'Voir les pronostics IA';
             unlockBtn.href = '#cdjPremiumBox';
           } else {
-            unlockTitre.textContent = '🔓 Déverrouiller le Pronostic Premium IA en 6 numéros';
+            unlockTitre.textContent = '🔓 Passe à Premium : vraies bases, faux favoris, outsiders et tocards';
             unlockCond.textContent = "Accessible dès que tu as créé un compte gratuit et souscrit à l'abonnement Premium (mensuel ou annuel).";
             unlockBtn.textContent = 'Voir les abonnements';
             unlockBtn.href = '#abonnements';
@@ -2796,6 +2809,7 @@
           premiumBox.style.display = '';
           premiumContenu.style.display = '';
           rendreChevauxCourseDuJour(data.premium.quarte8);
+          rendreFauxFavoris(data.premium.fauxFavoris);
         } else {
           // Verrouillé (pas abonné) ou IA pas encore répondue pour cette course :
           // dans les deux cas la bannière d'accroche au-dessus suffit, pas besoin

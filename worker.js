@@ -1464,7 +1464,7 @@ async function handleChatIA(request, env) {
   try {
     const date = todayParam();
     const { reunion, course } = await getCourseDuJourConfig(env);
-    courseDuJour = await env.CACHE_KV.get(`course-du-jour-full:${date}:${reunion}:${course}`, { type: "json" });
+    courseDuJour = await env.CACHE_KV.get(`course-du-jour-full-v3:${date}:${reunion}:${course}`, { type: "json" });
   } catch {
     courseDuJour = null;
   }
@@ -1953,7 +1953,7 @@ async function handleSignup(request, env) {
   await env.CACHE_KV.put(`user:${email}`, JSON.stringify({ hash, salt, createdAt: Date.now(), actif: true }));
 
   // Compte gratuit dès l'inscription — plus d'essai temporisé : le pronostic du
-  // jour (10 numéros, gratuit) est accessible à tout le monde sans compte payant ;
+  // jour (5 valeurs sûres, gratuit) est accessible à tout le monde sans compte payant ;
   // seul le pronostic PREMIUM (8 numéros détaillés) nécessite un abonnement.
   if (env.DB) {
     try {
@@ -2185,7 +2185,7 @@ function emailShell(titre, corps) {
 async function envoyerEmailBienvenue(env, email) {
   const html = emailShell(
     "Bienvenue sur Turf Nova AI 🐎",
-    `<p style="font-size:14px; line-height:1.6;">Ton compte est créé — tu as dès maintenant accès au pronostic gratuit du jour (10 numéros) sur la course mise en avant.</p>
+    `<p style="font-size:14px; line-height:1.6;">Ton compte est créé — tu as dès maintenant accès aux 5 valeurs sûres gratuites du jour sur la course mise en avant.</p>
      <p style="font-size:14px; line-height:1.6;">Passe à l'abonnement Premium (mensuel ou annuel) pour débloquer le Pronostic Premium (sélection détaillée, coups sûrs, analyse complète) sur la course du jour.</p>
      <a href="https://${env.SITE_DOMAIN || "turf-nova-ai.com"}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Voir le pronostic du jour</a>`
   );
@@ -2211,7 +2211,7 @@ const NOMS_PLANS = { mensuel: "Premium mensuel", annuel: "Premium annuel", prest
 
 // Détermine si un compte a un accès Premium actif (plan payant en cours). Le plan
 // "essai" a été retiré : le pronostic PREMIUM est désormais réservé aux seuls
-// abonnés payants, le pronostic gratuit du jour (10 numéros) étant lui accessible
+// abonnés payants, la sélection gratuite du jour (5 valeurs sûres) étant elle accessible
 // à tous sans compte.
 async function verifierAccesPremium(env, email) {
   if (!env.DB) return { actif: true }; // pas de restriction si pas de base configurée
@@ -2956,14 +2956,12 @@ async function getCourseDuJourConfig(env) {
   return { reunion: "R1", course: "C3", source: "defaut" };
 }
 
-// Construit la sélection gratuite "10 numéros" à partir des partants réels et
-// du Top 8 déjà généré par l'IA (aucun appel IA supplémentaire — on réutilise
-// le travail déjà fait, et on complète jusqu'à 10 avec les cotes les plus
-// basses restantes si l'IA a produit moins de 8 chevaux). Puis on classe les
-// 10 par cote croissante en 3 catégories :
-//   - Valeurs sûres (jusqu'à 3) : cotes les plus basses, les grands favoris
-//   - Outsiders (jusqu'à 4) : cote intermédiaire, un peu de valeur
-//   - Tocards (le reste, jusqu'à 3) : cotes les plus hautes, gros rapport si ça sort
+// Sélection GRATUITE : les "valeurs sûres" = les 5 favoris du marché (cotes les plus basses).
+// Volontairement PAS le classement de l'IA : le gratuit montre qui est favori, le Premium dit
+// lesquels sont de VRAIES bases, lesquels sont de FAUX favoris, et donne les outsiders et tocards.
+// (Aucun appel IA : seules les cotes PMU sont utilisées.)
+// Pour changer le nombre de chevaux gratuits : GRATUIT_NB_CHEVAUX.
+const GRATUIT_NB_CHEVAUX = 5;
 // Repère les jockeys/drivers "en forme" : au moins 2 victoires (position réelle = 1)
 // parmi les courses analysées par le site sur les 30 derniers jours. Basé sur
 // courses_features, déjà alimentée et mise à jour après chaque course vérifiée —
@@ -3006,32 +3004,8 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   if (!partants.length) return null;
 
   const cote = (p) => p?.dernierRapportDirect?.rapport ?? Infinity;
-  const parNumero = new Map(partants.map((p) => [p.numPmu, p]));
-
-  // Ordre de confiance de l'IA (position 1 = son choix le plus sûr) pour les
-  // chevaux qu'elle a retenus, complété si besoin par les chevaux restants
-  // triés par cote croissante pour atteindre 10. On NE re-trie PLUS l'ensemble
-  // par cote : le classement suit le raisonnement de l'IA (comme le Premium).
-  const dejaChoisisNumeros = new Set((quarte8 || []).map((c) => c.numero));
-  const dejaChoisis = (quarte8 || [])
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((c) => parNumero.get(c.numero))
-    .filter(Boolean);
-  const autres = partants
-    .filter((p) => !dejaChoisisNumeros.has(p.numPmu))
-    .sort((a, b) => cote(a) - cote(b));
-
-  const trie = [...dejaChoisis, ...autres].slice(0, 10);
-
-  const total = trie.length;
-  if (!total) return null;
-
-  // Répartition 3 / 4 / 3 sur 10 chevaux, réduite proportionnellement s'il y a
-  // moins de 10 partants valides (petits pelotons).
-  const nValeursSures = Math.min(3, total);
-  const nOutsiders = Math.min(4, total - nValeursSures);
-  const nTocards = total - nValeursSures - nOutsiders;
+  // Favoris du marché : cotes croissantes (les chevaux sans cote connue passent en dernier).
+  const favoris = partants.slice().sort((a, b) => cote(a) - cote(b) || a.numPmu - b.numPmu).slice(0, GRATUIT_NB_CHEVAUX);
 
   const toItem = (p) => {
     const jockey = p.driver?.nom || p.entraineur?.nom || "";
@@ -3045,17 +3019,24 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   };
 
   return {
-    valeursSures: trie.slice(0, nValeursSures).map(toItem),
-    outsiders: trie.slice(nValeursSures, nValeursSures + nOutsiders).map(toItem),
-    tocards: trie.slice(nValeursSures + nOutsiders, nValeursSures + nOutsiders + nTocards).map(toItem),
+    valeursSures: favoris.map(toItem),
+    outsiders: [], // réservés au Premium
+    tocards: [], //   réservés au Premium
+    nbAutres: partants.length - favoris.length, // partants non montrés (pour l'accroche vers le Premium)
   };
+}
+
+// Faux favoris (Premium) : favoris du marché que l'IA n'a PAS retenus dans son classement (top 8).
+function calculerFauxFavoris(gratuit, quarte8) {
+  const retenus = new Set((quarte8 || []).map((c) => c.numero));
+  return (gratuit?.valeursSures || []).filter((h) => !retenus.has(h.numero)).map(({ numero, cheval, jockey, cote }) => ({ numero, cheval, jockey, cote }));
 }
 
 // Construit (et met en cache) la fiche complète de la « Course du jour » : infos PMU, pronostic
 // des IA (verrouillé en base), sélection gratuite. Utilisée à la demande (premier visiteur) ET par
 // la pré-génération planifiée, pour que l'écran s'affiche instantanément.
 async function genererCourseDuJour(env, date, reunion, course) {
-  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const cacheKey = `course-du-jour-full-v3:${date}:${reunion}:${course}`;
   const [courseInfo, participantsData] = await Promise.all([
     getCourseInfo(date, reunion, course),
     fetchJSON(`${PMU_BASE}/programme/${date}/${reunion}/${course}/participants`).catch(() => null),
@@ -3161,7 +3142,7 @@ async function heureDepartMs(date, reunion, course) {
 async function pregenererCourseDuJour(env, { forcer = false } = {}) {
   const date = todayParam();
   const { reunion, course } = await getCourseDuJourConfig(env);
-  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const cacheKey = `course-du-jour-full-v3:${date}:${reunion}:${course}`;
   const etatKey = `pregen:${date}:${reunion}:${course}`;
   const etat = (await env.CACHE_KV.get(etatKey, { type: "json" })) || { tentatives: 0, fait: false };
 
@@ -3206,7 +3187,7 @@ async function handleCourseDuJour(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const date = todayParam();
   const { reunion, course } = await getCourseDuJourConfig(env);
-  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const cacheKey = `course-du-jour-full-v3:${date}:${reunion}:${course}`;
 
   let full = await env.CACHE_KV.get(cacheKey, { type: "json" });
 
@@ -3229,7 +3210,7 @@ async function handleCourseDuJour(request, env) {
     distance: full.distance,
     partants: full.partants,
     updatedAt: full.updatedAt,
-    // Pronostic gratuit (10 numéros, 3 catégories) — toujours renvoyé, sans compte ni abonnement.
+    // Sélection gratuite (5 favoris du marché) — toujours renvoyée, sans compte ni abonnement.
     gratuit: full.gratuit,
     // Indice de confiance : affiché aussi dans la partie gratuite.
     confiance: full.confiance ?? null,
@@ -3246,7 +3227,11 @@ async function handleCourseDuJour(request, env) {
 
   if (acces.actif) {
     return new Response(
-      JSON.stringify({ ...base, premium: { quarte8: full.quarte8, confiance: full.confiance }, premiumVerrouille: false }),
+      JSON.stringify({
+        ...base,
+        premium: { quarte8: full.quarte8, confiance: full.confiance, fauxFavoris: calculerFauxFavoris(full.gratuit, full.quarte8) },
+        premiumVerrouille: false,
+      }),
       { headers: corsHeaders }
     );
   }
@@ -3280,7 +3265,7 @@ async function handleAdminCourseDuJour(request, env) {
     try {
       const date = todayParam();
       const full = await env.CACHE_KV.get(
-        `course-du-jour-full:${date}:${config.reunion}:${config.course}`,
+        `course-du-jour-full-v3:${date}:${config.reunion}:${config.course}`,
         { type: "json" }
       );
       iaStatus = full?.iaStatus || null;
@@ -3324,7 +3309,7 @@ async function handleAdminCourseDuJour(request, env) {
 
   // On efface le cache du jour pour que le changement soit visible immédiatement.
   const date = todayParam();
-  await env.CACHE_KV.delete(`course-du-jour-full:${date}:${reunion}:${course}`);
+  await env.CACHE_KV.delete(`course-du-jour-full-v3:${date}:${reunion}:${course}`);
 
   return new Response(JSON.stringify({ ok: true, reunion, course }), { headers: corsHeaders });
 }
