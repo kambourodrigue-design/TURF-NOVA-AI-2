@@ -1078,8 +1078,7 @@
                       <span class="conf-tick">50</span>
                       <span class="conf-marker" id="cdjConfMarker"></span>
                     </div>
-                    <div class="conf-verdict" id="cdjConfVerdict"></div>
-                    <p class="conf-guide">L'indice de confiance te guide sur la course à jouer ou non : <b>en dessous de 50</b>, course difficile à éviter ; <b>à partir de 50</b>, course favorable à jouer. <span>Indicatif : aucun pronostic ne garantit un résultat.</span></p>
+                    <p class="conf-guide">L'indice de confiance montre la difficulté du jeu et vous oriente. <span>Indicatif : aucun pronostic ne garantit un résultat.</span></p>
                   </div>
                   <div id="cdjGratuitTable"></div>
                 </div>
@@ -2771,10 +2770,6 @@
           animateValue(confianceGratuitEl, confianceGratuit, '');
           const favorable = confianceGratuit >= 50;
           flapGratuit.dataset.niveau = favorable ? 'favorable' : 'difficile';
-          const verdict = document.getElementById('cdjConfVerdict');
-          if (verdict) verdict.innerHTML = favorable
-            ? '<span class="conf-verdict__ico">✓</span><span><b>Course favorable</b><em>à jouer</em></span>'
-            : '<span class="conf-verdict__ico">!</span><span><b>Course difficile</b><em>à ne pas jouer</em></span>';
           const marker = document.getElementById('cdjConfMarker');
           if (marker) { marker.style.left = '0%'; requestAnimationFrame(() => requestAnimationFrame(() => { marker.style.left = Math.max(3, Math.min(97, confianceGratuit)) + '%'; })); }
         }
@@ -3638,7 +3633,7 @@
   .conf-card[data-niveau="favorable"] .conf-verdict__ico{background:#22c55e;}
   .conf-card[data-niveau="difficile"] .conf-verdict{background:rgba(249,115,22,.14); border-color:rgba(249,115,22,.5); color:#fdba74;}
   .conf-card[data-niveau="difficile"] .conf-verdict__ico{background:#f97316;}
-  .conf-guide{margin:12px 2px 0; font-size:12.5px; line-height:1.55; color:rgba(255,255,255,.74);}
+  .conf-guide{margin:14px 2px 0; font-size:13px; line-height:1.55; color:rgba(255,255,255,.74); text-align:center;}
   .conf-guide b{color:#fff; font-weight:800;}
   .conf-guide span{display:block; margin-top:4px; font-size:11.5px; color:var(--onyx-text-dim);}
   @media (prefers-reduced-motion:reduce){ .conf-marker{transition:none;} }
