@@ -228,6 +228,18 @@
     .kpi .value{font-size:19px;}
     .content h1{font-size:19px;}
   }
+  @media (max-width:860px){
+    #perfIaTable{ border:none; }
+    #perfIaTable thead{ display:none; }
+    #perfIaTable, #perfIaTable tbody{ display:block; width:100%; }
+    #perfIaTable tr{ display:block; margin-bottom:14px; border:1px solid var(--border); border-radius:12px; padding:4px 14px; background:rgba(255,255,255,.02); }
+    #perfIaTable tr.empty-row{ border:none; background:none; padding:0; }
+    #perfIaTable td{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:9px 0; font-size:13px; white-space:normal; text-align:right; }
+    #perfIaTable .empty-row td{ display:block; text-align:center; }
+    #perfIaTable td::before{ content:attr(data-label); font-family:var(--font-mono,inherit); font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim,#999); text-align:left; flex-shrink:0; }
+    #perfIaTable td:first-child{ font-weight:700; color:var(--gold,#c9a227); }
+    #perfIaBtnRow button, #perfIaBtnRow select{ flex:1 1 140px; }
+  }
   button, input, select, textarea, optgroup, option{font-family:inherit;}
 </style>
 <style id="themeLight">
@@ -453,7 +465,28 @@
         </section>
 
         <section class="tab-panel" id="panel-historique">
-          <h1>Historique pronostics</h1>
+          <h1>Performance des IA</h1>
+          <div class="h1-sub">Quelle IA fait vraiment mieux ? Comparée à l'arrivée réelle (archive) et aux 8 plus petites cotes (le marché).</div>
+          <div class="panel">
+            <div id="perfIaBtnRow" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;">
+              <select id="perfIaJours" style="padding:6px 8px;">
+                <option value="30">30 jours</option><option value="60" selected>60 jours</option><option value="180">180 jours</option>
+              </select>
+              <button type="button" class="btn-primary" id="perfIaBtn">Calculer</button>
+              <button type="button" class="btn-outline" id="archiveLotBtn" title="Archive un lot de courses (arrivées, cotes, historiques)">Archiver un lot de courses</button>
+              <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
+              <span id="perfIaStatus" class="form-status"></span>
+            </div>
+            <div class="table-scroll">
+              <table id="perfIaTable">
+                <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
+                <tbody id="perfIaBody"><tr class="empty-row"><td colspan="8">Clique sur « Calculer ».</td></tr></tbody>
+              </table>
+            </div>
+            <div id="perfIaNotes" style="font-size:12px; opacity:.8; margin-top:10px; line-height:1.5;"></div>
+          </div>
+
+          <h1 style="margin-top:32px;">Historique pronostics</h1>
           <div class="h1-sub">Dernières courses vérifiées contre les résultats officiels PMU.</div>
 
           <div class="panel">
@@ -469,26 +502,6 @@
             </div>
           </div>
 
-          <h1 style="margin-top:32px;">Performance des IA</h1>
-          <div class="h1-sub">Quelle IA fait vraiment mieux ? Comparée à l'arrivée réelle (archive) et aux 8 plus petites cotes (le marché).</div>
-          <div class="panel">
-            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;">
-              <select id="perfIaJours" style="padding:6px 8px;">
-                <option value="30">30 jours</option><option value="60" selected>60 jours</option><option value="180">180 jours</option>
-              </select>
-              <button type="button" class="btn-primary" id="perfIaBtn">Calculer</button>
-              <button type="button" class="btn-outline" id="archiveLotBtn" title="Archive un lot de courses (arrivées, cotes, historiques)">Archiver un lot de courses</button>
-              <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
-              <span id="perfIaStatus" class="form-status"></span>
-            </div>
-            <div class="table-scroll">
-              <table>
-                <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
-                <tbody id="perfIaBody"><tr class="empty-row"><td colspan="8">Clique sur « Calculer ».</td></tr></tbody>
-              </table>
-            </div>
-            <div id="perfIaNotes" style="font-size:12px; opacity:.8; margin-top:10px; line-height:1.5;"></div>
-          </div>
         </section>
 
       </div>
@@ -1065,13 +1078,14 @@
 (function(){
   const $ = (id) => document.getElementById(id);
   const num = (v, suf) => (v == null ? '—' : v + (suf || ''));
-  const cellule = (t) => { const td = document.createElement('td'); td.textContent = t; return td; };
+  const cellule = (t, label) => { const td = document.createElement('td'); td.textContent = t; if(label) td.setAttribute('data-label', label); return td; };
   function ligne(nom, r, gras){
     const tr = document.createElement('tr');
-    const th = cellule(nom); if(gras) th.style.fontWeight = '700';
-    tr.append(th, cellule(num(r.n)), cellule(num(r.chevaux_corrects_moy)), cellule(num(r.pct_tierce_desordre, ' %')),
-      cellule(num(r.pct_quarte_desordre, ' %')), cellule(num(r.pct_premier_choix_dans_top4, ' %')),
-      cellule(num(r.pct_premier_choix_gagnant, ' %')), cellule(num(r.pct_coups_surs_dans_top4, ' %')));
+    const premiere = cellule(nom, 'Source'); if(gras) premiere.style.fontWeight = '700';
+    tr.append(premiere, cellule(num(r.n), 'Courses'), cellule(num(r.chevaux_corrects_moy), 'Corrects /4'),
+      cellule(num(r.pct_tierce_desordre, ' %'), 'Tiercé'), cellule(num(r.pct_quarte_desordre, ' %'), 'Quarté'),
+      cellule(num(r.pct_premier_choix_dans_top4, ' %'), '1er choix top 4'), cellule(num(r.pct_premier_choix_gagnant, ' %'), '1er choix gagne'),
+      cellule(num(r.pct_coups_surs_dans_top4, ' %'), 'Coups sûrs top 4'));
     return tr;
   }
   async function appeler(chemin, methode, corps){
@@ -1107,7 +1121,8 @@
     statut('Génération de l\u2019analyse (1 à 2 min)…');
     try {
       const d = await appeler('/api/admin/pregenerer', 'POST', {});
-      statut(d.statut === 'genere' ? 'Analyse générée ✓' : 'Résultat : ' + d.statut, d.statut === 'genere' || d.statut === 'deja_pret');
+      const msgs = { genere: 'Analyse générée ✓', deja_pret: 'Déjà prête ✓ (rien à refaire)', echec: 'Les IA n\u2019ont pas répondu, réessaie', trop_tot: 'Trop tôt pour cette course', course_partie: 'La course est déjà partie' };
+      statut(msgs[d.statut] || ('Résultat : ' + d.statut), d.statut === 'genere' || d.statut === 'deja_pret');
     } catch(e){ statut(e.message, false); }
   });
 })();
