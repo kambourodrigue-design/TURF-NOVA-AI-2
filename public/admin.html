@@ -340,8 +340,10 @@
             <div class="panel-head"><h3>Course du Jour (page d'accueil)</h3></div>
             <div class="panel-body">
               <p class="panel-desc">
-                Choisis quelle course PMU du jour est mise en avant sur la page d'accueil comme "Quinté+ commun" (favori + indice de confiance affichés automatiquement).
+                La course « Quinté+ commun » mise en avant sur la page d'accueil est <b>détectée automatiquement</b> chaque jour d'après le programme PMU.
+                Tu peux la forcer à la main : ton choix ne vaut que pour aujourd'hui, demain la détection automatique reprend.
               </p>
+              <div id="cdjSource" style="font-size:13px; margin-bottom:12px;">Détection en cours…</div>
               <div class="form-row">
                 <label>Réunion
                   <input type="text" id="cdjReunionInput" placeholder="R1">
@@ -349,7 +351,8 @@
                 <label>Course
                   <input type="text" id="cdjCourseInput" placeholder="C3">
                 </label>
-                <button class="btn-primary" id="cdjSaveBtn">Enregistrer</button>
+                <button class="btn-primary" id="cdjSaveBtn">Forcer pour aujourd'hui</button>
+                <button type="button" class="btn-outline" id="cdjAutoBtn">Revenir en automatique</button>
                 <span id="cdjStatus" class="form-status"></span>
               </div>
               <div style="margin-top:16px;">
@@ -464,6 +467,27 @@
               </tbody>
             </table>
             </div>
+          </div>
+
+          <h1 style="margin-top:32px;">Performance des IA</h1>
+          <div class="h1-sub">Quelle IA fait vraiment mieux ? Comparée à l'arrivée réelle (archive) et aux 8 plus petites cotes (le marché).</div>
+          <div class="panel">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;">
+              <select id="perfIaJours" style="padding:6px 8px;">
+                <option value="30">30 jours</option><option value="60" selected>60 jours</option><option value="180">180 jours</option>
+              </select>
+              <button type="button" class="btn-primary" id="perfIaBtn">Calculer</button>
+              <button type="button" class="btn-outline" id="archiveLotBtn" title="Archive un lot de courses (arrivées, cotes, historiques)">Archiver un lot de courses</button>
+              <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
+              <span id="perfIaStatus" class="form-status"></span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
+                <tbody id="perfIaBody"><tr class="empty-row"><td colspan="8">Clique sur « Calculer ».</td></tr></tbody>
+              </table>
+            </div>
+            <div id="perfIaNotes" style="font-size:12px; opacity:.8; margin-top:10px; line-height:1.5;"></div>
           </div>
         </section>
 
@@ -768,6 +792,7 @@
       .then(data => {
         if(data.reunion) document.getElementById('cdjReunionInput').value = data.reunion;
         if(data.course) document.getElementById('cdjCourseInput').value = data.course;
+        afficherSourceCourseDuJour(data);
         renderIaStatus(data.iaStatus, data.updatedAt);
       })
       .catch(() => {
@@ -804,6 +829,41 @@
     `).join('') + (heure ? `<span style="font-size:12px; color:var(--text-dim,#999); align-self:center; margin-left:4px;">Mis à jour à ${heure}</span>` : '');
   }
 
+
+  // --- Course du jour : source (auto / manuel) et retour en mode automatique ---
+  function afficherSourceCourseDuJour(data){
+    const el = document.getElementById('cdjSource');
+    if(!el || !data) return;
+    const libelles = {
+      auto: 'Détectée automatiquement',
+      manuel: 'Choisie manuellement pour aujourd\u2019hui',
+      repli: 'Détection impossible : dernier réglage utilisé',
+      defaut: 'Détection impossible : valeur par défaut'
+    };
+    const ok = data.source === 'auto' || data.source === 'manuel';
+    el.textContent = (data.reunion || '') + ' · ' + (data.course || '') + ' — ' + (libelles[data.source] || '');
+    el.style.color = ok ? '' : '#ef4444';
+    el.style.fontWeight = '600';
+  }
+  document.getElementById('cdjAutoBtn').addEventListener('click', () => {
+    const statusEl = document.getElementById('cdjStatus');
+    statusEl.textContent = '';
+    fetch(`${API_BASE}/api/admin/course-du-jour`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto: true })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if(data.error){ statusEl.textContent = data.error; return; }
+        document.getElementById('cdjReunionInput').value = data.reunion || '';
+        document.getElementById('cdjCourseInput').value = data.course || '';
+        afficherSourceCourseDuJour(data);
+        statusEl.textContent = data.source === 'auto' ? 'Mode automatique ✓' : 'Mode automatique rétabli, mais aucune course Quinté+ détectée pour le moment';
+      })
+      .catch(() => { statusEl.textContent = 'Erreur réseau'; });
+  });
+
   document.getElementById('cdjSaveBtn').addEventListener('click', () => {
     const btn = document.getElementById('cdjSaveBtn');
     const statusEl = document.getElementById('cdjStatus');
@@ -825,7 +885,8 @@
       .then(res => res.json())
       .then(data => {
         btn.disabled = false;
-        statusEl.textContent = data.error ? data.error : 'Enregistré ✓ (visible sur le site sous peu)';
+        statusEl.textContent = data.error ? data.error : 'Forcée pour aujourd\u2019hui ✓ (visible sur le site sous peu)';
+        if(!data.error) afficherSourceCourseDuJour({ reunion: data.reunion, course: data.course, source: 'manuel' });
       })
       .catch(() => { btn.disabled = false; statusEl.textContent = 'Erreur réseau'; });
   });
@@ -1000,5 +1061,56 @@
   });
 </script>
 
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const num = (v, suf) => (v == null ? '—' : v + (suf || ''));
+  const cellule = (t) => { const td = document.createElement('td'); td.textContent = t; return td; };
+  function ligne(nom, r, gras){
+    const tr = document.createElement('tr');
+    const th = cellule(nom); if(gras) th.style.fontWeight = '700';
+    tr.append(th, cellule(num(r.n)), cellule(num(r.chevaux_corrects_moy)), cellule(num(r.pct_tierce_desordre, ' %')),
+      cellule(num(r.pct_quarte_desordre, ' %')), cellule(num(r.pct_premier_choix_dans_top4, ' %')),
+      cellule(num(r.pct_premier_choix_gagnant, ' %')), cellule(num(r.pct_coups_surs_dans_top4, ' %')));
+    return tr;
+  }
+  async function appeler(chemin, methode, corps){
+    const res = await fetch(chemin, { method: methode || 'GET', headers: corps ? { 'Content-Type': 'application/json' } : undefined, body: corps ? JSON.stringify(corps) : undefined });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || ('Erreur ' + res.status));
+    return data;
+  }
+  function statut(t, ok){ const s = $('perfIaStatus'); s.textContent = t; s.style.color = ok === false ? '#ef4444' : ''; }
+
+  $('perfIaBtn').addEventListener('click', async () => {
+    statut('Calcul…');
+    try {
+      const d = await appeler('/api/admin/performance-ia?jours=' + $('perfIaJours').value);
+      const body = $('perfIaBody'); body.innerHTML = '';
+      Object.entries(d.ia || {}).forEach(([nom, r]) => body.appendChild(ligne(nom, r)));
+      Object.entries(d.reference_marche || {}).forEach(([nom, r]) => r.n && body.appendChild(ligne('Référence marché — ' + nom, r, true)));
+      Object.entries(d.consensus_par_niveau_de_confiance || {}).forEach(([nom, r]) => r.n && body.appendChild(ligne('Consensus, ' + nom, r)));
+      if(!body.children.length) body.innerHTML = '<tr class="empty-row"><td colspan="8">Aucune donnée mesurable pour l\u2019instant.</td></tr>';
+      $('perfIaNotes').textContent = (d.avertissements || []).join(' ') + ' ' + (d.lecture || '');
+      statut('');
+    } catch(e){ statut(e.message, false); }
+  });
+  $('archiveLotBtn').addEventListener('click', async () => {
+    statut('Archivage en cours…');
+    try {
+      const d = await appeler('/api/admin/archive-historique', 'POST', {});
+      const st = d.stats || {};
+      statut(d.bilan.traitees + ' course(s) archivée(s) · base : ' + (st.avec_arrivee ?? 0) + ' course(s) avec arrivée, ' + (st.chevaux ?? 0) + ' chevaux' + (d.bilan.termine ? ' · à jour' : ' · relance pour continuer'));
+    } catch(e){ statut(e.message, false); }
+  });
+  $('pregenBtn').addEventListener('click', async () => {
+    statut('Génération de l\u2019analyse (1 à 2 min)…');
+    try {
+      const d = await appeler('/api/admin/pregenerer', 'POST', {});
+      statut(d.statut === 'genere' ? 'Analyse générée ✓' : 'Résultat : ' + d.statut, d.statut === 'genere' || d.statut === 'deja_pret');
+    } catch(e){ statut(e.message, false); }
+  });
+})();
+</script>
 </body>
 </html>

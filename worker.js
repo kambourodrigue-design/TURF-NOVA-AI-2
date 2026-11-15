@@ -428,6 +428,221 @@ async function handleAdminArchive(request, env) {
   }
 }
 
+// ============================================================================
+// MESURE DES IA — laquelle gagne vraiment ?
+// ----------------------------------------------------------------------------
+// `predictions` ne garde que le consensus. Cette table garde le classement de CHAQUE IA
+// (DeepSeek, GPT Sol, …) pour pouvoir les comparer à l'arrivée réelle (archive_courses)
+// et à une référence simple : les 8 plus petites cotes (« le marché »).
+// Les mesures ne commencent qu'à partir de la mise en production : rien n'est rétro-calculable
+// sans repayer les IA.
+// ============================================================================
+let tablePredictionsIAPrete = false;
+
+async function assurerTablePredictionsIA(env) {
+  if (!env.DB || tablePredictionsIAPrete) return;
+  await env.DB.batch([
+    env.DB.prepare(
+      `CREATE TABLE IF NOT EXISTS predictions_ia (
+         date TEXT NOT NULL, reunion TEXT NOT NULL, course TEXT NOT NULL, ia TEXT NOT NULL,
+         modele TEXT,            -- modèle réellement utilisé (ex. deepseek-v4-flash si repli)
+         avec_web INTEGER,       -- 1 = recherche web activée pour cette IA, 0 = non
+         quarte8 TEXT NOT NULL,  -- classement de l'IA : [{numero, cheval}] (1er choix en premier)
+         coups_surs TEXT,
+         confiance INTEGER,
+         created_at INTEGER,
+         PRIMARY KEY (date, reunion, course, ia)
+       )`
+    ),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_predictions_ia_ia ON predictions_ia (ia, created_at)`),
+  ]);
+  tablePredictionsIAPrete = true;
+}
+
+async function enregistrerPredictionsParIA(env, date, reunion, course, predictions, createdAt) {
+  try {
+    await assurerTablePredictionsIA(env);
+    const stmts = predictions.map((p) =>
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO predictions_ia (date, reunion, course, ia, modele, avec_web, quarte8, coups_surs, confiance, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        date, reunion, course, p.source || "IA", p.modele || null, p.web ?? null,
+        JSON.stringify((p.quarte8 || []).map((c) => ({ numero: c.numero, cheval: c.cheval }))),
+        JSON.stringify(p.coupsSurs || []), p.confiance ?? null, createdAt
+      )
+    );
+    if (stmts.length) await env.DB.batch(stmts);
+  } catch (e) {
+    console.error("[predictions_ia]", e.message); // best-effort : ne casse jamais le pronostic
+  }
+}
+
+// Résultat d'une sélection de 8 chevaux face à l'arrivée réelle.
+function evaluerSelection(numeros, coupsSurs, arrivee) {
+  const top4 = new Set(arrivee.filter((a) => a.place <= 4).map((a) => a.numero));
+  const top3 = arrivee.filter((a) => a.place <= 3).map((a) => a.numero);
+  const gagnants = arrivee.filter((a) => a.place === 1).map((a) => a.numero);
+  const sel = new Set(numeros);
+  return {
+    corrects: numeros.filter((n) => top4.has(n)).length,
+    tierce: top3.length >= 3 && top3.every((n) => sel.has(n)),
+    quarte: top4.size >= 4 && [...top4].every((n) => sel.has(n)),
+    premierTop4: numeros.length > 0 && top4.has(numeros[0]),
+    premierGagne: numeros.length > 0 && gagnants.includes(numeros[0]),
+    coupsSursTentes: (coupsSurs || []).length,
+    coupsSursReussis: (coupsSurs || []).filter((n) => top4.has(n)).length,
+  };
+}
+
+function agregerEvaluations(evals) {
+  const n = evals.length;
+  if (!n) return { n: 0 };
+  const pct = (f) => Math.round((evals.filter(f).length / n) * 1000) / 10;
+  const cs = evals.reduce((a, e) => a + e.coupsSursTentes, 0);
+  const csOk = evals.reduce((a, e) => a + e.coupsSursReussis, 0);
+  return {
+    n,
+    chevaux_corrects_moy: Math.round((evals.reduce((a, e) => a + e.corrects, 0) / n) * 100) / 100, // sur 4 possibles
+    pct_tierce_desordre: pct((e) => e.tierce),
+    pct_quarte_desordre: pct((e) => e.quarte),
+    pct_premier_choix_dans_top4: pct((e) => e.premierTop4),
+    pct_premier_choix_gagnant: pct((e) => e.premierGagne),
+    pct_coups_surs_dans_top4: cs ? Math.round((csOk / cs) * 1000) / 10 : null,
+  };
+}
+
+function lireArrivee(json) {
+  try {
+    return (JSON.parse(json) || []).map((a) => ({ place: Number(a.place), numero: Number(a.numero) })).filter((a) => a.place > 0);
+  } catch {
+    return [];
+  }
+}
+function lireNumeros(json) {
+  try {
+    return (JSON.parse(json) || []).map((c) => Number(c.numero));
+  } catch {
+    return [];
+  }
+}
+function lireListe(json) {
+  try {
+    return (JSON.parse(json || "[]") || []).map(Number);
+  } catch {
+    return [];
+  }
+}
+
+async function calculerPerformanceIA(env, jours = 60) {
+  await assurerTablesArchive(env);
+  await assurerTablePredictionsIA(env);
+  const depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);
+
+  // 1) Classements de chaque IA + 2) consensus historique, face à l'arrivée archivée.
+  const [parIA, consensus, courses, favoris] = await Promise.all([
+    env.DB.prepare(
+      `SELECT pia.ia, pia.avec_web, pia.date, pia.reunion, pia.course, pia.quarte8, pia.coups_surs, ac.arrivee_json
+       FROM predictions_ia pia
+       JOIN archive_courses ac ON ac.date = pia.date AND ac.reunion = pia.reunion AND ac.course = pia.course
+       WHERE ac.termine = 1 AND ac.date_iso >= ?`
+    ).bind(depuis).all(),
+    env.DB.prepare(
+      `SELECT p.date, p.reunion, p.course, p.quarte6 AS quarte8, p.coups_surs, p.confiance, ac.arrivee_json
+       FROM predictions p
+       JOIN archive_courses ac ON ac.date = p.date AND ac.reunion = p.reunion AND ac.course = p.course
+       WHERE ac.termine = 1 AND ac.date_iso >= ?`
+    ).bind(depuis).all(),
+    env.DB.prepare(`SELECT date, reunion, course, arrivee_json FROM archive_courses WHERE termine = 1 AND date_iso >= ?`)
+      .bind(depuis).all(),
+    // Référence « le marché » : les 8 plus petites cotes de chaque course.
+    env.DB.prepare(
+      `SELECT date, reunion, course, num_pmu FROM (
+         SELECT date, reunion, course, num_pmu,
+                ROW_NUMBER() OVER (PARTITION BY date, reunion, course ORDER BY cote ASC, num_pmu ASC) AS rn
+         FROM archive_partants WHERE non_partant = 0 AND cote IS NOT NULL AND date_iso >= ?
+       ) WHERE rn <= 8`
+    ).bind(depuis).all(),
+  ]);
+
+  const cle = (r) => `${r.date}|${r.reunion}|${r.course}`;
+  const evalsParLabel = {};
+  const ajouter = (label, e) => (evalsParLabel[label] ||= []).push(e);
+  const coursesAvecProno = new Set();
+
+  for (const r of parIA.results || []) {
+    const label = r.avec_web === 1 ? `${r.ia} (avec web)` : r.avec_web === 0 ? `${r.ia} (sans web)` : r.ia;
+    const arrivee = lireArrivee(r.arrivee_json);
+    ajouter(label, evaluerSelection(lireNumeros(r.quarte8), lireListe(r.coups_surs), arrivee));
+    coursesAvecProno.add(cle(r));
+  }
+
+  const buckets = { "confiance < 40": [], "confiance 40-64": [], "confiance ≥ 65": [] };
+  for (const r of consensus.results || []) {
+    const arrivee = lireArrivee(r.arrivee_json);
+    const e = evaluerSelection(lireNumeros(r.quarte8), lireListe(r.coups_surs), arrivee);
+    ajouter("Consensus (toutes IA)", e);
+    coursesAvecProno.add(cle(r));
+    const c = r.confiance ?? 0;
+    buckets[c < 40 ? "confiance < 40" : c < 65 ? "confiance 40-64" : "confiance ≥ 65"].push(e);
+  }
+
+  const arriveeParCourse = new Map((courses.results || []).map((c) => [cle(c), lireArrivee(c.arrivee_json)]));
+  const selFavoris = new Map();
+  for (const r of favoris.results || []) {
+    const k = cle(r);
+    if (!selFavoris.has(k)) selFavoris.set(k, []);
+    selFavoris.get(k).push(r.num_pmu);
+  }
+  const evalsFavorisMemes = [];
+  const evalsFavorisTous = [];
+  for (const [k, numeros] of selFavoris) {
+    const arrivee = arriveeParCourse.get(k);
+    if (!arrivee || !arrivee.length) continue;
+    const e = evaluerSelection(numeros, [], arrivee);
+    evalsFavorisTous.push(e);
+    if (coursesAvecProno.has(k)) evalsFavorisMemes.push(e);
+  }
+
+  const resultat = {};
+  for (const [label, evals] of Object.entries(evalsParLabel)) resultat[label] = agregerEvaluations(evals);
+
+  const avertissements = [];
+  for (const [label, r] of Object.entries(resultat)) {
+    if (r.n < 30) avertissements.push(`${label} : seulement ${r.n} course(s) mesurée(s) — trop peu pour conclure (viser 100+).`);
+  }
+  if (!Object.keys(resultat).length) {
+    avertissements.push("Aucun pronostic mesurable pour l'instant : il faut des courses pronostiquées ET archivées avec leur arrivée.");
+  }
+
+  return {
+    periode: { depuis, jours },
+    lecture:
+      "chevaux_corrects_moy = nombre moyen de tes 8 chevaux arrivés dans les 4 premiers (max 4). " +
+      "À comparer à la ligne « Référence : 8 plus petites cotes » : une IA ne vaut son coût que si elle fait mieux que le marché.",
+    ia: resultat,
+    reference_marche: {
+      "sur les mêmes courses que les IA": agregerEvaluations(evalsFavorisMemes),
+      "sur toutes les courses archivées": agregerEvaluations(evalsFavorisTous),
+    },
+    consensus_par_niveau_de_confiance: Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, agregerEvaluations(v)])),
+    avertissements,
+  };
+}
+
+async function handleAdminPerformanceIA(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  if (!env.DB) return new Response(JSON.stringify({ error: "Base D1 indisponible" }), { status: 503, headers: corsHeaders });
+  try {
+    const jours = Math.max(1, Math.min(365, parseInt(new URL(request.url).searchParams.get("jours"), 10) || 60));
+    return new Response(JSON.stringify(await calculerPerformanceIA(env, jours)), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
+
 async function loadResultatsDuJour(env) {
   const date = todayParam();
   const programme = await fetchJSON(`${PMU_BASE}/programme/${date}`);
@@ -879,7 +1094,7 @@ async function callDeepSeekUneFois(prompt, apiKey) {
     );
   }
   console.log(`[deepseek] ${DEEPSEEK_MODELE} (effort ${DEEPSEEK_EFFORT}) — réponse en ${Math.round((Date.now() - debut) / 1000)}s`);
-  return { ...parsed, source: "DeepSeek" };
+  return { ...parsed, source: "DeepSeek", modele: DEEPSEEK_MODELE, web: 0 };
 }
 
 // DeepSeek (modèle "reasoner", plus lent et plus facilement saturé en cas
@@ -953,7 +1168,7 @@ async function callDeepSeekChatRepli(prompt, apiKey, erreurOrigine) {
   const parsed = parseQuarteJSON(text);
   if (!parsed) throw erreurOrigine;
   console.warn(`[deepseek] REPLI sur deepseek-v4-flash (sans raisonnement) car ${DEEPSEEK_MODELE} a échoué : ${(erreurOrigine && erreurOrigine.message) || erreurOrigine}`);
-  return { ...parsed, source: "DeepSeek" };
+  return { ...parsed, source: "DeepSeek", modele: "deepseek-v4-flash", web: 0 };
 }
 
 async function callClaude(prompt, apiKey) {
@@ -1048,7 +1263,7 @@ async function callGPTSol(prompt, apiKey, contexte = {}) {
   }
   const nbRecherches = (data.output || []).filter((o) => o.type === "web_search_call").length;
   console.log(`[gpt-sol] ${GPT_SOL_MODELE} (effort ${GPT_SOL_EFFORT}, ${nbRecherches} recherche(s) web) — réponse en ${Math.round((Date.now() - debut) / 1000)}s`);
-  return { ...parsed, source: "GPT Sol" };
+  return { ...parsed, source: "GPT Sol", modele: GPT_SOL_MODELE, web: GPT_SOL_RECHERCHE_WEB ? 1 : 0 };
 }
 
 // --- Chat IA (question libre sur les courses du jour) ---
@@ -1421,7 +1636,7 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
       // cette course entre-temps (deux visiteurs cliquant en même temps), on ne
       // touche pas à la ligne déjà en place — pas de nouvel id, pas de risque
       // d'orpheliner une éventuelle vérification déjà enregistrée.
-      await env.DB.prepare(
+      const insertion = await env.DB.prepare(
         `INSERT OR IGNORE INTO predictions (date, reunion, course, hippodrome, quarte6, coups_surs, confiance, sources, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
@@ -1437,6 +1652,12 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
           updatedAt
         )
         .run();
+
+      // Mesure des IA : on garde aussi le classement PROPRE à chaque IA (et pas seulement le consensus),
+      // uniquement si c'est bien cette requête qui a verrouillé la course (sinon on mélangerait deux générations).
+      if (insertion?.meta?.changes === 1) {
+        await enregistrerPredictionsParIA(env, date, reunion, course, predictions, updatedAt);
+      }
 
       // On relit systématiquement ce qui est réellement stocké : en cas de
       // course concurrente ci-dessus, c'est la version de l'autre requête qui
@@ -2035,23 +2256,23 @@ async function handleAbonnementMe(request, env) {
   return new Response(JSON.stringify(reponse), { headers: corsHeaders });
 }
 
-// Choix instantané du plan gratuit uniquement — les plans payants sont payés via un lien
-// MoneyFusion et activés manuellement par l'admin (voir /api/admin/abonnement/statut).
-// --- Paiement Chariow (remplace MoneyFusion) ---
-// Nécessite le secret Cloudflare CHARIOW_API_KEY (clé secrète, jamais dans le code).
-// Le produit "Abonnement Prestige — 1 mois" doit être créé et publié sur Chariow.
+// Choix instantané du plan gratuit uniquement — les plans payants passent par Chariow
+// (/api/paiement/initier) ; l'admin peut aussi les activer à la main (/api/admin/abonnement/statut).
+// --- Paiement Chariow ---
+// Nécessite le secret Cloudflare CHARIOW_API_KEY (clé secrète, jamais dans le code) et un webhook
+// « Pulse » Chariow pointant vers /api/webhooks/chariow (événement sale.completed).
 
 const CHARIOW_API_BASE = "https://api.chariow.com/v1";
-// Les prix sont définis dans Chariow (pas dans ce code) : créer deux produits —
-//   • « Abonnement Premium — mensuel » à 25 000 FCFA
-//   • « Abonnement Premium — annuel »  à 50 000 FCFA
-// puis coller ci-dessous leurs identifiants (de la forme "prd_xxxxxxxx").
+// Les prix sont définis dans Chariow (pas dans ce code). Deux produits :
+//   • « Abonnement Premium — mensuel » à 25 000 FCFA → prd_eijpfgbq
+//   • « Abonnement Premium — annuel »  à 50 000 FCFA → prd_7w9pduoj
+// Les anciennes formules « prestige » et « quinzaine » n'ont volontairement plus de produit ici :
+// ces identifiants sont désormais ceux du mensuel / annuel, et laisser l'ancien nom permettrait de
+// payer 25 000 / 50 000 FCFA pour une durée de 14 jours / 2 mois. Les ventes déjà en cours restent
+// honorées par le webhook (la durée vient de DUREE_PLAN_MS, pas de cette table).
 const PRODUITS_CHARIOW = {
-  mensuel: "prd_REMPLACER_MENSUEL",
-  annuel: "prd_REMPLACER_ANNUEL",
-  // Anciennes formules : conservées pour les paiements encore en cours / activations manuelles.
-  prestige: "prd_7w9pduoj",
-  quinzaine: "prd_eijpfgbq", // ancien plan "Derby" (2 semaines)
+  mensuel: "prd_eijpfgbq", // 25 000 FCFA — 30 jours
+  annuel: "prd_7w9pduoj", // 50 000 FCFA — 365 jours
 };
 
 // Durée d'accès accordée par plan payant, utilisée à l'activation (webhook et activation manuelle admin).
@@ -2624,9 +2845,115 @@ async function expirerAbonnements(env) {
 const COURSE_DU_JOUR_CONFIG_KEY = "course-du-jour-config";
 const COURSE_DU_JOUR_TTL_SECONDS = 3 * 60 * 60; // 3h — évite d'appeler les IA à chaque visite
 
+// ---------------------------------------------------------------------------
+// DÉTECTION AUTOMATIQUE de la course « Quinté+ » du jour
+// ---------------------------------------------------------------------------
+// Le PMU signale dans son programme les paris ouverts sur chaque course : la course du jour est celle
+// où figure le Quinté+. On cherche donc la mention « QUINTE » dans les paris de chaque course.
+// Ordre de priorité : 1) réglage manuel de l'admin POUR AUJOURD'HUI, 2) détection automatique,
+// 3) dernier réglage connu, 4) R1 C3. Le réglage manuel ne vaut que pour la journée où il est saisi.
+const QUINTE_RE = /QUINT[EÉ]/i;
+
+// Cherche « Quinté » dans un objet : d'abord dans les champs de paris (clé contenant « pari »),
+// puis, à défaut, dans toutes les valeurs texte (profondeur limitée).
+function mentionneQuinte(obj, seulementParis, profondeur = 0, cleParent = "") {
+  if (obj == null || profondeur > 5) return false;
+  if (typeof obj === "string") return (!seulementParis || /pari/i.test(cleParent)) && QUINTE_RE.test(obj);
+  if (Array.isArray(obj)) return obj.some((v) => mentionneQuinte(v, seulementParis, profondeur + 1, cleParent));
+  if (typeof obj === "object") {
+    return Object.entries(obj).some(
+      ([k, v]) => mentionneQuinte(v, seulementParis, profondeur + 1, seulementParis && /pari/i.test(cleParent) ? cleParent : k)
+    );
+  }
+  return false;
+}
+
+function choisirCourseQuinte(reunions) {
+  const candidates = [];
+  for (const r of reunions || []) {
+    for (const c of r.courses || []) candidates.push({ r, c });
+  }
+  for (const seulementParis of [true, false]) {
+    const trouvees = candidates.filter(({ c }) => mentionneQuinte(c, seulementParis));
+    if (trouvees.length) {
+      // En cas de doute (plusieurs courses marquées) : la plus dotée, puis la plus tôt.
+      trouvees.sort(
+        (a, b) =>
+          (b.c.montantPrix ?? b.c.montantTotalOffert ?? 0) - (a.c.montantPrix ?? a.c.montantTotalOffert ?? 0) ||
+          (a.c.heureDepart ?? 0) - (b.c.heureDepart ?? 0)
+      );
+      const { r, c } = trouvees[0];
+      return {
+        reunion: `R${r.numOfficiel ?? r.numExterne}`,
+        course: `C${c.numOrdre ?? c.numExterne}`,
+        hippodrome: r.hippodrome?.libelleCourt || r.libelleCourt || "",
+        heure: c.heureDepart ? formatHeure(c.heureDepart) : "",
+        candidates: trouvees.length,
+        via: seulementParis ? "paris" : "texte",
+      };
+    }
+  }
+  return null;
+}
+
+async function detecterCourseQuinte(date) {
+  const diag = { reunions: 0, courses: 0, exempleCles: null };
+  let programme;
+  try {
+    programme = await fetchJSON(`${PMU_BASE}/programme/${date}`);
+  } catch (e) {
+    return { trouve: null, diag: { ...diag, erreur: e.message } };
+  }
+  const reunions = programme.programme?.reunions || [];
+  diag.reunions = reunions.length;
+  diag.courses = reunions.reduce((n, r) => n + (r.courses || []).length, 0);
+  diag.exempleCles = Object.keys(reunions[0]?.courses?.[0] || {});
+
+  let trouve = choisirCourseQuinte(reunions);
+  if (!trouve) {
+    // Certaines données de paris ne sont que dans le détail de la réunion : on le lit (une requête par réunion).
+    const details = [];
+    for (const r of reunions.slice(0, 12)) {
+      const num = r.numOfficiel ?? r.numExterne;
+      try {
+        const d = await fetchJSON(`${PMU_BASE}/programme/${date}/R${num}`);
+        details.push({ ...r, courses: d.courses || d.reunion?.courses || d.programme?.courses || r.courses });
+      } catch {
+        /* réunion illisible : on passe à la suivante */
+      }
+    }
+    trouve = choisirCourseQuinte(details);
+    if (trouve) trouve.via += "+détail";
+  }
+  return { trouve, diag };
+}
+
 async function getCourseDuJourConfig(env) {
+  const date = todayParam();
   const config = await env.CACHE_KV.get(COURSE_DU_JOUR_CONFIG_KEY, { type: "json" });
-  return config || { reunion: "R1", course: "C3" };
+
+  // 1) Réglage manuel de l'admin, valable uniquement pour la journée où il a été saisi.
+  if (config?.manuel && config.date === date && config.reunion && config.course) {
+    return { reunion: config.reunion, course: config.course, source: "manuel" };
+  }
+
+  // 2) Détection automatique (mise en cache ; absence mémorisée 5 min pour ne pas relancer à chaque visiteur).
+  const cleAuto = `quinte-auto:${date}`;
+  const enCache = await env.CACHE_KV.get(cleAuto, { type: "json" });
+  if (enCache) return { reunion: enCache.reunion, course: enCache.course, source: "auto" };
+  if (!(await env.CACHE_KV.get(`quinte-auto-absent:${date}`))) {
+    const { trouve } = await detecterCourseQuinte(date);
+    if (trouve) {
+      await env.CACHE_KV.put(cleAuto, JSON.stringify(trouve), { expirationTtl: 6 * 3600 });
+      return { reunion: trouve.reunion, course: trouve.course, source: "auto" };
+    }
+    await env.CACHE_KV.put(`quinte-auto-absent:${date}`, "1", { expirationTtl: 300 });
+    console.warn(`[course-du-jour] Quinté+ non détecté pour le ${date} — repli sur le dernier réglage`);
+  }
+
+  // 3) Dernier réglage connu, 4) valeur par défaut.
+  if (config?.reunion && config?.course) return { reunion: config.reunion, course: config.course, source: "repli" };
+  return { reunion: "R1", course: "C3", source: "defaut" };
 }
 
 // Construit la sélection gratuite "10 numéros" à partir des partants réels et
@@ -2724,6 +3051,157 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   };
 }
 
+// Construit (et met en cache) la fiche complète de la « Course du jour » : infos PMU, pronostic
+// des IA (verrouillé en base), sélection gratuite. Utilisée à la demande (premier visiteur) ET par
+// la pré-génération planifiée, pour que l'écran s'affiche instantanément.
+async function genererCourseDuJour(env, date, reunion, course) {
+  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const [courseInfo, participantsData] = await Promise.all([
+    getCourseInfo(date, reunion, course),
+    fetchJSON(`${PMU_BASE}/programme/${date}/${reunion}/${course}/participants`).catch(() => null),
+  ]);
+
+  const participants = participantsData?.participants || [];
+  const nbPartants = participants.filter((p) => !p.nonPartant).length || null;
+
+  let quarte8 = null;
+  let confiance = null;
+  let iaStatus = null;
+  const jockeysEnForme = await recupererJockeysEnForme(env);
+
+  if (participants.length) {
+    // Passe par la même fonction que le pronostic "à la demande" (bouton
+    // "Voir le pronostic IA") : garantit un résultat identique partout sur le
+    // site pour une même course, verrouillé en base dès la première génération
+    // — plutôt que de refaire un appel DeepSeek indépendant ici, qui pouvait
+    // renvoyer un classement différent pour la même course (variabilité du
+    // modèle) selon qu'on la voyait sur la home ou via "Analyser une course".
+    const { consensus } = await obtenirPronosticConsensus(date, reunion, course, env);
+
+    iaStatus = [
+      { ia: "DeepSeek", ok: !!consensus && (consensus.sources || []).includes("DeepSeek"), raison: consensus ? ((consensus.sources || []).includes("DeepSeek") ? null : "N'a pas répondu pour cette course") : "Pas de consensus disponible" },
+      { ia: "GPT Sol", ok: !!consensus && (consensus.sources || []).includes("GPT Sol"), raison: consensus ? ((consensus.sources || []).includes("GPT Sol") ? null : "Pas de réponse (clé OPENAI_API_KEY absente ou erreur)") : "Pas de consensus disponible" },
+      { ia: "Gemini", ok: false, raison: "Désactivée" },
+      { ia: "Groq", ok: false, raison: "Désactivée" },
+      { ia: "Claude", ok: false, raison: "Désactivée" },
+    ];
+
+    if (consensus && consensus.confiance > 0) {
+      quarte8 = consensus.quarte8
+        .map((c) => {
+          const p = participants.find((pp) => pp.numPmu === c.numero);
+          const jockey = p?.driver?.nom || p?.entraineur?.nom || "";
+          return {
+            position: c.position, // rang de confiance IA d'origine, conservé à titre indicatif
+            numero: c.numero,
+            cheval: c.cheval,
+            coupSur: c.coupSur,
+            jockey,
+            cote: p?.dernierRapportDirect?.rapport ?? null,
+            enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
+          };
+        })
+        // Le Premium suit le classement de l'IA (position 1 = son meilleur choix)
+        // et non plus l'ordre des cotes : à l'arrivée, un ou deux chevaux à cote
+        // moyenne ou élevée s'immiscent souvent parmi les meilleurs. La cote reste
+        // renvoyée pour chaque cheval, à titre d'information.
+        .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+      confiance = consensus.confiance;
+    }
+  }
+
+  const gratuit = construireSelectionGratuite(participants, quarte8, jockeysEnForme);
+
+  const full = {
+    reunion,
+    course,
+    hippodrome: courseInfo.hippodrome || "",
+    discipline: courseInfo.discipline || "",
+    distance: courseInfo.distance || null,
+    partants: nbPartants,
+    gratuit,
+    quarte8,
+    confiance,
+    iaStatus,
+    updatedAt: Date.now(),
+  };
+
+  // Pronostic + confiance sont générés ensemble : soit les deux sont présents, soit
+  // aucun. Si l'IA n'a pas pu répondre, on ne verrouille pas ce résultat vide 3h :
+  // on réessaie dans 5 minutes (le temps que le PMU publie les infos manquantes).
+  const resultatComplet = !!quarte8 && !!confiance;
+  const ttl = resultatComplet ? COURSE_DU_JOUR_TTL_SECONDS : 5 * 60;
+  await env.CACHE_KV.put(cacheKey, JSON.stringify(full), { expirationTtl: ttl });
+  return full;
+}
+
+// ----------------------------------------------------------------------------
+// PRÉ-GÉNÉRATION de la Course du jour (cron)
+// ----------------------------------------------------------------------------
+// Sans ça, le PREMIER visiteur de la journée attend l'analyse complète (DeepSeek + GPT Sol + web : 1 à
+// 2 minutes) et les suivants ont le résultat en cache. Ici, un cron génère l'analyse à l'avance :
+// tous les visiteurs, y compris le premier, ont un affichage instantané.
+// Fenêtre : on génère à partir de PREGEN_AVANCE_H heures avant le départ (les non-partants sont alors
+// presque tous connus : le pronostic est VERROUILLÉ en base et ne sera plus recalculé).
+const CRON_PREGEN = "*/15 * * * *";   // à déclarer dans wrangler.jsonc (triggers.crons)
+const PREGEN_AVANCE_H = 7;            // ouverture de la fenêtre avant le départ de la course
+const PREGEN_MAX_TENTATIVES = 4;      // essais par jour si les IA échouent
+
+async function heureDepartMs(date, reunion, course) {
+  try {
+    const programme = await fetchJSON(`${PMU_BASE}/programme/${date}`);
+    const r = (programme.programme?.reunions || []).find((x) => `R${x.numOfficiel ?? x.numExterne}` === reunion);
+    const c = (r?.courses || []).find((x) => `C${x.numOrdre ?? x.numExterne}` === course);
+    return c?.heureDepart || null;
+  } catch {
+    return null;
+  }
+}
+
+async function pregenererCourseDuJour(env, { forcer = false } = {}) {
+  const date = todayParam();
+  const { reunion, course } = await getCourseDuJourConfig(env);
+  const cacheKey = `course-du-jour-full:${date}:${reunion}:${course}`;
+  const etatKey = `pregen:${date}:${reunion}:${course}`;
+  const etat = (await env.CACHE_KV.get(etatKey, { type: "json" })) || { tentatives: 0, fait: false };
+
+  if (!forcer && (etat.fait || etat.tentatives >= PREGEN_MAX_TENTATIVES)) return { statut: "rien_a_faire", ...etat };
+
+  const dejaPret = await env.CACHE_KV.get(cacheKey, { type: "json" });
+  if (dejaPret?.quarte8 && dejaPret?.confiance) {
+    await env.CACHE_KV.put(etatKey, JSON.stringify({ ...etat, fait: true }), { expirationTtl: 36 * 3600 });
+    return { statut: "deja_pret" };
+  }
+
+  if (!forcer) {
+    const depart = await heureDepartMs(date, reunion, course);
+    const maintenant = Date.now();
+    if (depart && maintenant < depart - PREGEN_AVANCE_H * 3600 * 1000) return { statut: "trop_tot" };
+    if (depart && maintenant > depart) return { statut: "course_partie" };
+  }
+
+  // On compte la tentative AVANT l'appel (les IA sont lentes et payantes : jamais de boucle infinie).
+  etat.tentatives += 1;
+  await env.CACHE_KV.put(etatKey, JSON.stringify(etat), { expirationTtl: 36 * 3600 });
+
+  const full = await genererCourseDuJour(env, date, reunion, course);
+  const reussi = !!full.quarte8 && !!full.confiance;
+  if (reussi) await env.CACHE_KV.put(etatKey, JSON.stringify({ ...etat, fait: true }), { expirationTtl: 36 * 3600 });
+  console.log(`[pregen] ${reunion}${course} du ${date} — ${reussi ? "OK" : "IA sans réponse"} (essai ${etat.tentatives}/${PREGEN_MAX_TENTATIVES})`);
+  return { statut: reussi ? "genere" : "echec", tentatives: etat.tentatives };
+}
+
+async function handleAdminPregen(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  try {
+    return new Response(JSON.stringify(await pregenererCourseDuJour(env, { forcer: true })), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
+
 async function handleCourseDuJour(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const date = todayParam();
@@ -2734,82 +3212,7 @@ async function handleCourseDuJour(request, env) {
 
   if (!full) {
     try {
-      const [courseInfo, participantsData] = await Promise.all([
-        getCourseInfo(date, reunion, course),
-        fetchJSON(`${PMU_BASE}/programme/${date}/${reunion}/${course}/participants`).catch(() => null),
-      ]);
-
-      const participants = participantsData?.participants || [];
-      const nbPartants = participants.filter((p) => !p.nonPartant).length || null;
-
-      let quarte8 = null;
-      let confiance = null;
-      let iaStatus = null;
-      const jockeysEnForme = await recupererJockeysEnForme(env);
-
-      if (participants.length) {
-        // Passe par la même fonction que le pronostic "à la demande" (bouton
-        // "Voir le pronostic IA") : garantit un résultat identique partout sur le
-        // site pour une même course, verrouillé en base dès la première génération
-        // — plutôt que de refaire un appel DeepSeek indépendant ici, qui pouvait
-        // renvoyer un classement différent pour la même course (variabilité du
-        // modèle) selon qu'on la voyait sur la home ou via "Analyser une course".
-        const { consensus } = await obtenirPronosticConsensus(date, reunion, course, env);
-
-        iaStatus = [
-          { ia: "DeepSeek", ok: !!consensus && (consensus.sources || []).includes("DeepSeek"), raison: consensus ? ((consensus.sources || []).includes("DeepSeek") ? null : "N'a pas répondu pour cette course") : "Pas de consensus disponible" },
-          { ia: "GPT Sol", ok: !!consensus && (consensus.sources || []).includes("GPT Sol"), raison: consensus ? ((consensus.sources || []).includes("GPT Sol") ? null : "Pas de réponse (clé OPENAI_API_KEY absente ou erreur)") : "Pas de consensus disponible" },
-          { ia: "Gemini", ok: false, raison: "Désactivée" },
-          { ia: "Groq", ok: false, raison: "Désactivée" },
-          { ia: "Claude", ok: false, raison: "Désactivée" },
-        ];
-
-        if (consensus && consensus.confiance > 0) {
-          quarte8 = consensus.quarte8
-            .map((c) => {
-              const p = participants.find((pp) => pp.numPmu === c.numero);
-              const jockey = p?.driver?.nom || p?.entraineur?.nom || "";
-              return {
-                position: c.position, // rang de confiance IA d'origine, conservé à titre indicatif
-                numero: c.numero,
-                cheval: c.cheval,
-                coupSur: c.coupSur,
-                jockey,
-                cote: p?.dernierRapportDirect?.rapport ?? null,
-                enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
-              };
-            })
-            // Le Premium suit le classement de l'IA (position 1 = son meilleur choix)
-            // et non plus l'ordre des cotes : à l'arrivée, un ou deux chevaux à cote
-            // moyenne ou élevée s'immiscent souvent parmi les meilleurs. La cote reste
-            // renvoyée pour chaque cheval, à titre d'information.
-            .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
-          confiance = consensus.confiance;
-        }
-      }
-
-      const gratuit = construireSelectionGratuite(participants, quarte8, jockeysEnForme);
-
-      full = {
-        reunion,
-        course,
-        hippodrome: courseInfo.hippodrome || "",
-        discipline: courseInfo.discipline || "",
-        distance: courseInfo.distance || null,
-        partants: nbPartants,
-        gratuit,
-        quarte8,
-        confiance,
-        iaStatus,
-        updatedAt: Date.now(),
-      };
-
-      // Pronostic + confiance sont générés ensemble : soit les deux sont présents, soit
-      // aucun. Si l'IA n'a pas pu répondre, on ne verrouille pas ce résultat vide 3h :
-      // on réessaie dans 5 minutes (le temps que le PMU publie les infos manquantes).
-      const resultatComplet = !!quarte8 && !!confiance;
-      const ttl = resultatComplet ? COURSE_DU_JOUR_TTL_SECONDS : 5 * 60;
-      await env.CACHE_KV.put(cacheKey, JSON.stringify(full), { expirationTtl: ttl });
+      full = await genererCourseDuJour(env, date, reunion, course);
     } catch (e) {
       return new Response(
         JSON.stringify({ error: "Impossible de récupérer la course du jour", details: e.message }),
@@ -2851,6 +3254,17 @@ async function handleCourseDuJour(request, env) {
   return new Response(JSON.stringify({ ...base, premium: null, premiumVerrouille: true }), { headers: corsHeaders });
 }
 
+// Admin : lance la détection MAINTENANT (sans cache) et montre ce que le PMU renvoie — pour vérifier ou corriger la détection.
+async function handleAdminDetecterQuinte(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  const date = todayParam();
+  const { trouve, diag } = await detecterCourseQuinte(date);
+  const config = await getCourseDuJourConfig(env);
+  return new Response(JSON.stringify({ date, detecte: trouve, utilise: config, diagnostic: diag }), { headers: corsHeaders });
+}
+
 // Admin : change quelle réunion/course est mise en avant comme "Course du Jour".
 async function handleAdminCourseDuJour(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -2884,6 +3298,17 @@ async function handleAdminCourseDuJour(request, env) {
     return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers: corsHeaders });
   }
 
+  // Retour au mode automatique : on retire le réglage manuel et la détection mémorisée.
+  if (body.auto === true) {
+    const date = todayParam();
+    const ancien = await env.CACHE_KV.get(COURSE_DU_JOUR_CONFIG_KEY, { type: "json" });
+    await env.CACHE_KV.put(COURSE_DU_JOUR_CONFIG_KEY, JSON.stringify({ ...(ancien || {}), manuel: false }));
+    await env.CACHE_KV.delete(`quinte-auto:${date}`);
+    await env.CACHE_KV.delete(`quinte-auto-absent:${date}`);
+    const config = await getCourseDuJourConfig(env);
+    return new Response(JSON.stringify({ ok: true, ...config }), { headers: corsHeaders });
+  }
+
   const reunion = String(body.reunion || "").trim().toUpperCase();
   const course = String(body.course || "").trim().toUpperCase();
 
@@ -2894,7 +3319,8 @@ async function handleAdminCourseDuJour(request, env) {
     );
   }
 
-  await env.CACHE_KV.put(COURSE_DU_JOUR_CONFIG_KEY, JSON.stringify({ reunion, course }));
+  // Le réglage manuel ne vaut que pour AUJOURD'HUI : demain, la détection automatique reprend la main.
+  await env.CACHE_KV.put(COURSE_DU_JOUR_CONFIG_KEY, JSON.stringify({ reunion, course, manuel: true, date: todayParam() }));
 
   // On efface le cache du jour pour que le changement soit visible immédiatement.
   const date = todayParam();
@@ -3543,6 +3969,18 @@ export default {
       return handleAdminAbonnementStatut(request, env);
     }
 
+    if (url.pathname === "/api/admin/detecter-quinte") {
+      return handleAdminDetecterQuinte(request, env);
+    }
+
+    if (url.pathname === "/api/admin/performance-ia") {
+      return handleAdminPerformanceIA(request, env);
+    }
+
+    if (url.pathname === "/api/admin/pregenerer" && request.method === "POST") {
+      return handleAdminPregen(request, env);
+    }
+
     if (url.pathname === "/api/admin/archive-historique") {
       return handleAdminArchive(request, env);
     }
@@ -3581,6 +4019,11 @@ export default {
     // Archivage de TOUTES les courses (aujourd'hui, hier, puis rattrapage de l'historique).
     if (event.cron === CRON_ARCHIVE) {
       ctx.waitUntil(archiverHistoriqueCourses(env));
+      return;
+    }
+    // Pré-génération de l'analyse de la Course du jour (voir PREGEN_* plus haut).
+    if (event.cron === CRON_PREGEN) {
+      ctx.waitUntil(pregenererCourseDuJour(env).catch((e) => console.error("[pregen]", e.message)));
       return;
     }
     ctx.waitUntil(expirerAbonnements(env));
