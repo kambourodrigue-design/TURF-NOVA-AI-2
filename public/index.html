@@ -759,6 +759,10 @@
   }
   .auth-field input:focus{outline:2px solid var(--gold); outline-offset:1px;}
   .auth-error{font-size:12.5px; color:var(--rust); margin-bottom:12px; min-height:16px;}
+  .auth-info{display:none; font-size:13px; line-height:1.5; color:#86efac; background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.35); border-radius:10px; padding:10px 12px; margin-bottom:14px;}
+  .auth-info:not(:empty){display:block;}
+  .auth-forgot{text-align:right; margin:-6px 0 16px; font-size:12.5px;}
+  .auth-forgot a{color:var(--gold-light); cursor:pointer; text-decoration:underline;}
   .auth-submit{
     width:100%; padding:12px; border-radius:4px; background:var(--gold); color:#0c0c0d;
     font-weight:600; font-size:14px; margin-top:4px;
@@ -1013,6 +1017,7 @@
     <div class="wrap">
       <div class="logo">Turf Nova <span class="dot">AI</span></div>
       <div class="header-actions">
+        <a href="/admin.html" class="btn-outline btn-admin" id="btnAdmin" style="display:none;" title="Ouvrir le tableau de bord administrateur">⚙️ <span>Admin</span></a>
         <button class="btn-outline" id="btnThemeToggle" title="Changer d'apparence" aria-label="Basculer entre mode sombre et mode clair">🌙</button>
         <button class="btn-outline" id="btnActiverNotifs" title="Activer les notifications" aria-label="Activer les notifications">🔔 <span class="btn-notifs-label">Activer les notifs</span></button>
         <a href="#" class="link-muted" id="loginLink">Se connecter</a>
@@ -1222,7 +1227,7 @@
           </div>
           <button class="btn-gold ia-search-submit" id="iaSearchBtn" disabled>Voir le pronostic IA</button>
           <div class="ia-quota" id="iaQuota" hidden>
-            <div class="ia-quota__ligne"><span>Analyses de courses ce mois-ci</span><b id="iaQuotaTexte">15 / 15</b></div>
+            <div class="ia-quota__ligne"><span>Analyses de courses ce mois-ci</span><b id="iaQuotaTexte">20 / 20</b></div>
             <div class="ia-quota__barre" aria-hidden="true"><i id="iaQuotaBarre"></i></div>
             <p class="ia-quota__note">Les courses déjà analysées par l'IA ne comptent pas. Le compteur repart à zéro le 1er de chaque mois.</p>
           </div>
@@ -1357,7 +1362,7 @@
               <li>Pronostic PREMIUM course du jour</li>
               <li>Classement établi par l'IA, coups sûrs signalés</li>
               <li>Complément « Gros rapport » en option</li>
-              <li>Jusqu'à 15 analyses IA d'autres courses par mois</li>
+              <li>Jusqu'à 20 analyses IA d'autres courses par mois</li>
               <li>Alertes de mouvement de cotes</li>
               <li>Historique des performances du modèle</li>
               <li>Analyse allure et terrain par cheval</li>
@@ -1513,7 +1518,7 @@
           </details>
           <details class="faq-item">
             <summary>Combien d'analyses de courses puis-je lancer ?</summary>
-            <p>Le Pronostic Premium de la course du jour est inclus sans limite. Pour les autres courses, chaque abonné peut lancer jusqu'à 15 analyses IA par mois ; le compteur repart à zéro le 1er de chaque mois. Les courses déjà analysées par l'IA, par toi ou par un autre abonné, restent consultables sans limite et ne comptent pas dans ton quota.</p>
+            <p>Le Pronostic Premium de la course du jour est inclus sans limite. Pour les autres courses, chaque abonné peut lancer jusqu'à 20 analyses IA par mois ; le compteur repart à zéro le 1er de chaque mois. Les courses déjà analysées par l'IA, par toi ou par un autre abonné, restent consultables sans limite et ne comptent pas dans ton quota.</p>
           </details>
           <details class="faq-item">
             <summary>Comment fonctionne l'assistant qui répond aux questions ?</summary>
@@ -1576,6 +1581,10 @@
     </div>
   </footer>
 
+  <button type="button" class="scroll-fab" id="scrollFab" aria-label="Aller en bas de la page" title="Aller en bas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>
+  </button>
+
   <div class="auth-overlay" id="authOverlay">
     <div class="auth-modal">
       <button class="auth-close" id="authClose">×</button>
@@ -1584,14 +1593,20 @@
       <div class="auth-error" id="authError"></div>
 
       <div id="authStepCompte">
-        <div class="auth-field">
+        <div class="auth-field" id="authEmailField">
           <label>Email</label>
-          <input type="email" id="authEmail" placeholder="toi@exemple.fr">
+          <input type="email" id="authEmail" placeholder="toi@exemple.fr" autocomplete="email">
         </div>
-        <div class="auth-field">
-          <label>Mot de passe</label>
-          <input type="password" id="authPassword" placeholder="6 caractères minimum">
+        <div class="auth-field" id="authPasswordField">
+          <label id="authPasswordLabel">Mot de passe</label>
+          <input type="password" id="authPassword" placeholder="6 caractères minimum" autocomplete="current-password">
         </div>
+        <div class="auth-forgot" id="authForgot" style="display:none;"><a id="authForgotLink">Mot de passe oublié ?</a></div>
+        <div class="auth-field" id="authConfirmField" style="display:none;">
+          <label>Confirme le mot de passe</label>
+          <input type="password" id="authPassword2" placeholder="Retape le mot de passe" autocomplete="new-password">
+        </div>
+        <div class="auth-info" id="authInfo"></div>
         <button class="auth-submit" id="authSubmit">Créer mon compte</button>
       </div>
 
@@ -2270,6 +2285,8 @@
     authError.textContent = '';
     authEmail.value = '';
     authPassword.value = '';
+    document.getElementById('authPassword2').value = '';
+    document.getElementById('authInfo').textContent = '';
     authStepCompte.style.display = '';
     authOverlay.classList.add('open');
   }
@@ -2281,21 +2298,56 @@
   function basculerMode(mode){
     modeAuth = mode;
     authError.textContent = '';
+    document.getElementById('authInfo').textContent = '';
+    const emailField = document.getElementById('authEmailField');
+    const passField = document.getElementById('authPasswordField');
+    const confirmField = document.getElementById('authConfirmField');
+    const forgot = document.getElementById('authForgot');
+    const sw = document.getElementById('authSwitch');
+    // Affichage par défaut (inscription / connexion) : email + mot de passe
+    emailField.style.display = ''; passField.style.display = ''; confirmField.style.display = 'none'; forgot.style.display = 'none';
+    document.getElementById('authPasswordLabel').textContent = 'Mot de passe';
+    authPassword.autocomplete = 'current-password';
+    authStepCompte.style.display = '';
+
     if(mode === 'signup'){
       authTitle.textContent = 'Créer un compte gratuit';
       authSub.textContent = 'Nécessaire pour voir le Pronostic PREMIUM (6 chevaux : 3 bases, 2 outsiders, 1 tocard + coups sûrs).';
-      authStepCompte.style.display = '';
       authSubmit.textContent = 'Créer mon compte';
-      document.getElementById('authSwitch').innerHTML = 'Déjà un compte ? <a id="authSwitchLink">Se connecter</a>';
-    } else {
+      authPassword.autocomplete = 'new-password';
+      sw.innerHTML = 'Déjà un compte ? <a id="authSwitchLink">Se connecter</a>';
+      document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode('login'));
+    } else if(mode === 'login'){
       authTitle.textContent = 'Se connecter';
       authSub.textContent = 'Accède aux pronostics IA avec ton compte.';
-      authStepCompte.style.display = '';
       authSubmit.textContent = 'Se connecter';
-      document.getElementById('authSwitch').innerHTML = 'Pas encore de compte ? <a id="authSwitchLink">Créer un compte</a>';
+      forgot.style.display = '';
+      sw.innerHTML = 'Pas encore de compte ? <a id="authSwitchLink">Créer un compte</a>';
+      document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode('signup'));
+    } else if(mode === 'forgot'){
+      authTitle.textContent = 'Mot de passe oublié';
+      authSub.textContent = "Entre ton email : on t'envoie un lien pour choisir un nouveau mot de passe, sans avoir besoin de l'ancien.";
+      passField.style.display = 'none';
+      authSubmit.textContent = 'Envoyer le lien';
+      sw.innerHTML = '<a id="authSwitchLink">← Retour à la connexion</a>';
+      document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode('login'));
+    } else if(mode === 'reset'){
+      authTitle.textContent = 'Nouveau mot de passe';
+      authSub.textContent = 'Choisis ton nouveau mot de passe (6 caractères minimum). Tu seras connecté automatiquement.';
+      emailField.style.display = 'none';
+      confirmField.style.display = '';
+      document.getElementById('authPasswordLabel').textContent = 'Nouveau mot de passe';
+      authPassword.autocomplete = 'new-password';
+      authSubmit.textContent = 'Enregistrer le mot de passe';
+      sw.innerHTML = '';
     }
-    document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode(mode === 'signup' ? 'login' : 'signup'));
   }
+
+  document.getElementById('authForgotLink').addEventListener('click', () => {
+    const saisi = authEmail.value;
+    basculerMode('forgot');
+    authEmail.value = saisi;
+  });
 
   authClose.addEventListener('click', fermerAuth);
   authOverlay.addEventListener('click', (e) => { if(e.target === authOverlay) fermerAuth(); });
@@ -2303,10 +2355,55 @@
   btnCreerCompte.addEventListener('click', () => { basculerMode('signup'); ouvrirAuth(); });
   document.getElementById('authSwitchLink').addEventListener('click', () => basculerMode('login'));
 
+  let tokenReset = null; // jeton reçu par email (?reset=...), utilisé par le mode « reset »
+
   authSubmit.addEventListener('click', () => {
     const email = authEmail.value.trim();
     const password = authPassword.value;
     authError.textContent = '';
+    document.getElementById('authInfo').textContent = '';
+
+    // --- Mot de passe oublié : on envoie le lien par email ---
+    if(modeAuth === 'forgot'){
+      if(!email){ authError.textContent = 'Entre ton adresse email.'; return; }
+      authSubmit.disabled = true;
+      fetch(`${API_BASE}/api/auth/mot-de-passe-oublie`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
+      })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          authSubmit.disabled = false;
+          if(!ok){ authError.textContent = data.message || data.error || 'Une erreur est survenue.'; return; }
+          document.getElementById('authInfo').textContent = data.message || 'Lien envoyé. Vérifie ta boîte mail.';
+        })
+        .catch(() => { authSubmit.disabled = false; authError.textContent = 'Connexion au serveur impossible, réessaie.'; });
+      return;
+    }
+
+    // --- Nouveau mot de passe (depuis le lien reçu par email) ---
+    if(modeAuth === 'reset'){
+      const confirmation = document.getElementById('authPassword2').value;
+      if(password.length < 6){ authError.textContent = 'Le mot de passe doit contenir au moins 6 caractères.'; return; }
+      if(password !== confirmation){ authError.textContent = 'Les deux mots de passe ne correspondent pas.'; return; }
+      authSubmit.disabled = true;
+      fetch(`${API_BASE}/api/auth/reinitialiser`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tokenReset, password })
+      })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          authSubmit.disabled = false;
+          if(!ok){ authError.textContent = data.message || data.error || 'Une erreur est survenue.'; return; }
+          history.replaceState(null, '', location.pathname); // retire ?reset=... de l'adresse
+          tokenReset = null;
+          estConnecte = true;
+          majHeaderCompte(data.email);
+          majBoutonAdmin(!!data.admin);
+          fermerAuth();
+          chargerCourseDuJour();
+        })
+        .catch(() => { authSubmit.disabled = false; authError.textContent = 'Connexion au serveur impossible, réessaie.'; });
+      return;
+    }
 
     if(!email || !password){
       authError.textContent = 'Merci de remplir les deux champs.';
@@ -2331,6 +2428,7 @@
         }
         estConnecte = true;
         majHeaderCompte(data.email);
+        verifierAdmin();
         fermerAuth();
         chargerCourseDuJour();
         if(apresConnexion) apresConnexion();
@@ -2351,7 +2449,17 @@
     chargerQuotaIA();
   }
 
+  // Bouton « Admin » : visible uniquement si le compte connecté est l'administrateur.
+  function majBoutonAdmin(estAdmin){
+    const b = document.getElementById('btnAdmin');
+    if(b) b.style.display = estAdmin ? 'inline-flex' : 'none';
+  }
+  function verifierAdmin(){
+    fetch(`${API_BASE}/api/auth/me`).then(r => r.json()).then(d => majBoutonAdmin(!!d.admin)).catch(() => {});
+  }
+
   function reinitialiserHeaderCompte(){
+    majBoutonAdmin(false);
     loginLink.textContent = 'Se connecter';
     loginLink.title = '';
     loginLink.style.pointerEvents = '';
@@ -2375,8 +2483,19 @@
     .then(data => {
       estConnecte = !!data.authenticated;
       if(estConnecte) majHeaderCompte(data.email);
+      majBoutonAdmin(estConnecte && !!data.admin);
     })
     .catch(() => {});
+
+  // Lien reçu par email (?reset=...) : on ouvre directement l'écran « Nouveau mot de passe ».
+  (function(){
+    const jeton = new URLSearchParams(location.search).get('reset');
+    if(jeton && /^[0-9a-f]{64}$/.test(jeton)){
+      tokenReset = jeton;
+      basculerMode('reset');
+      ouvrirAuth();
+    }
+  })();
 
   // --- Choix de plan d'abonnement ---
   function choisirPlan(btn){
@@ -3054,6 +3173,35 @@
     sendBtn.addEventListener('click', envoyerQuestion);
     inputEl.addEventListener('keydown', (e) => { if(e.key === 'Enter') envoyerQuestion(); });
   }
+
+  // --- Flèche flottante : un tap = tout en bas ; arrivé en bas, elle sert à remonter ---
+  (function(){
+    const fab = document.getElementById('scrollFab');
+    if(!fab) return;
+    const doux = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    const hauteurTotale = () => Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    const enBas = () => window.scrollY + window.innerHeight >= hauteurTotale() - 140;
+    let ticking = false;
+    function maj(){
+      ticking = false;
+      const scrollable = hauteurTotale() - window.innerHeight > 240;
+      fab.classList.toggle('visible', scrollable);
+      const versHaut = enBas();
+      fab.classList.toggle('vers-haut', versHaut);
+      const libelle = versHaut ? 'Remonter en haut de la page' : 'Aller en bas de la page';
+      fab.setAttribute('aria-label', libelle);
+      fab.title = libelle;
+    }
+    window.addEventListener('scroll', () => { if(!ticking){ ticking = true; requestAnimationFrame(maj); } }, { passive: true });
+    window.addEventListener('resize', maj);
+    window.addEventListener('load', maj);
+    // Le contenu se charge après coup (course du jour, etc.) : on réévalue régulièrement au début.
+    let essais = 0; const t = setInterval(() => { maj(); if(++essais > 20) clearInterval(t); }, 500);
+    fab.addEventListener('click', () => {
+      window.scrollTo({ top: enBas() ? 0 : hauteurTotale(), behavior: doux });
+    });
+    maj();
+  })();
 </script>
 
   <div class="ia-chat-wrap">
@@ -3382,6 +3530,27 @@
   </script>
 
 
+<style id="scrollFabStyle">
+  /* ---------- Flèche flottante : défilement rapide haut / bas ---------- */
+  .scroll-fab{
+    position:fixed; left:14px; bottom:calc(100px + env(safe-area-inset-bottom, 0px)); z-index:996;
+    width:46px; height:46px; border-radius:50%; display:grid; place-items:center;
+    background:rgba(24,24,27,.82); color:var(--gold-light, #e4c566);
+    border:1px solid var(--gold, #c9a227); cursor:pointer; padding:0;
+    -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+    box-shadow:0 8px 22px rgba(0,0,0,.45);
+    opacity:0; transform:translateY(10px) scale(.9); pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .scroll-fab.visible{opacity:1; transform:none; pointer-events:auto;}
+  .scroll-fab:active{transform:scale(.92);}
+  .scroll-fab svg{width:22px; height:22px; transition:transform .3s ease;}
+  .scroll-fab.vers-haut svg{transform:rotate(180deg);}
+  [data-theme="light"] .scroll-fab{background:rgba(255,255,255,.9); color:#6d28d9; border-color:rgba(124,58,237,.45); box-shadow:0 8px 22px rgba(80,60,140,.22);}
+  .header-actions .btn-admin{border-color:var(--gold, #c9a227); color:var(--gold-light, #e4c566);}
+  [data-theme="light"] .header-actions .btn-admin{border-color:rgba(124,58,237,.5); color:#6d28d9;}
+  @media (prefers-reduced-motion: reduce){ .scroll-fab, .scroll-fab svg{transition:none;} }
+</style>
 <style id="bottomNavStyle">
   /* ---------- Police unique : Nunito partout (y compris boutons, champs et listes) ---------- */
   html, body{font-family:var(--font-body);}

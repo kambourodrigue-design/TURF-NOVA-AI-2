@@ -7,7 +7,7 @@
 <title>Administration — Turf Nova AI</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet">
 <style>
   :root{
@@ -125,6 +125,74 @@
   .ql-editor h2, .ql-editor h3{font-family:var(--font-display); color:var(--gold-light);}
   .ql-snow .ql-tooltip{background:var(--card); border:1px solid var(--border-strong); color:var(--text); box-shadow:0 10px 30px rgba(0,0,0,.5);}
   .ql-snow .ql-tooltip input[type=text]{background:var(--bg); color:var(--text);}
+
+
+  /* =====================  Éditeur d'articles — rendu éditorial moderne (thème inchangé)  ===================== */
+  #articlesPanel{--ed-serif:'Source Serif 4', Georgia, 'Times New Roman', serif; --ed-sans:'Inter', 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;}
+  #articlesPanel, #articlesPanel input, #articlesPanel select, #articlesPanel button{font-family:var(--ed-sans);}
+  #articlesPanel .panel-head{padding:18px 24px;}
+  #articlesPanel .panel-head h3{font-family:var(--ed-sans); font-size:16px; font-weight:700; letter-spacing:-.01em;}
+  #articlesPanel .panel-body{padding:24px;}
+  #articlesPanel .panel-desc{font-size:13.5px; margin-bottom:22px;}
+  .art-mode{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-light); background:rgba(201,162,39,.1); border:1px solid rgba(201,162,39,.35); padding:5px 11px; border-radius:999px;}
+  .art-layout{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:24px; align-items:start; margin-bottom:34px;}
+  .art-main{min-width:0; display:flex; flex-direction:column; gap:14px;}
+  #articlesPanel textarea.art-title{
+    width:100%; resize:none; overflow:hidden; display:block; background:transparent; border:none; border-bottom:1px solid var(--border-strong); border-radius:0;
+    padding:6px 2px 16px; color:var(--text); font-family:var(--ed-serif); font-size:32px; font-weight:700; line-height:1.22; letter-spacing:-.015em;
+  }
+  #articlesPanel textarea.art-title:focus{outline:none; border-bottom-color:var(--gold); box-shadow:0 1px 0 var(--gold);}
+  #articlesPanel textarea.art-title::placeholder{color:rgba(154,151,141,.55); font-weight:600;}
+  #articlesPanel input.art-excerpt{
+    width:100%; background:transparent; border:none; border-radius:0; padding:4px 2px; color:var(--text-dim);
+    font-family:var(--ed-serif); font-size:17px; font-style:italic; line-height:1.5;
+  }
+  #articlesPanel input.art-excerpt:focus{outline:none; color:var(--text);}
+  #articlesPanel .editor-shell{border:1px solid var(--border-strong); border-radius:14px; overflow:hidden; background:var(--bg); box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  #articlesPanel .ql-toolbar.ql-snow{padding:10px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; background:rgba(255,255,255,.03);}
+  #articlesPanel .ql-toolbar.ql-snow .ql-formats{margin-right:0; display:inline-flex; align-items:center; gap:2px; padding-right:10px; border-right:1px solid var(--border);}
+  #articlesPanel .ql-toolbar.ql-snow .ql-formats:last-child{border-right:none; padding-right:0;}
+  #articlesPanel .ql-toolbar.ql-snow button{width:32px; height:32px; border-radius:8px; padding:5px; transition:background .15s;}
+  #articlesPanel .ql-toolbar.ql-snow button:hover, #articlesPanel .ql-toolbar.ql-snow button.ql-active{background:rgba(201,162,39,.14);}
+  #articlesPanel .ql-toolbar.ql-snow .ql-picker-label{padding:0 8px; border-radius:8px; font-size:13px;}
+  #articlesPanel .ql-container.ql-snow{font-family:var(--ed-serif);}
+  #articlesPanel .ql-editor{
+    min-height:420px; padding:30px 36px 40px; font-family:var(--ed-serif); font-size:18px; line-height:1.8; color:var(--text);
+    font-feature-settings:"liga" 1, "kern" 1; text-rendering:optimizeLegibility;
+  }
+  #articlesPanel .ql-editor.ql-blank::before{left:36px; right:36px; font-family:var(--ed-serif); font-size:18px; color:rgba(154,151,141,.6);}
+  #articlesPanel .ql-editor p, #articlesPanel .ql-editor ol, #articlesPanel .ql-editor ul{margin-bottom:1em;}
+  #articlesPanel .ql-editor h2{font-family:var(--ed-serif); font-size:28px; font-weight:700; line-height:1.25; letter-spacing:-.01em; color:var(--text); margin:1.5em 0 .5em;}
+  #articlesPanel .ql-editor h3{font-family:var(--ed-serif); font-size:22px; font-weight:600; line-height:1.3; color:var(--gold-light); margin:1.3em 0 .45em;}
+  #articlesPanel .ql-editor blockquote{border-left:3px solid var(--gold); background:rgba(201,162,39,.07); margin:1.2em 0; padding:12px 18px; border-radius:0 10px 10px 0; font-style:italic; color:var(--text);}
+  #articlesPanel .ql-editor a{color:var(--gold-light); text-decoration-thickness:1px; text-underline-offset:3px;}
+  #articlesPanel .ql-editor img{max-width:100%; height:auto; border-radius:10px; margin:12px 0;}
+  .art-stats{display:flex; align-items:center; gap:8px; font-size:12px; font-weight:500; color:var(--text-dim); padding:0 4px;}
+  .art-stats::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--green-light);}
+  .art-side{display:flex; flex-direction:column; gap:14px; position:sticky; top:16px;}
+  .art-card{background:rgba(255,255,255,.025); border:1px solid var(--border); border-radius:14px; padding:16px;}
+  .art-card h4{font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-light); margin-bottom:12px;}
+  .art-card input[type=text], .art-card select{width:100%;}
+  #articlesPanel select.art-select{font-family:var(--ed-sans); font-size:13.5px; font-weight:600; padding:11px 13px; border-radius:10px; margin-bottom:12px; cursor:pointer;}
+  .art-card .btn-primary{width:100%; padding:12px 18px; border-radius:10px; font-size:14px; font-weight:700;}
+  .art-card .action-btn{width:100%; margin-top:8px; padding:10px; border-radius:10px; font-size:12.5px; text-align:center;}
+  .art-card .form-status{display:block; margin-top:10px; font-size:12.5px; min-height:16px;}
+  .art-cover{aspect-ratio:16/9; border:1px dashed var(--border-strong); border-radius:10px; display:grid; place-items:center; overflow:hidden; margin-bottom:10px; color:var(--text-dim); font-size:12.5px; text-align:center; background:var(--bg);}
+  .art-cover img{width:100%; height:100%; object-fit:cover; display:block; margin:0; border-radius:0;}
+  .art-list-title{font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin:0 0 12px;}
+  #articlesPanel table th{font-family:var(--ed-sans); font-weight:600; letter-spacing:.06em;}
+  #articlesPanel table td{font-family:var(--ed-sans); font-size:13.5px;}
+  #articlesPanel td[data-label="Titre"]{font-family:var(--ed-serif); font-size:15.5px; font-weight:600;}
+  @media (max-width:1000px){
+    .art-layout{grid-template-columns:1fr;}
+    .art-side{position:static;}
+  }
+  @media (max-width:600px){
+    #articlesPanel .panel-body{padding:16px;}
+    #articlesPanel textarea.art-title{font-size:25px;}
+    #articlesPanel .ql-editor{padding:20px 18px 28px; font-size:17px; min-height:320px;}
+    #articlesPanel .ql-editor.ql-blank::before{left:18px; right:18px;}
+  }
 
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   table{width:100%; border-collapse:collapse;}
@@ -381,28 +449,42 @@
             </div>
           </div>
 
-          <div class="panel">
-            <div class="panel-head"><h3>Articles (blog)</h3></div>
+          <div class="panel" id="articlesPanel">
+            <div class="panel-head"><h3>Articles (blog)</h3><span class="art-mode" id="artMode">Nouvel article</span></div>
             <div class="panel-body">
               <p class="panel-desc">
-                Rédige un nouvel article, ou modifie/publie un brouillon existant.
+                Rédige un nouvel article, ou modifie/publie un brouillon existant. L'aperçu de l'éditeur reprend la typographie de la page publiée.
               </p>
-              <div class="form-grid" style="margin-bottom:20px;">
-                <input type="text" id="artTitreInput" placeholder="Titre de l'article">
-                <input type="text" id="artExtraitInput" placeholder="Extrait / résumé (optionnel, affiché dans la liste)">
-                <input type="text" id="artMotsClesInput" placeholder="Mots-clés (optionnel, séparés par des virgules)">
-                <input type="text" id="artImageInput" placeholder="URL de l'image de couverture (optionnel)">
-                <div class="editor-shell"><div id="artContenuEditor"></div></div>
-                <div class="form-row">
-                  <select id="artStatutInput" class="plan-select">
-                    <option value="brouillon">Brouillon</option>
-                    <option value="publie">Publié</option>
-                  </select>
-                  <button class="btn-primary" id="artSaveBtn">Enregistrer l'article</button>
-                  <button class="action-btn" id="artAnnulerBtn" style="display:none;">Annuler la modification</button>
-                  <span id="artStatus" class="form-status"></span>
+              <div class="art-layout">
+                <div class="art-main">
+                  <textarea class="art-title" id="artTitreInput" rows="1" placeholder="Titre de l'article" autocomplete="off" spellcheck="true"></textarea>
+                  <input type="text" class="art-excerpt" id="artExtraitInput" placeholder="Extrait / résumé (optionnel, affiché dans la liste)" autocomplete="off">
+                  <div class="editor-shell"><div id="artContenuEditor"></div></div>
+                  <div class="art-stats" id="artStats">0 mot</div>
                 </div>
+                <aside class="art-side">
+                  <div class="art-card">
+                    <h4>Publication</h4>
+                    <select id="artStatutInput" class="art-select">
+                      <option value="brouillon">Brouillon</option>
+                      <option value="publie">Publié</option>
+                    </select>
+                    <button class="btn-primary" id="artSaveBtn">Enregistrer l'article</button>
+                    <button class="action-btn" id="artAnnulerBtn" style="display:none;">Annuler la modification</button>
+                    <span id="artStatus" class="form-status"></span>
+                  </div>
+                  <div class="art-card">
+                    <h4>Image de couverture</h4>
+                    <div class="art-cover" id="artCover">Aperçu de la couverture</div>
+                    <input type="text" id="artImageInput" placeholder="URL de l'image (optionnel)" autocomplete="off">
+                  </div>
+                  <div class="art-card">
+                    <h4>Mots-clés</h4>
+                    <input type="text" id="artMotsClesInput" placeholder="ex. quinté, trot, analyse" autocomplete="off">
+                  </div>
+                </aside>
               </div>
+              <h4 class="art-list-title">Articles existants</h4>
               <div class="table-scroll">
               <table id="articlesTable">
                 <thead>
@@ -474,9 +556,11 @@
               </select>
               <button type="button" class="btn-primary" id="perfIaBtn">Calculer</button>
               <button type="button" class="btn-outline" id="archiveLotBtn" title="Archive un lot de courses (arrivées, cotes, historiques)">Archiver un lot de courses</button>
+              <button type="button" class="btn-outline" id="archiveAutoBtn" title="Enchaîne les lots automatiquement jusqu'à ce que tout soit archivé (garde cette page ouverte)">Tout archiver (auto)</button>
               <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
               <span id="perfIaStatus" class="form-status"></span>
             </div>
+            <div id="archiveEtat" style="font-size:13px; line-height:1.5; margin:-2px 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025);">État de la base : chargement…</div>
             <div class="table-scroll">
               <table id="perfIaTable">
                 <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
@@ -932,13 +1016,46 @@
     modules: {
       toolbar: [
         [{ header: [2, 3, false] }],
-        ['bold', 'italic', 'underline'],
+        ['bold', 'italic', 'underline', 'strike'],
+        ['blockquote'],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['link', 'image'],
         ['clean'],
       ],
     },
   });
+
+  // Compteur de mots / temps de lecture, aperçu de la couverture et libellé du mode (nouveau / modification).
+  function majApercuArticle(){
+    const texte = artQuill.getText().trim();
+    const mots = texte ? texte.split(/\s+/).length : 0;
+    const minutes = Math.max(1, Math.round(mots / 200));
+    document.getElementById('artStats').textContent = mots
+      ? `${mots} mot${mots > 1 ? 's' : ''} · environ ${minutes} min de lecture`
+      : '0 mot';
+    document.getElementById('artMode').textContent = articleEnEdition ? 'Modification' : 'Nouvel article';
+    ajusterTitreArticle();
+    const cover = document.getElementById('artCover');
+    const url = artImageInput.value.trim();
+    if(/^https?:\/\//i.test(url)){
+      const img = new Image();
+      img.alt = 'Aperçu de la couverture';
+      img.onload = () => { cover.textContent = ''; cover.appendChild(img); };
+      img.onerror = () => { cover.textContent = 'Image introuvable'; };
+      img.src = url;
+    } else {
+      cover.textContent = 'Aperçu de la couverture';
+    }
+  }
+  function ajusterTitreArticle(){
+    artTitreInput.style.height = 'auto';
+    artTitreInput.style.height = artTitreInput.scrollHeight + 'px';
+  }
+  artTitreInput.addEventListener('input', ajusterTitreArticle);
+  artTitreInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') e.preventDefault(); });
+  window.addEventListener('resize', ajusterTitreArticle);
+  artQuill.on('text-change', majApercuArticle);
+  artImageInput.addEventListener('input', majApercuArticle);
 
   function viderFormulaireArticle(){
     articleEnEdition = null;
@@ -951,6 +1068,7 @@
     artSaveBtn.textContent = "Enregistrer l'article";
     artAnnulerBtn.style.display = 'none';
     artStatus.textContent = '';
+    majApercuArticle();
   }
 
   function chargerArticles(){
@@ -1005,6 +1123,7 @@
         artSaveBtn.textContent = "Mettre à jour l'article";
         artAnnulerBtn.style.display = 'inline-block';
         artStatus.textContent = '';
+        majApercuArticle();
         artTitreInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       })
       .catch(() => { artStatus.textContent = 'Impossible de charger cet article pour modification.'; });
@@ -1109,14 +1228,53 @@
       statut('');
     } catch(e){ statut(e.message, false); }
   });
+  // --- Archive des courses : état de la base (TOTAL) + lots ---
+  const jourFr = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '?';
+  function texteEtatArchive(st){
+    if(!st || !st.avec_arrivee) return 'Base : aucune course archivée pour le moment.';
+    return 'Base : ' + st.avec_arrivee + ' courses terminées, sur ' + (st.jours || 0) + ' jour(s) (du ' + jourFr(st.du) + ' au ' + jourFr(st.au) + ') · '
+      + (st.chevaux || 0) + ' chevaux' + (st.sans_arrivee ? ' · ' + st.sans_arrivee + ' sans arrivée (annulées)' : '');
+  }
+  function afficherEtatArchive(st){ $('archiveEtat').textContent = texteEtatArchive(st); }
+  async function rafraichirEtatArchive(){
+    try { afficherEtatArchive((await appeler('/api/admin/archive-historique')).stats); }
+    catch(e){ $('archiveEtat').textContent = 'État de la base indisponible : ' + e.message; }
+  }
+  document.querySelector('[data-target="historique"]')?.addEventListener('click', rafraichirEtatArchive);
+
   $('archiveLotBtn').addEventListener('click', async () => {
     statut('Archivage en cours…');
     try {
       const d = await appeler('/api/admin/archive-historique', 'POST', {});
-      const st = d.stats || {};
-      statut(d.bilan.traitees + ' course(s) archivée(s) · base : ' + (st.avec_arrivee ?? 0) + ' course(s) avec arrivée, ' + (st.chevaux ?? 0) + ' chevaux' + (d.bilan.termine ? ' · à jour' : ' · relance pour continuer'));
+      afficherEtatArchive(d.stats);
+      // « traitees » = courses de CE lot seulement ; le total en base est affiché dans l'encadré ci-dessus.
+      statut('Ce lot : +' + d.bilan.traitees + ' course(s)' + (d.bilan.erreurs ? ' (' + d.bilan.erreurs + ' erreur(s))' : '') + (d.bilan.termine ? ' · tout est à jour ✓' : ' · il en reste à archiver, relance ou utilise « Tout archiver »'));
     } catch(e){ statut(e.message, false); }
   });
+
+  // Enchaîne les lots tout seul jusqu'à ce que tout soit archivé (ou jusqu'à « Arrêter »).
+  let archiveAutoEnCours = false, archiveAutoStop = false;
+  $('archiveAutoBtn').addEventListener('click', async () => {
+    const btn = $('archiveAutoBtn');
+    if(archiveAutoEnCours){ archiveAutoStop = true; btn.textContent = 'Arrêt en cours…'; return; }
+    archiveAutoEnCours = true; archiveAutoStop = false; btn.textContent = '⏹ Arrêter';
+    let ajoutees = 0, lotsVides = 0, fin = '';
+    for(let i = 0; i < 100 && !archiveAutoStop; i++){
+      try {
+        const d = await appeler('/api/admin/archive-historique', 'POST', {});
+        ajoutees += d.bilan.traitees;
+        afficherEtatArchive(d.stats);
+        statut('Archivage automatique… +' + ajoutees + ' course(s) depuis le début (lot ' + (i + 1) + ')');
+        if(d.bilan.termine){ fin = 'Terminé ✓ tout est à jour (+' + ajoutees + ' course(s))'; break; }
+        lotsVides = d.bilan.traitees === 0 ? lotsVides + 1 : 0;
+        if(lotsVides >= 2){ fin = 'Plus rien à archiver pour le moment (+' + ajoutees + ' course(s))'; break; }
+      } catch(e){ fin = 'Interrompu : ' + e.message + ' (+' + ajoutees + ' course(s))'; break; }
+    }
+    archiveAutoEnCours = false; btn.textContent = 'Tout archiver (auto)';
+    statut(fin || ('Arrêté (+' + ajoutees + ' course(s))'));
+  });
+  rafraichirEtatArchive();
+
   $('pregenBtn').addEventListener('click', async () => {
     statut('Génération de l\u2019analyse (1 à 2 min)…');
     try {
