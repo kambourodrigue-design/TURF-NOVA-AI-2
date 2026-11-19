@@ -1725,17 +1725,68 @@ async function enregistrerFeatures(env, date, reunion, course, participants, cou
 // (hors Course du jour) par mois civil. Seules les VRAIES générations (appel payant à l'API)
 // consomment le quota : une course déjà analysée (en cache ou verrouillée en base, par ce
 // visiteur ou un autre) est servie sans limite et sans rien décompter.
-const QUOTA_IA_PAR_MOIS = 15;
-const cleQuotaIA = (email) => `quota-ia:${new Date().toISOString().slice(0, 7)}:${String(email).toLowerCase()}`;
+const QUOTA_IA_PAR_MOIS = 20;
+const moisCourant = () => new Date().toISOString().slice(0, 7);
+const cleQuotaIA = (email) => `quota-ia:${moisCourant()}:${String(email).toLowerCase()}`;
 
-async function lireQuotaIA(env, email) {
+// Le compteur vit dans D1 : une réservation y est ATOMIQUE. Avec le seul KV (lecture puis écriture),
+// un abonné qui lance 30 analyses en même temps lirait « 0 utilisée » 30 fois et passerait tout :
+// 30 appels IA payants malgré une limite de 20. Si D1 est absent, on retombe sur le KV (best-effort).
+let tableQuotaIAPrete = false;
+async function assurerTableQuotaIA(env) {
+  if (!env.DB || tableQuotaIAPrete) return;
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS quota_ia (mois TEXT NOT NULL, email TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (mois, email))`
+  ).run();
+  tableQuotaIAPrete = true;
+}
+
+// Compteur hérité du KV (avant la bascule vers D1) : sert de point de départ pour ne pas offrir un compteur vierge.
+async function lireQuotaIAKV(env, email) {
   const n = parseInt(await env.CACHE_KV.get(cleQuotaIA(email)), 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-async function ecrireQuotaIA(env, email, n) {
-  // 45 jours : la clé du mois en cours expire d'elle-même peu après la fin du mois.
-  await env.CACHE_KV.put(cleQuotaIA(email), String(Math.max(0, n)), { expirationTtl: 45 * 24 * 60 * 60 });
+async function lireQuotaIA(env, email) {
+  if (!env.DB) return lireQuotaIAKV(env, email);
+  try {
+    await assurerTableQuotaIA(env);
+    const ligne = await env.DB.prepare(`SELECT n FROM quota_ia WHERE mois = ? AND email = ?`).bind(moisCourant(), String(email).toLowerCase()).first();
+    return ligne ? ligne.n : await lireQuotaIAKV(env, email);
+  } catch (e) {
+    console.error("[quota-ia] lecture D1", e.message);
+    return lireQuotaIAKV(env, email);
+  }
+}
+
+// Réserve UNE analyse : { ok: true, utilise } si le quota le permet, { ok: false, utilise } sinon.
+async function reserverQuotaIA(env, email) {
+  const mail = String(email).toLowerCase();
+  if (!env.DB) {
+    const n = await lireQuotaIAKV(env, mail);
+    if (n >= QUOTA_IA_PAR_MOIS) return { ok: false, utilise: n };
+    await env.CACHE_KV.put(cleQuotaIA(mail), String(n + 1), { expirationTtl: 45 * 24 * 60 * 60 });
+    return { ok: true, utilise: n + 1 };
+  }
+  await assurerTableQuotaIA(env);
+  const mois = moisCourant();
+  // Ligne créée une seule fois, avec le compteur KV éventuel comme point de départ.
+  await env.DB.prepare(`INSERT OR IGNORE INTO quota_ia (mois, email, n) VALUES (?, ?, ?)`).bind(mois, mail, await lireQuotaIAKV(env, mail)).run();
+  // Incrément conditionnel atomique : n'a lieu que si n < quota.
+  const r = await env.DB.prepare(`UPDATE quota_ia SET n = n + 1 WHERE mois = ? AND email = ? AND n < ?`).bind(mois, mail, QUOTA_IA_PAR_MOIS).run();
+  const ligne = await env.DB.prepare(`SELECT n FROM quota_ia WHERE mois = ? AND email = ?`).bind(mois, mail).first();
+  return { ok: (r?.meta?.changes ?? 0) === 1, utilise: ligne ? ligne.n : QUOTA_IA_PAR_MOIS };
+}
+
+// Rend une analyse réservée mais non consommée (échec de génération, ou déjà générée par un autre).
+async function rendreQuotaIA(env, email) {
+  const mail = String(email).toLowerCase();
+  if (!env.DB) {
+    const n = await lireQuotaIAKV(env, mail);
+    await env.CACHE_KV.put(cleQuotaIA(mail), String(Math.max(0, n - 1)), { expirationTtl: 45 * 24 * 60 * 60 });
+    return;
+  }
+  await env.DB.prepare(`UPDATE quota_ia SET n = MAX(0, n - 1) WHERE mois = ? AND email = ?`).bind(moisCourant(), mail).run();
 }
 
 function etatQuotaIA(n) {
@@ -1797,7 +1848,10 @@ async function handlePronosticIA(request, env) {
   let utilise = illimite ? 0 : await lireQuotaIA(env, email);
   let reserve = false;
   if (!illimite && !(await pronosticDejaDisponible(date, reunion, course, env))) {
-    if (utilise >= QUOTA_IA_PAR_MOIS) {
+    // Réservation ATOMIQUE de la place avant de lancer l'IA (clics simultanés = une seule place par clic).
+    const reservation = await reserverQuotaIA(env, email);
+    utilise = reservation.utilise;
+    if (!reservation.ok) {
       return new Response(
         JSON.stringify({
           error: "quota_atteint",
@@ -1807,17 +1861,14 @@ async function handlePronosticIA(request, env) {
         { status: 429, headers: corsHeaders }
       );
     }
-    // On réserve la place avant de lancer l'IA (évite de dépasser avec des clics simultanés),
-    // et on la rend si la génération n'aboutit pas.
-    utilise += 1;
-    await ecrireQuotaIA(env, email, utilise);
     reserve = true;
   }
+  // On rend la place si la génération n'aboutit pas.
   const rendreLaPlace = async () => {
     if (!reserve) return;
     reserve = false;
     utilise = Math.max(0, utilise - 1);
-    await ecrireQuotaIA(env, email, utilise);
+    await rendreQuotaIA(env, email);
   };
 
   let resultat;
@@ -1892,16 +1943,43 @@ function parseCookies(request) {
   return cookies;
 }
 
+// Une session = { e: email, t: date de création }. Les anciennes sessions (simple email) restent valides,
+// sauf après un changement de mot de passe : toutes les sessions antérieures sont alors coupées.
+function lireSession(valeur) {
+  if (!valeur) return null;
+  if (valeur.startsWith("{")) {
+    try {
+      const o = JSON.parse(valeur);
+      return o && o.e ? { email: o.e, t: o.t || 0 } : null;
+    } catch {
+      return null;
+    }
+  }
+  return { email: valeur, t: 0 };
+}
+
+async function creerSession(env, email) {
+  const token = crypto.randomUUID() + crypto.randomUUID();
+  await env.CACHE_KV.put(`session:${token}`, JSON.stringify({ e: email, t: Date.now() }), { expirationTtl: SESSION_TTL_SECONDS });
+  return token;
+}
+
 async function getSessionUser(request, env) {
   const cookies = parseCookies(request);
   const token = cookies["session"];
   if (!token) return null;
-  const email = await env.CACHE_KV.get(`session:${token}`);
-  if (!email) return null;
+  const session = lireSession(await env.CACHE_KV.get(`session:${token}`));
+  if (!session) return null;
+  const email = session.email;
 
   // Un compte désactivé par l'admin perd immédiatement l'accès, même avec une session valide.
   const user = await env.CACHE_KV.get(`user:${email}`, { type: "json" });
   if (user && user.actif === false) {
+    await env.CACHE_KV.delete(`session:${token}`);
+    return null;
+  }
+  // Mot de passe changé depuis la création de cette session : elle n'est plus valable.
+  if (user && user.mdpChangeLe && session.t < user.mdpChangeLe) {
     await env.CACHE_KV.delete(`session:${token}`);
     return null;
   }
@@ -1967,8 +2045,7 @@ async function handleSignup(request, env) {
     }
   }
 
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  await env.CACHE_KV.put(`session:${token}`, email, { expirationTtl: SESSION_TTL_SECONDS });
+  const token = await creerSession(env, email);
 
   if (env.RESEND_API_KEY) await envoyerEmailBienvenue(env, email);
 
@@ -2023,11 +2100,133 @@ async function handleLogin(request, env) {
 
   await reinitialiserLimiteLogin(env, ip, email);
 
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  await env.CACHE_KV.put(`session:${token}`, email, { expirationTtl: SESSION_TTL_SECONDS });
+  const token = await creerSession(env, email);
 
   return new Response(JSON.stringify({ ok: true, email }), {
     status: 200,
+    headers: { ...corsHeaders, "Set-Cookie": sessionCookieHeader(token) },
+  });
+}
+
+// --- Mot de passe oublié : réinitialisation par lien envoyé par email (sans l'ancien mot de passe) ---
+// Un mot de passe ne peut JAMAIS être changé « directement » sans preuve d'identité : n'importe qui
+// pourrait alors prendre le contrôle du compte d'un abonné. Ici la preuve = accès à la boîte email du
+// compte. Lien à usage unique, valable 30 min ; seul le HASH du jeton est stocké ; toutes les anciennes
+// sessions sont coupées après le changement.
+const RESET_TTL_SECONDS = 30 * 60;
+const RESET_MAX_DEMANDES = 3;   // par email et par heure
+const RESET_MAX_DEMANDES_IP = 8; // par IP et par heure
+
+async function sha256Hex(texte) {
+  const bits = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texte));
+  return bytesToHex(new Uint8Array(bits));
+}
+
+// Compteur à fenêtre fixe (1 h) ; renvoie true si la limite est dépassée.
+async function compterEtLimiter(env, cle, max) {
+  const n = parseInt(await env.CACHE_KV.get(cle), 10) || 0;
+  if (n >= max) return true;
+  await env.CACHE_KV.put(cle, String(n + 1), { expirationTtl: 3600 });
+  return false;
+}
+
+async function handleMotDePasseOublie(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers: corsHeaders });
+  }
+  const email = String(body.email || "").trim().toLowerCase();
+  if (!isValidEmail(email)) {
+    return new Response(JSON.stringify({ error: "Adresse email invalide" }), { status: 400, headers: corsHeaders });
+  }
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) {
+    return new Response(
+      JSON.stringify({ error: "email_indisponible", message: "L'envoi d'email n'est pas disponible pour le moment. Contacte le support via WhatsApp." }),
+      { status: 503, headers: corsHeaders }
+    );
+  }
+
+  const ip = request.headers.get("CF-Connecting-IP") || "inconnue";
+  const limite =
+    (await compterEtLimiter(env, `reset-demande-ip:${ip}`, RESET_MAX_DEMANDES_IP)) ||
+    (await compterEtLimiter(env, `reset-demande-email:${email}`, RESET_MAX_DEMANDES));
+  if (limite) {
+    return new Response(
+      JSON.stringify({ error: "trop_de_demandes", message: "Trop de demandes — réessaie dans une heure." }),
+      { status: 429, headers: corsHeaders }
+    );
+  }
+
+  // Réponse IDENTIQUE que le compte existe ou non (on ne révèle pas qui est inscrit).
+  const reponseOk = new Response(
+    JSON.stringify({ ok: true, message: "Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé. Pense à vérifier tes spams." }),
+    { headers: corsHeaders }
+  );
+
+  const user = await env.CACHE_KV.get(`user:${email}`, { type: "json" });
+  if (!user || user.actif === false) return reponseOk;
+
+  const jeton = bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+  await env.CACHE_KV.put(`reset:${await sha256Hex(jeton)}`, email, { expirationTtl: RESET_TTL_SECONDS });
+
+  const base = env.SITE_DOMAIN ? `https://${env.SITE_DOMAIN}` : new URL(request.url).origin;
+  const lien = `${base}/?reset=${jeton}`;
+  const html = emailShell(
+    "Réinitialise ton mot de passe",
+    `<p style="font-size:14px; line-height:1.6;">Tu as demandé à choisir un nouveau mot de passe pour ton compte Turf Nova AI.</p>
+     <a href="${lien}" style="display:inline-block; margin-top:12px; background:#c9a227; color:#0c0c0d; padding:11px 22px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:13px;">Choisir un nouveau mot de passe</a>
+     <p style="font-size:12.5px; line-height:1.6; margin-top:16px; opacity:.8;">Ce lien est valable 30 minutes et ne fonctionne qu'une fois. Si tu n'es pas à l'origine de cette demande, ignore simplement cet email : ton mot de passe actuel reste inchangé.</p>`
+  );
+  await envoyerEmail(env, { to: email, subject: "Réinitialise ton mot de passe — Turf Nova AI", html });
+  return reponseOk;
+}
+
+async function handleReinitialiserMotDePasse(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers: corsHeaders });
+  }
+  const jeton = String(body.token || "");
+  const password = String(body.password || "");
+  const lienInvalide = () =>
+    new Response(
+      JSON.stringify({ error: "lien_invalide", message: "Ce lien est expiré ou a déjà été utilisé. Redemande un nouveau lien." }),
+      { status: 400, headers: corsHeaders }
+    );
+
+  // Frein aux essais de jetons au hasard (un jeton valide fait 64 caractères hexadécimaux).
+  const ip = request.headers.get("CF-Connecting-IP") || "inconnue";
+  if (await compterEtLimiter(env, `reset-essai-ip:${ip}`, 20)) {
+    return new Response(JSON.stringify({ error: "trop_de_tentatives", message: "Trop de tentatives — réessaie dans une heure." }), { status: 429, headers: corsHeaders });
+  }
+  if (!/^[0-9a-f]{64}$/.test(jeton)) return lienInvalide();
+  if (password.length < 6) {
+    return new Response(JSON.stringify({ error: "Le mot de passe doit contenir au moins 6 caractères" }), { status: 400, headers: corsHeaders });
+  }
+
+  const cle = `reset:${await sha256Hex(jeton)}`;
+  const email = await env.CACHE_KV.get(cle);
+  if (!email) return lienInvalide();
+  const user = await env.CACHE_KV.get(`user:${email}`, { type: "json" });
+  if (!user || user.actif === false) return lienInvalide();
+
+  await env.CACHE_KV.delete(cle); // usage unique
+  const { hash, salt } = await hashPassword(password);
+  await env.CACHE_KV.put(`user:${email}`, JSON.stringify({ ...user, hash, salt, mdpChangeLe: Date.now() }));
+  await Promise.all([
+    env.CACHE_KV.delete(`login-limite-email:${email}`),
+    env.CACHE_KV.delete(`reset-demande-email:${email}`),
+  ]);
+
+  // L'utilisateur est directement connecté (nouvelle session ; toutes les anciennes sont coupées).
+  const token = await creerSession(env, email);
+  return new Response(JSON.stringify({ ok: true, email, admin: estAdminEmail(env, email) }), {
     headers: { ...corsHeaders, "Set-Cookie": sessionCookieHeader(token) },
   });
 }
@@ -2047,7 +2246,7 @@ async function handleLogout(request, env) {
 async function handleMe(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const email = await getSessionUser(request, env);
-  return new Response(JSON.stringify({ authenticated: !!email, email: email || null }), { headers: corsHeaders });
+  return new Response(JSON.stringify({ authenticated: !!email, email: email || null, admin: !!email && estAdminEmail(env, email) }), { headers: corsHeaders });
 }
 
 // --- Statistiques de performance réelle (basées sur les résultats vérifiés) ---
@@ -3908,6 +4107,14 @@ export default {
 
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       return handleLogin(request, env);
+    }
+
+    if (url.pathname === "/api/auth/mot-de-passe-oublie" && request.method === "POST") {
+      return handleMotDePasseOublie(request, env);
+    }
+
+    if (url.pathname === "/api/auth/reinitialiser" && request.method === "POST") {
+      return handleReinitialiserMotDePasse(request, env);
     }
 
     if (url.pathname === "/api/auth/logout" && request.method === "POST") {
