@@ -39,8 +39,10 @@
   .article-grid{display:flex; flex-direction:column; gap:16px;}
   .article-card{
     display:block; background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:22px 24px; transition:border-color .2s;
+    padding:0; overflow:hidden; transition:border-color .2s;
   }
+  .article-card .corps{padding:22px 24px;}
+  .article-card .vignette{display:block; width:100%; aspect-ratio:16/9; object-fit:cover; background:var(--bg-alt, #131315);}
   .article-card:hover{border-color:var(--gold);}
   .article-card h2{font-family:var(--font-display); font-size:19px; color:#fff; margin-bottom:8px;}
   .article-card p{font-size:14px; color:var(--text-dim); margin-bottom:10px;}
@@ -59,6 +61,37 @@
   }
   .share-bar__btn:hover{transform:translateY(-1px); opacity:1;}
   .share-bar__btn svg{width:16px; height:16px;}
+</style>
+<style id="navBtns">
+  /* ---------- Boutons de navigation (retour / accueil) ---------- */
+  .nav-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    min-height:46px; padding:0 22px; border-radius:999px; text-decoration:none; cursor:pointer;
+    font-family:'Inter', var(--font-sans, system-ui), sans-serif; font-size:14px; font-weight:600; letter-spacing:.01em; line-height:1;
+    transition:transform .18s ease, background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .nav-btn svg{width:18px; height:18px; flex:none; transition:transform .18s ease;}
+  .nav-btn--sm{min-height:40px; padding:0 16px; font-size:13px;}
+  .nav-btn--ghost{color:var(--text); background:rgba(255,255,255,.035); border:1px solid var(--border-strong);}
+  .nav-btn--ghost:hover{color:var(--gold-light); border-color:var(--gold); background:rgba(201,162,39,.09);}
+  .nav-btn--ghost:hover svg{transform:translateX(-3px);}
+  .nav-btn--primary{
+    color:var(--on-gold, #0c0c0d); border:1px solid var(--gold); font-weight:700;
+    background:linear-gradient(180deg, var(--gold-light), var(--gold)); box-shadow:0 6px 18px rgba(201,162,39,.24);
+  }
+  .nav-btn--primary:hover{transform:translateY(-1px); box-shadow:0 10px 24px rgba(201,162,39,.34);}
+  .nav-btn:active{transform:scale(.97);}
+  .nav-btn:focus-visible{outline:2px solid var(--gold-light); outline-offset:3px;}
+  .retour-wrap{margin-bottom:24px;}
+  .article-nav{display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:48px; padding-top:30px; border-top:1px solid var(--border);}
+  footer{padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));}
+  @media (max-width:520px){ .article-nav .nav-btn{flex:1 1 100%;} }
+  [data-theme="light"]{--on-gold:#ffffff;}
+  [data-theme="light"] .nav-btn--ghost{background:#fff;}
+  [data-theme="light"] .nav-btn--ghost:hover{background:rgba(124,58,237,.06);}
+  [data-theme="light"] .nav-btn--primary{box-shadow:0 6px 18px rgba(124,58,237,.28);}
+  @media (prefers-reduced-motion: reduce){ .nav-btn, .nav-btn svg{transition:none;} }
 </style>
 <style id="themeLight">
   /* ---------- Mode jour (même palette « Nova Violet » que l'accueil) ---------- */
@@ -112,7 +145,9 @@
 </div>
 
 <footer>
-  <a href="/">← Retour à l'accueil</a>
+  <nav class="article-nav" style="margin-top:0; border-top:none; padding-top:0;" aria-label="Navigation du site">
+    <a class="nav-btn nav-btn--primary" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-6h4v6"/></svg>Retour à l'accueil</a>
+  </nav>
 </footer>
 
 <script>
@@ -121,6 +156,14 @@
     div.textContent = texte || '';
     return div.innerHTML;
   }
+  // Pour un attribut HTML (src, href) : on neutralise aussi les guillemets.
+  function echapperAttr(texte){
+    return echapper(texte).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }  // Couverture : image téléversée ou adresse http(s) uniquement.
+  function urlImageSure(u){
+    return u && (/^\/api\/images\/[0-9a-f]{24}\.(jpg|png|gif|webp)$/.test(u) || /^https?:\/\//i.test(u)) ? u : '';
+  }
+
 
   fetch('/api/articles')
     .then(res => res.json())
@@ -133,9 +176,12 @@
       }
       grid.innerHTML = articles.map(a => `
         <a class="article-card" href="/article.html?slug=${encodeURIComponent(a.slug)}">
-          <h2>${echapper(a.titre)}</h2>
-          ${a.extrait ? `<p>${echapper(a.extrait)}</p>` : ''}
-          <span class="meta">${a.published_at ? new Date(a.published_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) : ''}</span>
+          ${urlImageSure(a.image_url) ? `<img class="vignette" src="${echapperAttr(urlImageSure(a.image_url))}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+          <div class="corps">
+            <h2>${echapper(a.titre)}</h2>
+            ${a.extrait ? `<p>${echapper(a.extrait)}</p>` : ''}
+            <span class="meta">${a.published_at ? new Date(a.published_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' }) : ''}</span>
+          </div>
         </a>
       `).join('');
     })
