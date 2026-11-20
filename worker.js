@@ -887,7 +887,7 @@ const PONDERATIONS = {
   },
 };
 
-function buildPrompt(participants, courseInfo, date, performancesParNumero = {}) {
+function buildPrompt(participants, courseInfo, date, performancesParNumero = {}, reunion = "", course = "") {
   const chiffreJour = chiffreDuJour(date);
   const liste = participants
     .filter((p) => !p.nonPartant)
@@ -911,37 +911,51 @@ function buildPrompt(participants, courseInfo, date, performancesParNumero = {})
     })
     .join("\n");
 
-  const famille = classifierDiscipline(courseInfo.discipline, courseInfo.categorieParticularite);
-  const pond = PONDERATIONS[famille];
+  const dateAffichee = date && String(date).length === 8 ? `${String(date).slice(0, 2)}/${String(date).slice(2, 4)}/${String(date).slice(4)}` : String(date || "");
+  const hippodrome = courseInfo.hippodrome || "hippodrome inconnu";
+  const contexte = [
+    `Discipline (fournie par le PMU) : ${courseInfo.discipline || "inconnue"}`,
+    `Hippodrome : ${hippodrome}`,
+    `Distance : ${courseInfo.distance ? courseInfo.distance + " m" : "inconnue"}`,
+    courseInfo.heureDepart ? `Heure de départ : ${courseInfo.heureDepart}` : "",
+    courseInfo.categorieParticularite ? `Type d'épreuve : ${courseInfo.categorieParticularite}` : "",
+    courseInfo.montantPrix ? `Allocation : ${Math.round(courseInfo.montantPrix / 100)} €` : "",
+    courseInfo.parcours ? `Parcours/corde : ${courseInfo.parcours}` : courseInfo.corde ? `Corde : ${courseInfo.corde}` : "",
+    courseInfo.conditions ? `Conditions de la course : ${courseInfo.conditions}` : "",
+    courseInfo.meteo && (courseInfo.meteo.temperature != null || courseInfo.meteo.nebulosite || courseInfo.meteo.vent)
+      ? `Météo : ${[courseInfo.meteo.temperature != null ? courseInfo.meteo.temperature + "°C" : "", courseInfo.meteo.nebulosite, courseInfo.meteo.vent].filter(Boolean).join(", ")}`
+      : "",
+  ].filter(Boolean).join("\n");
 
-  return `Tu es un pronostiqueur hippique professionnel, expert des pistes françaises (plat, trot attelé/monté, obstacles). Cette course a pour discipline brute (telle que fournie par l'API) : "${courseInfo.discipline || "inconnue"}" — classée ici comme : ${pond.label}.
+  // Le texte ci-dessous (jusqu'à « …pour me permettre de jouer ou pas ») est le prompt de l'exploitant, repris tel quel.
+  // Seuls les éléments entre ${…} sont renseignés automatiquement. Les blocs « DONNÉES » et « FORMAT DE RÉPONSE »
+  // qui suivent sont techniques : données officielles de la course et sortie lisible par le site.
+  return `Tu es un expert turf spécialisé sur les pistes hippiques françaises, adaptable à toutes les réunions (ParisTurf, PMU, etc.), couvrant les courses de plat, de trot (attelé ou monté) et d'obstacles (haies, steeple-chase).
 
-Consigne spécifique à cette discipline : ${pond.focus}
+Pour la course ${reunion} ${course} à ${hippodrome} du ${dateAffichee}, effectue les étapes suivantes de manière structurée et approfondie, en adaptant les facteurs à la discipline (plat : vitesse et positions ; trot : déferrage, drivers et allures ; obstacles : aptitude aux sauts et endurance) :
 
-Pondération à appliquer (propre à cette discipline, ne pas utiliser une autre répartition) :
-${pond.grille}
+Analyse Globale et Approfondie : Décris le contexte : type d'épreuve (handicap, claiming, Groupe, etc.), discipline (plat, trot attelé/monté, haies/steeple), distance, surface (herbe, PSF, sable, etc.), corde (gauche/droite), conditions météo prévues, prize money, heure de départ. Analyse les facteurs clés : forme récente (musiques des 5 dernières courses), aptitude à la piste/surface/discipline, positions à la corde (avantage intérieur/extérieur), jockeys/drivers (taux de réussite), entraîneurs (spécialistes), poids/âge, équipements (œillères, déferrage pour trot, etc.), historique sur le parcours. Pour trot : focus sur allures et départs ; pour obstacles : sauts et terrain lourd ; pour plat : pointe de vitesse. Synthétise les pronostics externes (Turfoo, PMU, Zeturf) et cotes approximatives. Identifie favoris, outsiders dangereux, et chevaux à écarter.
 
-Hippodrome : ${courseInfo.hippodrome || "inconnu"}
-Distance : ${courseInfo.distance ? courseInfo.distance + " m" : "inconnue"}${courseInfo.heureDepart ? `\nHeure de départ : ${courseInfo.heureDepart}` : ""}${courseInfo.categorieParticularite ? `\nType d'épreuve : ${courseInfo.categorieParticularite}` : ""}${courseInfo.montantPrix ? `\nAllocation : ${Math.round(courseInfo.montantPrix / 100)} €` : ""}${courseInfo.parcours ? `\nParcours/corde : ${courseInfo.parcours}` : courseInfo.corde ? `\nCorde : ${courseInfo.corde}` : ""}${courseInfo.conditions ? `\nConditions de la course : ${courseInfo.conditions}` : ""}${courseInfo.meteo && (courseInfo.meteo.temperature != null || courseInfo.meteo.nebulosite || courseInfo.meteo.vent) ? `\nMétéo : ${[courseInfo.meteo.temperature != null ? courseInfo.meteo.temperature + "°C" : "", courseInfo.meteo.nebulosite, courseInfo.meteo.vent].filter(Boolean).join(", ")}` : ""}
+Sélection Expert Personnelle en 8 Numéros Très Fiable : Applique une pondération : 40% forme récente, 20% jockey/driver/entraîneur, 15% corde, 10% poids, 10% aptitude piste/discipline, 5% cotes/valeur. Fournis la sélection en 8 numéros, avec explications brèves par cheval. Conseils de jeu : quinté+, couplé, etc.
 
-Partants (musique = perfs récentes, la plus récente en premier ; ex "1a2a3a" = 1er, 2e, 3e) :
+Validation avec Filtre Numérologique : Calcule le chiffre du jour (jour + mois + année réduite à un chiffre unique). Pour chaque cheval de la sélection : réduit le numéro à un chiffre, et la valeur numérologique du nom (A=1, B=2... Z=26, réduit à 1-9). Vérifie compatibilité avec le chiffre du jour (favorise harmonie : ex. 1-9 compatibles spécifiques comme équilibre pour 2). Confirme ou ajuste légèrement la sélection si conflits majeur
+
+Enfin donne ton indice de confiance desormais pour chaque course sur une echelle de 1 a 100% pour me permettre de jouer ou pas
+
+=== DONNÉES OFFICIELLES DE LA COURSE (source PMU) ===
+${contexte}
+
+Partants (musique = performances récentes, la plus récente en premier ; ex. "1a2a3a" = 1er, 2e, 3e). Quand un "historique détaillé" est fourni, c'est une donnée officielle : base-toi dessus en priorité pour juger la forme réelle. Au trot, la réduction kilométrique (plus bas = plus rapide) compare objectivement les chevaux.
 ${liste}
 
-Étapes obligatoires avant de répondre :
-1. Pour chaque cheval, évalue mentalement les critères ci-dessus selon la pondération donnée (ne les affiche pas). Quand un "historique détaillé" est fourni pour un cheval, base-toi dessus en priorité pour juger sa forme réelle (niveau des courses, place réellement obtenue) plutôt que sur la seule chaîne "musique" — c'est une donnée officielle PMU plus fiable. Pour le trot, la réduction kilométrique (temps au km) permet de comparer objectivement la vitesse de deux chevaux même sur des distances différentes : un chiffre plus bas signifie plus rapide.
-2. Élimine ou pénalise fortement les chevaux avec musique dégradée, chute/tombé récent (obstacle), position défavorable, ou incohérence forme/cote flagrante. Si une météo est indiquée ci-dessus (pluie, vent fort), tiens compte de son impact sur le terrain et pénalise les chevaux réputés mauvais sur terrain lourd/collant si c'est le cas.
-3. Reste vigilant : ne suis pas aveuglément le favori si sa forme récente ou ses critères clés sont mauvais — signale les "pièges" potentiels via une confiance globale plus basse.
-4. Classe les 8 meilleurs chevaux du plus probable au moins probable pour une place dans les 4 premiers.
-5. Parmi ces 8, désigne 2 "coups sûrs" : uniquement des chevaux qui cumulent la majorité des critères favorables, pas seulement la cote la plus basse.
-6. Filtre numérologique de validation (léger, en dernier recours uniquement) : le chiffre du jour de cette course est ${chiffreJour ?? "inconnu"}. Pour chaque cheval de ta sélection, compare son "numéro réduit" et son "nom réduit" (donnés dans la liste des partants ci-dessus) à ce chiffre du jour. En cas de forte harmonie (chiffres identiques ou classiquement compatibles), tu peux consolider légèrement sa position dans le classement. En cas de conflit majeur avec un cheval déjà fragile sur les autres critères, tu peux le faire légèrement reculer dans le classement. Ce filtre ne doit JAMAIS l'emporter sur la pondération principale ci-dessus : n'ajuste qu'à la marge, entre chevaux déjà proches en mérite.
-7. Calcule l'indice de confiance selon la CONCORDANCE entre les critères (forme, cote, jockey/driver), pas selon un seul facteur isolé :
-   — 3 signaux qui convergent clairement vers le même cheval en tête : confiance haute (65-90%).
-   — 2 signaux sur 3 seulement concordent, ou cote anormale par rapport au niveau réel : confiance moyenne (40-64%).
-   — Signaux contradictoires ou peloton très homogène sans cheval qui se détache : confiance basse (15-39%).
-   Ne mets jamais une confiance élevée uniquement parce que la cote du n°1 est basse.
+Chiffre du jour déjà calculé pour cette course : ${chiffreJour ?? "inconnu"} (le "numéro réduit" et le "nom réduit" de chaque cheval sont donnés ci-dessus : tu peux t'en servir directement pour le filtre numérologique, qui reste un ajustement à la marge et ne doit jamais l'emporter sur la pondération).
 
+=== FORMAT DE RÉPONSE (obligatoire : ta réponse est lue par un programme) ===
+Fais toute ton analyse, ta pondération et ton filtre numérologique en interne : ne rédige PAS l'analyse globale. Si tu disposes d'une recherche web, utilise-la pour les pronostics externes ; sinon n'invente jamais un pronostic externe, appuie-toi uniquement sur les données ci-dessus.
 Réponds UNIQUEMENT avec un objet JSON strict, sans texte ni markdown autour, exactement sous cette forme :
-{"quarte8": [{"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}, {"numero": N, "cheval": "Nom"}], "coupsSurs": [numero1, numero2], "confiance": <entier entre 0 et 100, reflète honnêtement l'incertitude réelle de la course>}`;
+{"quarte8": [{"numero": N, "cheval": "Nom", "explication": "1 phrase courte (140 caractères max) justifiant ce choix"}, … 8 chevaux, du plus probable au moins probable pour une place dans les 4 premiers …], "coupsSurs": [n1, n2], "confiance": <entier de 1 à 100>, "conseilsJeu": "1 à 2 phrases : quelle combinaison jouer (quinté+, couplé, etc.) ou pourquoi s'abstenir"}
+- "coupsSurs" : 2 numéros parmi les 8, ceux qui cumulent la majorité des critères favorables (pas seulement la cote la plus basse).
+- "confiance" : ton indice pour décider de jouer ou non. Il doit refléter la CONCORDANCE entre forme, cote et jockey/driver : signaux qui convergent clairement = élevé ; signaux contradictoires ou peloton très homogène = bas. Ne le gonfle pas parce que la cote du favori est basse.`;
 }
 
 function parseQuarteJSON(text) {
@@ -959,9 +973,14 @@ function parseQuarteJSON(text) {
     const obj = JSON.parse(cleaned);
     if (obj && Array.isArray(obj.quarte8) && obj.quarte8.length >= 4 && obj.confiance != null) {
       return {
-        quarte8: obj.quarte8.slice(0, 8).map((c) => ({ numero: c.numero, cheval: String(c.cheval) })),
+        quarte8: obj.quarte8.slice(0, 8).map((c) => ({
+          numero: c.numero,
+          cheval: String(c.cheval),
+          explication: typeof c.explication === "string" ? c.explication.trim().slice(0, 220) : "",
+        })),
         coupsSurs: Array.isArray(obj.coupsSurs) ? obj.coupsSurs.slice(0, 2) : [],
         confiance: Math.max(0, Math.min(100, Math.round(obj.confiance))),
+        conseilsJeu: typeof obj.conseilsJeu === "string" ? obj.conseilsJeu.trim().slice(0, 400) : "",
       };
     }
     return null;
@@ -1511,8 +1530,13 @@ function combinerQuarte8(predictions) {
     p.quarte8.forEach((cheval, idx) => {
       const pts = 8 - idx;
       const key = String(cheval.numero);
-      if (!scores[key]) scores[key] = { numero: cheval.numero, nom: cheval.cheval, score: 0 };
+      if (!scores[key]) scores[key] = { numero: cheval.numero, nom: cheval.cheval, score: 0, explication: "", meilleurRang: 99 };
       scores[key].score += pts;
+      // Explication retenue : celle de l'IA qui classe ce cheval le plus haut.
+      if (cheval.explication && idx < scores[key].meilleurRang) {
+        scores[key].explication = cheval.explication;
+        scores[key].meilleurRang = idx;
+      }
     });
     (p.coupsSurs || []).forEach((numero) => {
       const key = String(numero);
@@ -1534,12 +1558,23 @@ function combinerQuarte8(predictions) {
   const confianceMoyenne = Math.round(valid.reduce((s, p) => s + p.confiance, 0) / valid.length);
   const bonusAccord = valid.length > 1 ? (valid.length - 1) * 4 : 0;
 
+  // Conseils de jeu : ceux de l'IA dont le top 4 recoupe le plus le classement final.
+  const top4 = new Set(classement.slice(0, 4).map((c) => c.numero));
+  const conseilsJeu =
+    valid
+      .filter((p) => p.conseilsJeu)
+      .sort((a, b) => b.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length - a.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length)[0]?.conseilsJeu || "";
+
   return {
+    // `conseilsJeu` est rangé sur le 1er cheval : il voyage ainsi avec le classement déjà stocké en base,
+    // sans nouvelle colonne (aucune migration, aucun risque pour le verrouillage des pronostics).
     quarte8: classement.map((c, i) => ({
       position: i + 1,
       numero: c.numero,
       cheval: c.nom,
       coupSur: coupsSurs.includes(c.numero),
+      ...(c.explication ? { explication: c.explication } : {}),
+      ...(i === 0 && conseilsJeu ? { conseilsJeu } : {}),
     })),
     confiance: Math.min(99, confianceMoyenne + bonusAccord),
     sources: valid.map((p) => p.source), // interne uniquement — jamais exposé au client
@@ -1600,7 +1635,7 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
   ]);
   const participants = data.participants || [];
 
-  const prompt = buildPrompt(participants, courseInfo, date, performancesParNumero);
+  const prompt = buildPrompt(participants, courseInfo, date, performancesParNumero, reunion, course);
 
   const results = await Promise.allSettled([
     callDeepSeek(prompt, env.DEEPSEEK_API_KEY),
@@ -3157,7 +3192,7 @@ async function getCourseDuJourConfig(env) {
 
 // Sélection GRATUITE : les "valeurs sûres" = les 5 favoris du marché (cotes les plus basses).
 // Volontairement PAS le classement de l'IA : le gratuit montre qui est favori, le Premium dit
-// lesquels sont de VRAIES bases, lesquels sont de FAUX favoris, et donne les outsiders et tocards.
+// lesquels sont de VRAIES bases, et donne les outsiders et tocards.
 // (Aucun appel IA : seules les cotes PMU sont utilisées.)
 // Pour changer le nombre de chevaux gratuits : GRATUIT_NB_CHEVAUX.
 const GRATUIT_NB_CHEVAUX = 5;
@@ -3225,12 +3260,6 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   };
 }
 
-// Faux favoris (Premium) : favoris du marché que l'IA n'a PAS retenus dans son classement (top 8).
-function calculerFauxFavoris(gratuit, quarte8) {
-  const retenus = new Set((quarte8 || []).map((c) => c.numero));
-  return (gratuit?.valeursSures || []).filter((h) => !retenus.has(h.numero)).map(({ numero, cheval, jockey, cote }) => ({ numero, cheval, jockey, cote }));
-}
-
 // Construit (et met en cache) la fiche complète de la « Course du jour » : infos PMU, pronostic
 // des IA (verrouillé en base), sélection gratuite. Utilisée à la demande (premier visiteur) ET par
 // la pré-génération planifiée, pour que l'écran s'affiche instantanément.
@@ -3245,6 +3274,7 @@ async function genererCourseDuJour(env, date, reunion, course) {
   const nbPartants = participants.filter((p) => !p.nonPartant).length || null;
 
   let quarte8 = null;
+  let conseilsJeu = "";
   let confiance = null;
   let iaStatus = null;
   const jockeysEnForme = await recupererJockeysEnForme(env);
@@ -3276,6 +3306,7 @@ async function genererCourseDuJour(env, date, reunion, course) {
             numero: c.numero,
             cheval: c.cheval,
             coupSur: c.coupSur,
+            explication: c.explication || "",
             jockey,
             cote: p?.dernierRapportDirect?.rapport ?? null,
             enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
@@ -3287,6 +3318,7 @@ async function genererCourseDuJour(env, date, reunion, course) {
         // renvoyée pour chaque cheval, à titre d'information.
         .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
       confiance = consensus.confiance;
+      conseilsJeu = consensus.quarte8.find((c) => c.conseilsJeu)?.conseilsJeu || "";
     }
   }
 
@@ -3302,6 +3334,7 @@ async function genererCourseDuJour(env, date, reunion, course) {
     gratuit,
     quarte8,
     confiance,
+    conseilsJeu,
     iaStatus,
     updatedAt: Date.now(),
   };
@@ -3428,7 +3461,7 @@ async function handleCourseDuJour(request, env) {
     return new Response(
       JSON.stringify({
         ...base,
-        premium: { quarte8: full.quarte8, confiance: full.confiance, fauxFavoris: calculerFauxFavoris(full.gratuit, full.quarte8) },
+        premium: { quarte8: full.quarte8, confiance: full.confiance, conseilsJeu: full.conseilsJeu || "" },
         premiumVerrouille: false,
       }),
       { headers: corsHeaders }
@@ -3537,6 +3570,74 @@ async function genererSlugUnique(env, base) {
     n += 1;
     slug = `${racine}-${n}`;
   }
+}
+
+// ============================================================================
+// IMAGES (couvertures d'articles) — téléversement depuis l'admin, stockage dans le KV
+// ----------------------------------------------------------------------------
+// L'image est stockée telle quelle (binaire) sous `img:<id>` et servie sur /api/images/<id>.<ext>
+// avec un cache très long (l'id est aléatoire et ne change jamais : « immutable »).
+// Sécurité : seul l'admin peut téléverser ; le type est déterminé par les premiers octets du fichier
+// (jamais par ce que déclare le client) ; SVG refusé (peut contenir du script) ; 3 Mo maximum.
+// ============================================================================
+const IMAGE_MAX_OCTETS = 3 * 1024 * 1024;
+
+function detecterTypeImage(o) {
+  const b = new Uint8Array(o.slice(0, 12));
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { type: "image/jpeg", ext: "jpg" };
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return { type: "image/png", ext: "png" };
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return { type: "image/gif", ext: "gif" };
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50)
+    return { type: "image/webp", ext: "webp" };
+  return null;
+}
+
+const IMAGE_LOCALE_RE = /^\/api\/images\/[0-9a-f]{24}\.(jpg|png|gif|webp)$/;
+
+// Une image de couverture est soit une image téléversée (/api/images/...), soit une adresse http(s) simple.
+function imageCouvertureValide(u) {
+  if (!u) return true;
+  if (IMAGE_LOCALE_RE.test(u)) return true;
+  return u.length <= 2000 && /^https?:\/\/[^\s"'<>\\]+$/i.test(u);
+}
+
+async function handleAdminUploadImage(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+
+  const annonce = parseInt(request.headers.get("Content-Length"), 10);
+  if (annonce > IMAGE_MAX_OCTETS) {
+    return new Response(JSON.stringify({ error: "Image trop lourde (3 Mo maximum)." }), { status: 413, headers: corsHeaders });
+  }
+  const octets = await request.arrayBuffer();
+  if (!octets.byteLength) return new Response(JSON.stringify({ error: "Fichier vide." }), { status: 400, headers: corsHeaders });
+  if (octets.byteLength > IMAGE_MAX_OCTETS) {
+    return new Response(JSON.stringify({ error: "Image trop lourde (3 Mo maximum)." }), { status: 413, headers: corsHeaders });
+  }
+  const format = detecterTypeImage(octets);
+  if (!format) {
+    return new Response(JSON.stringify({ error: "Format non accepté : utilise une image JPEG, PNG, WebP ou GIF." }), { status: 415, headers: corsHeaders });
+  }
+
+  const id = bytesToHex(crypto.getRandomValues(new Uint8Array(12)));
+  await env.CACHE_KV.put(`img:${id}`, octets, { metadata: { type: format.type, taille: octets.byteLength, creeLe: Date.now() } });
+  return new Response(JSON.stringify({ ok: true, url: `/api/images/${id}.${format.ext}` }), { headers: corsHeaders });
+}
+
+async function handleImagePublique(env, nom) {
+  const m = /^([0-9a-f]{24})\.(jpg|png|gif|webp)$/.exec(nom);
+  if (!m) return new Response("Introuvable", { status: 404 });
+  const { value, metadata } = await env.CACHE_KV.getWithMetadata(`img:${m[1]}`, { type: "arrayBuffer" });
+  if (!value) return new Response("Introuvable", { status: 404 });
+  return new Response(value, {
+    headers: {
+      "Content-Type": metadata?.type || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-Content-Type-Options": "nosniff",
+      "Access-Control-Allow-Origin": "*",
+    },
+  });
 }
 
 // GET /api/articles — liste publique des articles publiés (pour blog.html).
@@ -3662,6 +3763,9 @@ async function handleAdminArticles(request, env) {
     const extrait = String(body.extrait || "").trim() || null;
     const motsCles = String(body.motsCles || "").trim() || null;
     const imageUrl = String(body.imageUrl || "").trim() || null;
+    if (!imageCouvertureValide(imageUrl)) {
+      return new Response(JSON.stringify({ error: "Image de couverture invalide : téléverse un fichier ou colle une adresse http(s)." }), { status: 400, headers: corsHeaders });
+    }
     const statut = body.statut === "publie" ? "publie" : "brouillon";
     const now = Date.now();
     const slug = await genererSlugUnique(env, titre);
@@ -3716,6 +3820,9 @@ async function handleAdminArticleItem(request, env, id) {
     const extrait = body.extrait != null ? String(body.extrait).trim() || null : existant.extrait;
     const motsCles = body.motsCles != null ? String(body.motsCles).trim() || null : existant.mots_cles;
     const imageUrl = body.imageUrl != null ? String(body.imageUrl).trim() || null : existant.image_url;
+    if (!imageCouvertureValide(imageUrl)) {
+      return new Response(JSON.stringify({ error: "Image de couverture invalide : téléverse un fichier ou colle une adresse http(s)." }), { status: 400, headers: corsHeaders });
+    }
     const statut = body.statut === "publie" || body.statut === "brouillon" ? body.statut : existant.statut;
     const now = Date.now();
     // Première publication : on fixe published_at. Si déjà publié avant, on ne l'écrase pas
@@ -3766,7 +3873,7 @@ async function handleArticlePage(request, env, url) {
   const titrePage = `${article.titre} — Turf Nova AI`;
   const description =
     article.extrait || "Turf Nova AI — pronostics hippiques PMU assistés par intelligence artificielle.";
-  const image = article.image_url || `https://${domaine}/favicon.svg`;
+  const image = article.image_url ? (article.image_url.startsWith("/") ? `https://${domaine}${article.image_url}` : article.image_url) : `https://${domaine}/favicon.svg`;
   const pageUrl = `https://${domaine}/article.html?slug=${encodeURIComponent(slug)}`;
 
   const jsonLd = JSON.stringify({
@@ -4069,6 +4176,14 @@ export default {
 
     if (url.pathname === "/api/admin/course-du-jour") {
       return handleAdminCourseDuJour(request, env);
+    }
+
+    if (url.pathname === "/api/admin/upload-image" && request.method === "POST") {
+      return handleAdminUploadImage(request, env);
+    }
+
+    if (url.pathname.startsWith("/api/images/") && request.method === "GET") {
+      return handleImagePublique(env, url.pathname.slice("/api/images/".length));
     }
 
     if (url.pathname === "/api/articles") {
