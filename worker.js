@@ -90,21 +90,36 @@ async function verifierPrediction(env, date, reunion, course, podium) {
       .first();
     if (!pred) return null;
 
-    const podiumNumeros = podium.map((p) => p.numero);
     const quarte6 = JSON.parse(pred.quarte6);
-    const selectionNumeros = quarte6.map((h) => h.numero);
-    const coupsSurs = JSON.parse(pred.coups_surs || "[]");
+    const selectionNumeros = new Set(quarte6.map((h) => Number(h.numero)).filter(Number.isFinite));
+    const coupsSurs = JSON.parse(pred.coups_surs || "[]").map(Number);
 
-    const chevauxCorrects = quarte6.filter((h) => podiumNumeros.includes(h.numero)).length;
-    const coupsSursReussis = coupsSurs.filter((numero) => podiumNumeros.includes(numero)).length;
-    // "Tiercé réussi" = les 3 premiers de l'arrivée officielle figurent tous dans
-    // notre sélection de 8, peu importe leur ordre entre eux ("dans le désordre").
-    // "Quarté réussi" = pareil mais sur les 4 premiers. Un quarté réussi implique
-    // toujours un tiercé réussi (sous-ensemble des mêmes 4 chevaux).
-    const podiumTierce = podium.slice(0, Math.min(3, podium.length));
-    const podiumQuarte = podium.slice(0, Math.min(4, podium.length));
-    const tierceReussi = podiumTierce.every((p) => selectionNumeros.includes(p.numero));
-    const quarteReussi = podiumQuarte.every((p) => selectionNumeros.includes(p.numero));
+    // On ne valide un rang que si chaque position officielle 1..N est présente
+    // avec un numéro distinct. Une arrivée partielle produit NULL, jamais un faux succès.
+    const parPosition = new Map();
+    for (const cheval of (Array.isArray(podium) ? podium : [])) {
+      const position = Number(cheval.position);
+      const numero = Number(cheval.numero);
+      if (Number.isInteger(position) && position >= 1 && position <= 5 && Number.isFinite(numero)) {
+        if (!parPosition.has(position)) parPosition.set(position, numero);
+      }
+    }
+    const couverture = (n) => {
+      for (let position = 1; position <= n; position++) {
+        if (!parPosition.has(position)) return null;
+      }
+      const numeros = Array.from({ length: n }, (_, i) => parPosition.get(i + 1));
+      if (new Set(numeros).size !== n) return null;
+      return numeros.every((numero) => selectionNumeros.has(numero)) ? 1 : 0;
+    };
+    const top3Reussi = couverture(3);
+    const quarteReussi = couverture(4);
+    const quinteReussi = couverture(5);
+    const numerosTop5 = [...parPosition.entries()].filter(([position]) => position <= 5).map(([, numero]) => numero);
+    const chevauxCorrects = new Set(numerosTop5.filter((numero) => selectionNumeros.has(numero))).size;
+    const coupsSursReussis = coupsSurs.filter((numero) => numerosTop5.includes(numero)).length;
+    // Compatibilité historique : tierce_reussi reste l'alias du Top 3.
+    const tierceReussi = top3Reussi;
 
     const dejaVerifie = await env.DB.prepare(
       `SELECT prediction_id FROM resultats_verifies WHERE prediction_id = ?`
@@ -114,16 +129,19 @@ async function verifierPrediction(env, date, reunion, course, podium) {
 
     if (!dejaVerifie) {
       await env.DB.prepare(
-        `INSERT INTO resultats_verifies (prediction_id, podium_reel, chevaux_corrects, coups_surs_reussis, tierce_reussi, verified_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO resultats_verifies
+         (prediction_id, podium_reel, chevaux_corrects, coups_surs_reussis, tierce_reussi,
+          top3_reussi, quarte_reussi, quinte_reussi, verified_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
-        .bind(pred.id, JSON.stringify(podium), chevauxCorrects, coupsSursReussis, tierceReussi ? 1 : 0, Date.now())
+        .bind(pred.id, JSON.stringify(podium), chevauxCorrects, coupsSursReussis,
+          tierceReussi, top3Reussi, quarteReussi, quinteReussi, Date.now())
         .run();
 
       await completerFeaturesAvecResultat(env, date, reunion, course, podium);
     }
 
-    return { quarteReussi, tierceReussi, chevauxCorrects };
+    return { top3Reussi, quarteReussi, quinteReussi, tierceReussi, chevauxCorrects };
   } catch {
     // Vérification best-effort, ne casse jamais l'affichage des résultats
     return null;
@@ -132,7 +150,10 @@ async function verifierPrediction(env, date, reunion, course, podium) {
 
 // Complète courses_features avec le résultat réel de chaque cheval, une fois la course terminée.
 async function completerFeaturesAvecResultat(env, date, reunion, course, podium) {
-  const positionParNumero = new Map(podium.map((p) => [p.numero, p.position]));
+  // Ne pas fabriquer des labels négatifs si l'API n'a pas encore fourni les 4 premières places.
+  const positionsTop4 = new Set((podium || []).map((p) => Number(p.position)).filter((n) => Number.isInteger(n) && n >= 1 && n <= 4));
+  if ([1, 2, 3, 4].some((position) => !positionsTop4.has(position))) return;
+  const positionParNumero = new Map(podium.map((p) => [Number(p.numero), Number(p.position)]));
   const rows = await env.DB.prepare(
     `SELECT num_pmu FROM courses_features WHERE date = ? AND reunion = ? AND course = ?`
   )
@@ -140,7 +161,7 @@ async function completerFeaturesAvecResultat(env, date, reunion, course, podium)
     .all();
 
   for (const row of rows.results || []) {
-    const position = positionParNumero.get(row.num_pmu) ?? null;
+    const position = positionParNumero.get(Number(row.num_pmu)) ?? null;
     // Cheval non classé dans le top4 renvoyé par l'API PMU (au-delà de la 4e place) : top4_reel = 0.
     const top4 = position != null && position <= 4 ? 1 : 0;
     await env.DB.prepare(
@@ -711,6 +732,7 @@ async function loadResultatsDuJour(env) {
         podium,
         // null = pas de pronostic enregistré pour cette course (pas de badge) ;
         // true/false = pronostic vérifié, réussi ou non.
+        quinteReussi: statutQuarte?.quinteReussi ?? null,
         quarteReussi: statutQuarte?.quarteReussi ?? null,
         tierceReussi: statutQuarte?.tierceReussi ?? null,
       });
@@ -2899,26 +2921,30 @@ async function handleStatsPerformance(env) {
       `SELECT COUNT(*) as total,
               SUM(CASE WHEN coups_surs_reussis >= 1 THEN 1 ELSE 0 END) as au_moins_un_coup_sur,
               SUM(CASE WHEN coups_surs_reussis = 2 THEN 1 ELSE 0 END) as deux_coups_surs,
-              SUM(CASE WHEN chevaux_corrects = 4 THEN 1 ELSE 0 END) as quarte_reussi,
-              SUM(CASE WHEN tierce_reussi = 1 THEN 1 ELSE 0 END) as tierce_reussi,
-              AVG(chevaux_corrects) as moyenne_chevaux_corrects
+              SUM(CASE WHEN top3_reussi = 1 THEN 1 ELSE 0 END) as top3_gagnes,
+              COUNT(top3_reussi) as top3_echantillon,
+              SUM(CASE WHEN quarte_reussi = 1 THEN 1 ELSE 0 END) as quarte_gagnes,
+              COUNT(quarte_reussi) as quarte_echantillon,
+              SUM(CASE WHEN quinte_reussi = 1 THEN 1 ELSE 0 END) as quinte_gagnes,
+              COUNT(quinte_reussi) as quinte_echantillon,
+              AVG(CASE WHEN quinte_reussi IS NOT NULL THEN chevaux_corrects END) as moyenne_chevaux_corrects,
+              COUNT(CASE WHEN quinte_reussi IS NOT NULL THEN chevaux_corrects END) as chevaux_echantillon
        FROM resultats_verifies`
     ).first();
 
     const total = global?.total || 0;
     const tauxCoupSur = total > 0 ? Math.round((global.au_moins_un_coup_sur / total) * 100) : null;
     const tauxDoubleCoupSur = total > 0 ? Math.round((global.deux_coups_surs / total) * 100) : null;
-    // Quarté en 8 gagné = les 4 chevaux de l'arrivée officielle font partie de nos 8 sélectionnés
-    // (c'est la condition de gain réelle d'un ticket Quarté en 8 au PMU, peu importe l'ordre).
-    const tauxQuarteReussi = total > 0 ? Math.round((global.quarte_reussi / total) * 100) : null;
-    const nombreQuarteGagne = global?.quarte_reussi || 0;
-    // Tiercé en 8 gagné = les 3 premiers de l'arrivée font partie de nos 8 sélectionnés.
-    // Un quarté réussi compte toujours aussi comme tiercé réussi (sous-ensemble).
-    const tauxTierceReussi = total > 0 ? Math.round((global.tierce_reussi / total) * 100) : null;
-    const nombreTierceGagne = global?.tierce_reussi || 0;
+    const tauxTierceReussi = global?.top3_echantillon > 0
+      ? Math.round((global.top3_gagnes / global.top3_echantillon) * 100) : null;
+    const tauxQuarteReussi = global?.quarte_echantillon > 0
+      ? Math.round((global.quarte_gagnes / global.quarte_echantillon) * 100) : null;
+    const tauxQuinteReussi = global?.quinte_echantillon > 0
+      ? Math.round((global.quinte_gagnes / global.quinte_echantillon) * 100) : null;
 
     const recentes = await env.DB.prepare(
-      `SELECT p.date, p.reunion, p.course, p.hippodrome, r.chevaux_corrects, r.coups_surs_reussis
+      `SELECT p.date, p.reunion, p.course, p.hippodrome, r.chevaux_corrects, r.coups_surs_reussis,
+              r.top3_reussi, r.quarte_reussi, r.quinte_reussi
        FROM resultats_verifies r JOIN predictions p ON p.id = r.prediction_id
        ORDER BY r.verified_at DESC LIMIT 20`
     ).all();
@@ -2928,11 +2954,20 @@ async function handleStatsPerformance(env) {
         totalCoursesVerifiees: total,
         tauxAuMoinsUnCoupSur: tauxCoupSur,
         tauxDeuxCoupsSurs: tauxDoubleCoupSur,
+        tauxTop3Reussi: tauxTierceReussi,
+        nombreTop3Gagne: global?.top3_gagnes || 0,
+        echantillonTop3: global?.top3_echantillon || 0,
         tauxQuarteReussi,
-        nombreQuarteGagne,
+        nombreQuarteGagne: global?.quarte_gagnes || 0,
+        echantillonQuarte: global?.quarte_echantillon || 0,
+        tauxQuinteReussi,
+        nombreQuinteGagne: global?.quinte_gagnes || 0,
+        echantillonQuinte: global?.quinte_echantillon || 0,
+        // Alias conservés pour les anciennes intégrations.
         tauxTierceReussi,
-        nombreTierceGagne,
-        moyenneChevauxCorrectsSur4: global?.moyenne_chevaux_corrects ? Math.round(global.moyenne_chevaux_corrects * 10) / 10 : null,
+        nombreTierceGagne: global?.top3_gagnes || 0,
+        moyenneChevauxCorrectsSur5: global?.chevaux_echantillon > 0 ? Math.round(global.moyenne_chevaux_corrects * 10) / 10 : null,
+        echantillonChevauxCorrects: global?.chevaux_echantillon || 0,
         dernieresVerifications: recentes.results || [],
       }),
       { headers: corsHeaders }
