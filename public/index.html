@@ -581,7 +581,7 @@
   .resultat-row:last-child{border-bottom:none;}
   .resultat-row:hover{background:rgba(255,255,255,.02);}
   .resultat-top{display:flex; align-items:baseline; gap:10px; margin-bottom:8px; flex-wrap:wrap;}
-  .resultat-meta{display:flex; align-items:baseline; gap:10px;}
+  .resultat-meta{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
   .resultat-meta .code{font-family:var(--font-mono); font-size:11.5px; color:var(--gold-light); letter-spacing:.04em;}
   .resultat-meta .lieu{font-family:var(--font-display); font-size:15px; font-weight:600; color:var(--text);}
   .resultat-meta .heure{font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);}
@@ -591,6 +591,7 @@
     border-radius:20px; padding:3px 10px;
   }
   .badge-verifie.badge-tierce{color:#5c3a12; background:#f4e2c4; border-color:#d9b878;}
+  .badge-verifie.badge-quinte{color:#173c62; background:#dcecff; border-color:#9fc5f2;}
   .podium-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px;}
   .podium-scroll::-webkit-scrollbar{height:5px;}
   .podium-scroll::-webkit-scrollbar-track{background:transparent;}
@@ -1338,7 +1339,7 @@
 
     <section class="stats">
       <div class="wrap">
-        <div class="stat"><b><span data-target="75">0</span>%</b><span>de réussite sur le top 3 (30 derniers jours)</span></div>
+        <div class="stat"><b><span data-target="0">0</span>%</b><span>de réussite Top 3 sur les courses évaluables</span></div>
         <div class="stat"><b><span data-target="12">0</span></b><span>hippodromes suivis chaque semaine</span></div>
         <div class="stat"><b><span data-target="50" data-suffix="k">0</span>+</b><span>courses analysées par le modèle</span></div>
         <div class="stat"><b><span data-target="24">0</span>/7</b><span>mise à jour continue des cotes</span></div>
@@ -2668,12 +2669,14 @@
   fetch(`${API_BASE}/api/stats-performance`)
     .then(res => res.json())
     .then(data => {
-      if(data.tauxAuMoinsUnCoupSur == null) return; // pas encore assez de données vérifiées
-
-      // Ancien bloc de stats marketing (section plus bas sur la page) : on remplace le
-      // chiffre statique "75%" par le vrai taux dès qu'il est disponible.
+      // N'afficher le taux Top 3 que si au moins 5 courses sont évaluables.
       const statEl = document.querySelector('.stat b span[data-target]');
-      if(statEl) statEl.setAttribute('data-target', data.tauxAuMoinsUnCoupSur);
+      const statBloc = statEl ? statEl.closest('.stat') : null;
+      if(data.echantillonTop3 >= SEUIL_ECHANTILLON_MIN && data.tauxTop3Reussi != null){
+        if(statEl) statEl.setAttribute('data-target', data.tauxTop3Reussi);
+      } else if(statBloc) {
+        statBloc.hidden = true;
+      }
 
     })
     .catch(() => {});
@@ -2725,7 +2728,9 @@
               <span class="code">${r.reunion} · ${r.course}</span>
               <span class="lieu">${r.hippodrome}</span>
               <span class="heure">${r.heure || ''}</span>
-              ${r.quarteReussi === true ? '<span class="badge-verifie">✅ Quarté réussi</span>' : (r.tierceReussi === true ? '<span class="badge-verifie badge-tierce">🥉 Tiercé réussi</span>' : '')}
+              ${r.quinteReussi === true ? '<span class="badge-verifie badge-quinte">🏆 Quinté réussi</span>' : ''}
+              ${r.quarteReussi === true ? '<span class="badge-verifie">✅ Quarté réussi</span>' : ''}
+              ${r.tierceReussi === true ? '<span class="badge-verifie badge-tierce">🥉 Top 3 réussi</span>' : ''}
             </div>
           </div>
           <div class="podium-scroll">

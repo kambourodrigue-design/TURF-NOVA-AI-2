@@ -419,10 +419,26 @@
               <div class="value">—</div>
             </div>
             <div class="kpi">
-              <div class="label">Chevaux corrects / 4 (moy.)</div>
+              <div class="label">Chevaux corrects / 5 (moy.)</div>
               <div class="value">—</div>
             </div>
+            <div class="kpi">
+              <div class="label">Réussite Top 3</div>
+              <div class="value" id="kpiTop3">—</div>
+              <div class="label" id="kpiTop3N">0 course évaluable</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Réussite Quarté</div>
+              <div class="value" id="kpiQuarte">—</div>
+              <div class="label" id="kpiQuarteN">0 course évaluable</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Réussite Quinté</div>
+              <div class="value" id="kpiQuinte">—</div>
+              <div class="label" id="kpiQuinteN">0 course évaluable</div>
+            </div>
           </div>
+          <div style="font-size:12px;opacity:.75;margin-top:-8px;margin-bottom:16px;">Chaque taux est calculé uniquement sur les courses dont les places nécessaires sont entièrement connues. Les données historiques non recalculées restent exclues.</div>
         </section>
 
         <section class="tab-panel" id="panel-contenu">
@@ -517,7 +533,7 @@
                   <tr><th>Titre</th><th>Statut</th><th>Mis à jour</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="articlesBody">
-                  <tr class="empty-row"><td colspan="4">Chargement…</td></tr>
+                  <tr class="empty-row"><td colspan="7">Chargement…</td></tr>
                 </tbody>
               </table>
               </div>
@@ -608,10 +624,10 @@
             <div class="table-scroll">
             <table id="verifTable">
               <thead>
-                <tr><th>Course</th><th>Hippodrome</th><th>Chevaux corrects</th><th>Coups sûrs réussis</th></tr>
+                <tr><th>Course</th><th>Hippodrome</th><th>Chevaux corrects</th><th>Coups sûrs réussis</th><th>Top 3</th><th>Quarté</th><th>Quinté</th></tr>
               </thead>
               <tbody id="verifBody">
-                <tr class="empty-row"><td colspan="4">Chargement…</td></tr>
+                <tr class="empty-row"><td colspan="7">Chargement…</td></tr>
               </tbody>
             </table>
             </div>
@@ -882,20 +898,32 @@
         kpis[0].textContent = data.totalCoursesVerifiees ?? '0';
         kpis[1].textContent = data.tauxAuMoinsUnCoupSur != null ? data.tauxAuMoinsUnCoupSur + '%' : '—';
         kpis[2].textContent = data.tauxDeuxCoupsSurs != null ? data.tauxDeuxCoupsSurs + '%' : '—';
-        kpis[3].textContent = data.moyenneChevauxCorrectsSur4 != null ? data.moyenneChevauxCorrectsSur4 + ' / 4' : '—';
+        kpis[3].textContent = data.moyenneChevauxCorrectsSur5 != null ? data.moyenneChevauxCorrectsSur5 + ' / 5' : '—';
+        const afficherTaux = (id, taux, gagne, echantillon) => {
+          const valeur = document.getElementById(id);
+          const detail = document.getElementById(id + 'N');
+          if (valeur) valeur.textContent = taux == null ? '—' : taux + '%';
+          if (detail) detail.textContent = `${gagne || 0} réussite(s) / ${echantillon || 0} course(s) évaluable(s)`;
+        };
+        afficherTaux('kpiTop3', data.tauxTop3Reussi, data.nombreTop3Gagne, data.echantillonTop3);
+        afficherTaux('kpiQuarte', data.tauxQuarteReussi, data.nombreQuarteGagne, data.echantillonQuarte);
+        afficherTaux('kpiQuinte', data.tauxQuinteReussi, data.nombreQuinteGagne, data.echantillonQuinte);
 
         const body = document.getElementById('verifBody');
         const lignes = data.dernieresVerifications || [];
         if(lignes.length === 0){
-          body.innerHTML = '<tr class="empty-row"><td colspan="4">Aucune course vérifiée pour le moment.</td></tr>';
+          body.innerHTML = '<tr class="empty-row"><td colspan="7">Aucune course vérifiée pour le moment.</td></tr>';
           return;
         }
         body.innerHTML = lignes.map(l => `
           <tr>
             <td data-label="Course">${l.reunion} · ${l.course}</td>
             <td data-label="Hippodrome">${escapeHtml(l.hippodrome || '')}</td>
-            <td data-label="Chevaux corrects">${l.chevaux_corrects} / 4</td>
+            <td data-label="Chevaux corrects">${l.chevaux_corrects} / 5</td>
             <td data-label="Coups sûrs réussis">${l.coups_surs_reussis} / 2</td>
+            <td data-label="Top 3">${l.top3_reussi == null ? 'Non évaluable' : (l.top3_reussi === 1 ? 'Réussi' : 'Échoué')}</td>
+            <td data-label="Quarté">${l.quarte_reussi == null ? 'Non évaluable' : (l.quarte_reussi === 1 ? 'Réussi' : 'Échoué')}</td>
+            <td data-label="Quinté">${l.quinte_reussi == null ? 'Non évaluable' : (l.quinte_reussi === 1 ? 'Réussi' : 'Échoué')}</td>
           </tr>
         `).join('');
       })
@@ -1390,7 +1418,7 @@
   function ligne(nom, r, gras){
     const tr = document.createElement('tr');
     const premiere = cellule(nom, 'Source'); if(gras) premiere.style.fontWeight = '700';
-    tr.append(premiere, cellule(num(r.n), 'Courses'), cellule(num(r.chevaux_corrects_moy), 'Corrects /4'),
+    tr.append(premiere, cellule(num(r.n), 'Courses'), cellule(num(r.chevaux_corrects_moy), 'Corrects /5'),
       cellule(num(r.pct_tierce_desordre, ' %'), 'Tiercé'), cellule(num(r.pct_quarte_desordre, ' %'), 'Quarté'),
       cellule(num(r.pct_premier_choix_dans_top4, ' %'), '1er choix top 4'), cellule(num(r.pct_premier_choix_gagnant, ' %'), '1er choix gagne'),
       cellule(num(r.pct_coups_surs_dans_top4, ' %'), 'Coups sûrs top 4'));
