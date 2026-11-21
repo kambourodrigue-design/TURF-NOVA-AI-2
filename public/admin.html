@@ -603,6 +603,7 @@
               <button type="button" class="btn-outline" id="backtestMoteurAutoBtn" title="Enchaîne les lots de backtest sur la période sélectionnée">Backtest moteur (auto)</button>
               <button type="button" class="btn-outline" id="calibrerMoteurBtn" title="Teste de nouvelles pondérations sur les prédictions réellement archivées, avec validation chronologique">Calibrer les poids</button>
               <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
+              <button type="button" class="btn-outline" id="regenBtn" title="Efface le pronostic verrouillé de la course du jour et le refait (utile si les données de départ étaient fausses)">Régénérer (efface et refait)</button>
               <span id="perfIaStatus" class="form-status"></span>
             </div>
             <div id="archiveEtat" style="font-size:13px; line-height:1.5; margin:-2px 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025);">État de la base : chargement…</div>
@@ -1550,6 +1551,15 @@
     } finally { btn.disabled = false; btn.textContent = 'Calibrer les poids'; }
   });
 
+  $('regenBtn').addEventListener('click', async () => {
+    if(!confirm('Effacer le pronostic verrouillé de la course du jour et le refaire ? Les IA seront rappelées (coût).')) return;
+    statut('Régénération en cours (1 à 2 min)…');
+    try {
+      const d = await appeler('/api/admin/pregenerer', 'POST', { regenerer: true });
+      const msgs = { genere: 'Pronostic régénéré ✓', echec: 'Les IA n\u2019ont pas répondu, réessaie', course_partie: d.message };
+      statut(msgs[d.statut] || ('Résultat : ' + d.statut), d.statut === 'genere');
+    } catch(e){ statut(e.message, false); }
+  });
   $('pregenBtn').addEventListener('click', async () => {
     statut('Génération de l\u2019analyse (1 à 2 min)…');
     try {
