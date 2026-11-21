@@ -902,7 +902,7 @@ function classifierDiscipline(discipline, categorieParticularite) {
 // Le score est un indice de classement (0-100), PAS une probabilité de gagner.
 // Les historiques utilisés sont strictement antérieurs à la date de la course.
 // ============================================================================
-const MOTEUR_VERSION = "2.1.0";
+const MOTEUR_VERSION = "2.2.0";
 const POIDS_MOTEUR = {
   PLAT: { forme: 30, historique: 20, driver: 10, entraineur: 10, poids: 10, marche: 10, regularite: 5, corde: 5 },
   TROT: { forme: 25, historique: 15, driver: 15, entraineur: 5, chrono: 25, marche: 10, regularite: 5 },
@@ -1166,10 +1166,16 @@ async function assurerTableBacktestMoteur(env) {
       marche_corrects INTEGER DEFAULT 0, marche_tierce INTEGER DEFAULT 0,
       marche_quarte INTEGER DEFAULT 0, marche_premier_top4 INTEGER DEFAULT 0,
       echantillon_historique INTEGER DEFAULT 0, created_at INTEGER NOT NULL,
+      classement_composants_json TEXT,
       PRIMARY KEY(date,reunion,course,version)
     )`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_backtest_moteur_date ON backtest_moteur(date_iso)`),
   ]);
+  // Migration additive compatible avec les bases déjà créées en V2/V2.1.
+  const colonnes = await env.DB.prepare(`PRAGMA table_info(backtest_moteur)`).all();
+  if (!(colonnes.results || []).some((c) => c.name === "classement_composants_json")) {
+    await env.DB.prepare(`ALTER TABLE backtest_moteur ADD COLUMN classement_composants_json TEXT`).run();
+  }
   tableBacktestMoteurPrete = true;
 }
 
@@ -1251,8 +1257,9 @@ async function executerLotBacktestMoteur(env, jours = 30, budget = 10) {
         performances, { enregistrer: false });
       if (!moteur?.classement?.length) {
         await env.DB.prepare(
-          `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
-           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?)`
+          `INSERT INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at,classement_composants_json)
+           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?,'[]')
+           ON CONFLICT(date,reunion,course,version) DO UPDATE SET selection_json='[]',classement_composants_json='[]',created_at=excluded.created_at`
         ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, Date.now()).run();
         traitees++;
         continue;
@@ -1265,19 +1272,25 @@ async function executerLotBacktestMoteur(env, jours = 30, budget = 10) {
       const e = evaluerSelection(selection, [], arrivee);
       const em = evaluerSelection(marche, [], arrivee);
       await env.DB.prepare(
-        `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
-         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at,classement_composants_json)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         ON CONFLICT(date,reunion,course,version) DO UPDATE SET selection_json=excluded.selection_json,
+         corrects=excluded.corrects,tierce=excluded.tierce,quarte=excluded.quarte,premier_top4=excluded.premier_top4,
+         marche_corrects=excluded.marche_corrects,marche_tierce=excluded.marche_tierce,marche_quarte=excluded.marche_quarte,
+         marche_premier_top4=excluded.marche_premier_top4,echantillon_historique=excluded.echantillon_historique,
+         classement_composants_json=excluded.classement_composants_json,created_at=excluded.created_at`
       ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, JSON.stringify(selection),
         e.corrects, e.tierce ? 1 : 0, e.quarte ? 1 : 0, e.premierTop4 ? 1 : 0,
         em.corrects, em.tierce ? 1 : 0, em.quarte ? 1 : 0, em.premierTop4 ? 1 : 0,
-        moteur.echantillon, Date.now()).run();
+        moteur.echantillon, Date.now(), JSON.stringify(moteur.classement)).run();
       traitees++;
     } catch (e) {
       erreurs++;
       try {
         await env.DB.prepare(
-          `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
-           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?)`
+          `INSERT INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at,classement_composants_json)
+           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?,'[]')
+           ON CONFLICT(date,reunion,course,version) DO UPDATE SET selection_json='[]',classement_composants_json='[]',created_at=excluded.created_at`
         ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, Date.now()).run();
         traitees++;
       } catch {}
@@ -1317,13 +1330,15 @@ async function calibrerPoidsMoteur(env, jours = 365) {
   await assurerTablePoidsAppris(env);
   await assurerTableMoteur(env);
   await assurerTablesArchive(env);
+  await assurerTableBacktestMoteur(env);
   const depuis = new Date(Date.now() - jours*86400000).toISOString().slice(0,10);
-  const rows = await env.DB.prepare(`SELECT pm.date, ac.date_iso, pm.reunion, pm.course, pm.discipline AS famille,
-      pm.classement_json, ac.arrivee_json
-    FROM predictions_moteur pm JOIN archive_courses ac
-      ON ac.date=pm.date AND ac.reunion=pm.reunion AND ac.course=pm.course
-    WHERE ac.termine=1 AND ac.date_iso>=? AND pm.classement_json IS NOT NULL
-    ORDER BY ac.date_iso ASC, pm.reunion ASC, pm.course ASC`).bind(depuis).all();
+  const rows = await env.DB.prepare(`SELECT bm.date, ac.date_iso, bm.reunion, bm.course,
+      ac.discipline, bm.classement_composants_json AS classement_json, ac.arrivee_json
+    FROM backtest_moteur bm JOIN archive_courses ac
+      ON ac.date=bm.date AND ac.reunion=bm.reunion AND ac.course=bm.course
+    WHERE ac.termine=1 AND ac.date_iso>=? AND bm.version=?
+      AND bm.classement_composants_json IS NOT NULL AND bm.classement_composants_json <> '[]'
+    ORDER BY ac.date_iso ASC, bm.reunion ASC, bm.course ASC`).bind(depuis, MOTEUR_VERSION).all();
   const groupes = new Map();
   for (const r of rows.results || []) {
     let classement, arrivee;
@@ -1331,7 +1346,7 @@ async function calibrerPoidsMoteur(env, jours = 365) {
     if (!Array.isArray(classement) || !classement.length || !arrivee.length) continue;
     const top4 = new Set(arrivee.filter(a=>a.place<=4).map(a=>a.numero));
     if (top4.size < 4) continue;
-    const famille = POIDS_MOTEUR[r.famille] ? r.famille : 'INCONNUE';
+    const famille = classifierDiscipline(r.discipline, '');
     const chevaux = classement.filter(h=>h && Number(h.numero)>0 && h.composants && typeof h.composants==='object');
     if (chevaux.length < 4) continue;
     if (!groupes.has(famille)) groupes.set(famille, []);
