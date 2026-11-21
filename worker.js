@@ -902,13 +902,44 @@ function classifierDiscipline(discipline, categorieParticularite) {
 // Le score est un indice de classement (0-100), PAS une probabilité de gagner.
 // Les historiques utilisés sont strictement antérieurs à la date de la course.
 // ============================================================================
-const MOTEUR_VERSION = "2.0.0";
+const MOTEUR_VERSION = "2.1.0";
 const POIDS_MOTEUR = {
   PLAT: { forme: 30, historique: 20, driver: 10, entraineur: 10, poids: 10, marche: 10, regularite: 5, corde: 5 },
   TROT: { forme: 25, historique: 15, driver: 15, entraineur: 5, chrono: 25, marche: 10, regularite: 5 },
   OBSTACLE: { forme: 30, historique: 20, driver: 10, entraineur: 10, poids: 10, marche: 10, regularite: 10 },
   INCONNUE: { forme: 30, historique: 15, driver: 8, entraineur: 7, marche: 10, regularite: 15, polyvalence: 15 },
 };
+
+let tablePoidsApprisPrete = false;
+async function assurerTablePoidsAppris(env) {
+  if (!env.DB || tablePoidsApprisPrete) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS moteur_poids_appris (
+    famille TEXT PRIMARY KEY, poids_json TEXT NOT NULL, nb_courses INTEGER NOT NULL,
+    score_validation REAL NOT NULL, score_reference REAL NOT NULL,
+    date_debut TEXT, date_fin TEXT, updated_at INTEGER NOT NULL
+  )`).run();
+  tablePoidsApprisPrete = true;
+}
+
+async function chargerPoidsAppris(env, famille) {
+  const initial = POIDS_MOTEUR[famille] || POIDS_MOTEUR.INCONNUE;
+  if (!env.DB) return initial;
+  try {
+    await assurerTablePoidsAppris(env);
+    const row = await env.DB.prepare(`SELECT poids_json FROM moteur_poids_appris WHERE famille=?`).bind(famille).first();
+    if (!row?.poids_json) return initial;
+    const appris = JSON.parse(row.poids_json);
+    const poids = {};
+    for (const cle of Object.keys(initial)) poids[cle] = Math.max(0, Number(appris[cle]) || 0);
+    const total = Object.values(poids).reduce((a,b)=>a+b,0);
+    if (!total) return initial;
+    for (const cle of Object.keys(poids)) poids[cle] = poids[cle] * 100 / total;
+    return poids;
+  } catch (e) {
+    console.warn('[moteur-calibration] poids appris indisponibles :', e.message);
+    return initial;
+  }
+}
 
 function bornerScore(n) { return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50)); }
 function scorePlace(place, statut) {
@@ -1069,7 +1100,7 @@ async function calculerMoteurStatistique(env, date, reunion, course, participant
   const actifs = participants.filter((p) => !p.nonPartant && Number(p.numPmu) > 0);
   if (!actifs.length) return null;
   const famille = classifierDiscipline(courseInfo.discipline, courseInfo.categorieParticularite);
-  const poids = POIDS_MOTEUR[famille] || POIDS_MOTEUR.INCONNUE;
+  const poids = options.poids || await chargerPoidsAppris(env, famille);
   const archives = await chargerStatsHistoriques(env, actifs, courseInfo, date);
   const cotes = classerValeurs(actifs, (p) => p.dernierRapportDirect?.rapport, true);
   const chronos = classerValeurs(actifs, (p) => {
@@ -1254,6 +1285,113 @@ async function executerLotBacktestMoteur(env, jours = 30, budget = 10) {
     }
   }
   return { traitees, erreurs, stats: await statsBacktestMoteur(env, jours) };
+}
+
+// Apprentissage prudent des poids à partir des prédictions réellement archivées avant course.
+// Les 70% de courses les plus anciennes servent à l'ajustement ; les 30% les plus récentes
+// restent un jeu de validation indépendant. Aucun poids n'est activé si le test ne progresse pas.
+function normaliserPoids(poids, cles) {
+  const vals = cles.map(k => Math.max(0.1, Number(poids[k]) || 0.1));
+  const total = vals.reduce((a,b)=>a+b,0);
+  const out = {};
+  cles.forEach((k,i)=>out[k] = vals[i] * 100 / total);
+  return out;
+}
+function scoreJeuPoids(courses, poids, cles) {
+  if (!courses.length) return 0;
+  let corrects = 0, premier = 0;
+  for (const c of courses) {
+    const ordre = [...c.chevaux].sort((a,b) => {
+      const sa = cles.reduce((v,k)=>v+(Number(a.composants[k] ?? 50)*poids[k]/100),0);
+      const sb = cles.reduce((v,k)=>v+(Number(b.composants[k] ?? 50)*poids[k]/100),0);
+      return sb-sa || a.numero-b.numero;
+    });
+    const top8 = new Set(ordre.slice(0,8).map(h=>h.numero));
+    const top4 = c.arriveeTop4;
+    corrects += [...top4].filter(n=>top8.has(n)).length / 4;
+    if (ordre.length && top4.has(ordre[0].numero)) premier++;
+  }
+  return (corrects / courses.length) * 0.85 + (premier / courses.length) * 0.15;
+}
+async function calibrerPoidsMoteur(env, jours = 365) {
+  await assurerTablePoidsAppris(env);
+  await assurerTableMoteur(env);
+  await assurerTablesArchive(env);
+  const depuis = new Date(Date.now() - jours*86400000).toISOString().slice(0,10);
+  const rows = await env.DB.prepare(`SELECT pm.date, ac.date_iso, pm.reunion, pm.course, pm.discipline AS famille,
+      pm.classement_json, ac.arrivee_json
+    FROM predictions_moteur pm JOIN archive_courses ac
+      ON ac.date=pm.date AND ac.reunion=pm.reunion AND ac.course=pm.course
+    WHERE ac.termine=1 AND ac.date_iso>=? AND pm.classement_json IS NOT NULL
+    ORDER BY ac.date_iso ASC, pm.reunion ASC, pm.course ASC`).bind(depuis).all();
+  const groupes = new Map();
+  for (const r of rows.results || []) {
+    let classement, arrivee;
+    try { classement = JSON.parse(r.classement_json); arrivee = lireArrivee(r.arrivee_json); } catch { continue; }
+    if (!Array.isArray(classement) || !classement.length || !arrivee.length) continue;
+    const top4 = new Set(arrivee.filter(a=>a.place<=4).map(a=>a.numero));
+    if (top4.size < 4) continue;
+    const famille = POIDS_MOTEUR[r.famille] ? r.famille : 'INCONNUE';
+    const chevaux = classement.filter(h=>h && Number(h.numero)>0 && h.composants && typeof h.composants==='object');
+    if (chevaux.length < 4) continue;
+    if (!groupes.has(famille)) groupes.set(famille, []);
+    groupes.get(famille).push({date:r.date_iso, chevaux, arriveeTop4:top4});
+  }
+  const resultats = {};
+  for (const [famille, courses] of groupes) {
+    const cles = Object.keys(POIDS_MOTEUR[famille]);
+    if (courses.length < 40) {
+      resultats[famille] = {statut:'echantillon_insuffisant', courses:courses.length, minimum:40};
+      continue;
+    }
+    const split = Math.max(25, Math.floor(courses.length*0.7));
+    const train = courses.slice(0,split), test = courses.slice(split);
+    if (test.length < 10) { resultats[famille] = {statut:'validation_insuffisante', courses:courses.length}; continue; }
+    const base = normaliserPoids(await chargerPoidsAppris(env, famille), cles);
+    const scoreBaseTrain = scoreJeuPoids(train,base,cles);
+    let meilleur = base, meilleurTrain = scoreBaseTrain;
+    // Recherche déterministe : 240 profils proches et éloignés des poids initiaux.
+    let seed = 20261121 + famille.length*7919;
+    const alea = () => { seed = (Math.imul(seed,1664525) + 1013904223) >>> 0; return seed/4294967296; };
+    for (let i=0;i<240;i++) {
+      const brut = {};
+      for (const k of cles) {
+        const facteur = i < 120 ? (0.65 + alea()*0.70) : (0.25 + alea()*1.50);
+        brut[k] = base[k]*facteur;
+      }
+      const candidat = normaliserPoids(brut,cles);
+      const score = scoreJeuPoids(train,candidat,cles);
+      if (score > meilleurTrain + 0.00001) { meilleur=candidat; meilleurTrain=score; }
+    }
+    const refTest = scoreJeuPoids(test,base,cles);
+    const candidatTest = scoreJeuPoids(test,meilleur,cles);
+    const gain = candidatTest-refTest;
+    const valide = gain >= 0.005 && meilleurTrain >= scoreBaseTrain;
+    if (valide) {
+      await env.DB.prepare(`INSERT INTO moteur_poids_appris(famille,poids_json,nb_courses,score_validation,score_reference,date_debut,date_fin,updated_at)
+        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(famille) DO UPDATE SET poids_json=excluded.poids_json,
+        nb_courses=excluded.nb_courses,score_validation=excluded.score_validation,score_reference=excluded.score_reference,
+        date_debut=excluded.date_debut,date_fin=excluded.date_fin,updated_at=excluded.updated_at`)
+        .bind(famille,JSON.stringify(meilleur),courses.length,Number(candidatTest.toFixed(6)),Number(refTest.toFixed(6)),courses[0].date,courses[courses.length-1].date,Date.now()).run();
+    }
+    resultats[famille] = {statut:valide?'poids_appris_actives':'conserver_poids_actuels',courses:courses.length,
+      apprentissage:train.length,validation:test.length,score_reference_pct:Number((refTest*100).toFixed(2)),
+      score_candidat_pct:Number((candidatTest*100).toFixed(2)),gain_points:Number((gain*100).toFixed(2)),
+      poids:valide?meilleur:base};
+  }
+  return {periode_jours:jours,depuis,nb_predictions_exploitables:[...groupes.values()].reduce((n,g)=>n+g.length,0),resultats};
+}
+
+async function handleAdminCalibrerMoteur(request, env) {
+  const headers = {"Access-Control-Allow-Origin":"*","Content-Type":"application/json"};
+  const admin = await requireAdmin(request,env);
+  if (!admin) return new Response(JSON.stringify({error:'Accès refusé'}),{status:403,headers});
+  if (!env.DB) return new Response(JSON.stringify({error:'Base D1 indisponible'}),{status:503,headers});
+  try {
+    let body={}; try { body=await request.json(); } catch {}
+    const jours=Math.max(30,Math.min(1095,parseInt(body.jours,10)||365));
+    return new Response(JSON.stringify(await calibrerPoidsMoteur(env,jours)),{headers});
+  } catch(e) { return new Response(JSON.stringify({error:e.message}),{status:500,headers}); }
 }
 
 async function handleAdminBacktestMoteur(request, env) {
@@ -4887,6 +5025,9 @@ export default {
     }
     if (url.pathname === "/api/admin/backtest-moteur") {
       return handleAdminBacktestMoteur(request, env);
+    }
+    if (url.pathname === "/api/admin/calibrer-moteur" && request.method === "POST") {
+      return handleAdminCalibrerMoteur(request, env);
     }
 
     if (url.pathname === "/api/admin/pregenerer" && request.method === "POST") {
