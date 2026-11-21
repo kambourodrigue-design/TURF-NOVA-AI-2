@@ -142,7 +142,7 @@ async function completerFeaturesAvecResultat(env, date, reunion, course, podium)
   for (const row of rows.results || []) {
     const position = positionParNumero.get(row.num_pmu) ?? null;
     // Cheval non classé dans le top4 renvoyé par l'API PMU (au-delà de la 4e place) : top4_reel = 0.
-    const top4 = position != null ? 1 : 0;
+    const top4 = position != null && position <= 4 ? 1 : 0;
     await env.DB.prepare(
       `UPDATE courses_features SET position_reelle = ?, top4_reel = ? WHERE date = ? AND reunion = ? AND course = ? AND num_pmu = ?`
     )
@@ -194,9 +194,10 @@ async function verifierPredictionsEnAttente(env) {
 // Format de `date` = celui de PMU (DDMMYYYY), comme le reste de la base ;
 // `date_iso` (YYYY-MM-DD) sert au tri et aux requêtes par période.
 // ============================================================================
-const ARCHIVE_PROFONDEUR_JOURS = 60;     // jusqu'où remonter (jours) lors du rattrapage
-const ARCHIVE_MAX_COURSES_PAR_RUN = 12;  // limite de sous-requêtes Workers : ~3 par course
-const ARCHIVE_KV_JOURS_OK = "archive:jours-ok";
+const ARCHIVE_PROFONDEUR_JOURS = 1095;   // cible : environ 3 ans de courses historiques
+const ARCHIVE_MAX_COURSES_PAR_RUN = 10;  // budget prudent pour les sous-requêtes PMU et D1
+const ARCHIVE_KV_JOURS_OK = "archive:jours-ok"; // conservée pour compatibilité avec les anciennes versions
+const ARCHIVE_KV_CURSOR = "archive:cursor-date-v2";
 const CRON_ARCHIVE = "*/30 * * * *";     // à déclarer dans wrangler.jsonc (triggers.crons)
 let archiveTablesPretes = false;
 
@@ -238,6 +239,9 @@ async function assurerTablesArchive(env) {
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_courses_date ON archive_courses (date_iso)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_cheval ON archive_partants (cheval, date_iso)`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_date ON archive_partants (date_iso)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_courses_context ON archive_courses (hippodrome, discipline, distance, date_iso)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_driver_date ON archive_partants (driver, date_iso)`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_archive_partants_entraineur_date ON archive_partants (entraineur, date_iso)`),
   ]);
   archiveTablesPretes = true;
 }
@@ -359,37 +363,73 @@ async function archiverJournee(env, dateParam, budget, avantHier) {
   return { total: toutes.length, traitees, erreurs, restantes: Math.max(0, aFaire.length - traitees) };
 }
 
-// Parcourt les jours du plus récent au plus ancien (aujourd'hui, hier, puis rattrapage de l'historique)
-// et archive tout ce qui manque, dans la limite de `budget` courses par appel.
+// Avance un curseur persistant du plus ancien jour vers le plus récent.
+// Les deux derniers jours sont volontairement exclus : leurs courses peuvent encore
+// être en cours et monopoliser le budget à chaque passage du cron.
+function ajouterJoursISO(iso, jours) {
+  const d = new Date(`${iso}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
+function dateParamDepuisISO(iso) {
+  return `${iso.slice(8, 10)}${iso.slice(5, 7)}${iso.slice(0, 4)}`;
+}
+
 async function archiverHistoriqueCourses(env, { profondeur = ARCHIVE_PROFONDEUR_JOURS, budget = ARCHIVE_MAX_COURSES_PAR_RUN } = {}) {
   if (!env.DB) return { ok: false, raison: "Base D1 indisponible" };
+  if (!env.CACHE_KV) return { ok: false, raison: "Binding CACHE_KV indisponible" };
   await assurerTablesArchive(env);
 
-  const jourOk = new Set((await env.CACHE_KV.get(ARCHIVE_KV_JOURS_OK, { type: "json" })) || []);
   const maintenant = new Date();
-  const avantHier = dateISODepuisParam(dateParamDepuis(new Date(maintenant.getTime() - 2 * 86400000)));
-  let reste = budget;
-  const bilan = { ok: true, traitees: 0, erreurs: 0, jours: [], termine: false };
+  const partiesDateParis = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(maintenant);
+  const partie = (type) => partiesDateParis.find((x) => x.type === type)?.value || "";
+  const aujourdHuiISO = `${partie("year")}-${partie("month")}-${partie("day")}`;
+  const limiteISO = ajouterJoursISO(aujourdHuiISO, -2); // exclusif : les 2 jours récents restent hors rattrapage
+  const debutISO = ajouterJoursISO(aujourdHuiISO, -Math.max(1, Math.min(1095, profondeur)));
+  let curseur = await env.CACHE_KV.get(ARCHIVE_KV_CURSOR);
+  if (!curseur || curseur < debutISO) curseur = debutISO;
 
-  for (let i = 0; i <= profondeur && reste > 0; i++) {
-    const dateParam = dateParamDepuis(new Date(maintenant.getTime() - i * 86400000));
-    const dateISO = dateISODepuisParam(dateParam);
-    if (jourOk.has(dateISO)) continue;
+  let reste = Math.max(1, Math.min(25, Number.parseInt(budget, 10) || ARCHIVE_MAX_COURSES_PAR_RUN));
+  const bilan = { ok: true, traitees: 0, erreurs: 0, jours: [], curseur_debut: curseur, limite_exclusive: limiteISO, termine: false };
+
+  while (curseur < limiteISO && reste > 0) {
+    const dateParam = dateParamDepuisISO(curseur);
     try {
-      const r = await archiverJournee(env, dateParam, reste, avantHier);
+      const r = await archiverJournee(env, dateParam, reste, limiteISO);
       reste -= r.traitees;
       bilan.traitees += r.traitees;
       bilan.erreurs += r.erreurs;
-      bilan.jours.push({ date: dateISO, ...r });
-      // Un jour n'est « clos » (plus jamais revisité) que s'il est ancien et sans course restante.
-      if (r.restantes === 0 && r.erreurs === 0 && dateISO < avantHier) jourOk.add(dateISO);
+      bilan.jours.push({ date: curseur, ...r });
+
+      // On ne saute une journée qu'après traitement sans erreur de toutes ses courses.
+      // Si une course échoue, le curseur reste sur cette date et elle sera retentée.
+      if (r.restantes === 0 && r.erreurs === 0) {
+        curseur = ajouterJoursISO(curseur, 1);
+        await env.CACHE_KV.put(ARCHIVE_KV_CURSOR, curseur);
+      } else {
+        break;
+      }
     } catch (e) {
-      bilan.jours.push({ date: dateISO, erreur: e.message });
-      console.error(`[archive] programme ${dateParam} —`, e.message);
+      // L'API PMU renvoie 404 pour certaines dates sans programme : ce jour est vide,
+      // on peut donc avancer sans bloquer tout le rattrapage sur cette date.
+      if (/PMU a répondu 404 sur .*\/programme\//.test(String(e.message || e))) {
+        bilan.jours.push({ date: curseur, sans_programme: true });
+        curseur = ajouterJoursISO(curseur, 1);
+        await env.CACHE_KV.put(ARCHIVE_KV_CURSOR, curseur);
+      } else {
+        bilan.erreurs++;
+        bilan.jours.push({ date: curseur, erreur: e.message });
+        console.error(`[archive] programme ${dateParam} —`, e.message);
+        break;
+      }
     }
   }
-  bilan.termine = reste > 0; // budget non épuisé = tout est à jour sur la période
-  await env.CACHE_KV.put(ARCHIVE_KV_JOURS_OK, JSON.stringify([...jourOk]));
+
+  bilan.curseur_fin = curseur;
+  bilan.termine = curseur >= limiteISO;
+  await env.CACHE_KV.put(ARCHIVE_KV_CURSOR, curseur);
   return bilan;
 }
 
@@ -418,7 +458,7 @@ async function handleAdminArchive(request, env) {
       let body = {};
       try { body = await request.json(); } catch { /* corps optionnel */ }
       const budget = Math.max(1, Math.min(25, parseInt(body.budget, 10) || ARCHIVE_MAX_COURSES_PAR_RUN));
-      const profondeur = Math.max(0, Math.min(365, parseInt(body.profondeur, 10) || ARCHIVE_PROFONDEUR_JOURS));
+      const profondeur = Math.max(0, Math.min(1095, parseInt(body.profondeur, 10) || ARCHIVE_PROFONDEUR_JOURS));
       const bilan = await archiverHistoriqueCourses(env, { profondeur, budget });
       return new Response(JSON.stringify({ bilan, stats: await statsArchive(env) }), { headers: corsHeaders });
     }
@@ -636,7 +676,7 @@ async function handleAdminPerformanceIA(request, env) {
   if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
   if (!env.DB) return new Response(JSON.stringify({ error: "Base D1 indisponible" }), { status: 503, headers: corsHeaders });
   try {
-    const jours = Math.max(1, Math.min(365, parseInt(new URL(request.url).searchParams.get("jours"), 10) || 60));
+    const jours = Math.max(1, Math.min(1095, parseInt(new URL(request.url).searchParams.get("jours"), 10) || 60));
     return new Response(JSON.stringify(await calculerPerformanceIA(env, jours)), { headers: corsHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
@@ -857,37 +897,445 @@ function classifierDiscipline(discipline, categorieParticularite) {
   return "INCONNUE";
 }
 
-// Pondérations propres à chaque discipline. Ce sont des points de départ
-// raisonnés (pas une vérité statistique établie) — à ajuster avec le temps
-// grâce au suivi réel des résultats (table resultats_verifies).
-const PONDERATIONS = {
-  PLAT: {
-    label: "PLAT",
-    focus: "focus sur la pointe de vitesse, la position à la corde et le poids porté (handicaps).",
-    grille:
-      "Forme récente (musique des 5 dernières courses) : 35% | Poids porté (handicap) : 20% | Position à la corde : 15% | Jockey et entraîneur (taux de réussite) : 15% | Aptitude à la piste/distance : 10% | Valeur (cote vs niveau réel) : 5%",
-  },
-  TROT: {
-    label: "TROT (attelé/monté)",
-    focus: "focus sur le déferrage, les allures et surtout la fiabilité du driver au départ (un cheval disqualifié ou dégagé perd toute chance, quelle que soit sa forme).",
-    grille:
-      "Forme récente (musique des 5 dernières courses) : 40% | Jockey/driver et fiabilité au départ (taux de réussite) : 25% | Position au départ (corde/autostart) : 15% | Aptitude à la piste/distance : 10% | Poids porté (monté uniquement) : 5% | Valeur (cote vs niveau réel) : 5%",
-  },
-  OBSTACLE: {
-    label: "OBSTACLE (haies, steeple-chase)",
-    focus: "focus sur l'aptitude aux sauts et l'endurance ; repère dans la musique les lettres indiquant chute/tombé récent (\"t\", \"Tb\") et pénalise fortement.",
-    grille:
-      "Forme récente ET aptitude aux sauts (pénaliser chute/tombé récent) : 35% | Aptitude à la distance/endurance : 20% | Jockey (expérience obstacle) : 20% | Poids porté : 15% | Position à la corde : 5% | Valeur (cote vs niveau réel) : 5%",
-  },
-  INCONNUE: {
-    label: "discipline non identifiée avec certitude",
-    focus: "reste prudent : sans certitude sur la discipline exacte, applique une pondération équilibrée plutôt que de sur-pondérer un critère spécifique à une discipline.",
-    grille:
-      "Forme récente (musique des 5 dernières courses) : 35% | Jockey/driver et entraîneur (taux de réussite) : 20% | Position à la corde : 15% | Poids porté : 10% | Aptitude à la piste/discipline/distance : 15% | Valeur (cote vs niveau réel) : 5%",
-  },
+// ============================================================================
+// MOTEUR STATISTIQUE INDÉPENDANT — version 2
+// Le score est un indice de classement (0-100), PAS une probabilité de gagner.
+// Les historiques utilisés sont strictement antérieurs à la date de la course.
+// ============================================================================
+const MOTEUR_VERSION = "2.0.0";
+const POIDS_MOTEUR = {
+  PLAT: { forme: 30, historique: 20, driver: 10, entraineur: 10, poids: 10, marche: 10, regularite: 5, corde: 5 },
+  TROT: { forme: 25, historique: 15, driver: 15, entraineur: 5, chrono: 25, marche: 10, regularite: 5 },
+  OBSTACLE: { forme: 30, historique: 20, driver: 10, entraineur: 10, poids: 10, marche: 10, regularite: 10 },
+  INCONNUE: { forme: 30, historique: 15, driver: 8, entraineur: 7, marche: 10, regularite: 15, polyvalence: 15 },
 };
 
-function buildPrompt(participants, courseInfo, date, performancesParNumero = {}, reunion = "", course = "") {
+function bornerScore(n) { return Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50)); }
+function scorePlace(place, statut) {
+  const st = String(statut || "").toUpperCase();
+  if (/DAI|DISQUAL|TOMBE|CHUTE|ARRET|ARRÊT|NON_PARTANT|DISTANCE/.test(st) || String(place) === "0") return 0;
+  const p = Number(place);
+  if (!Number.isFinite(p) || p <= 0) return 45;
+  if (p === 1) return 100;
+  if (p === 2) return 90;
+  if (p === 3) return 82;
+  if (p === 4) return 75;
+  if (p === 5) return 65;
+  if (p <= 8) return 52;
+  if (p <= 12) return 38;
+  return 25;
+}
+function extraireHistorique(perf, musique) {
+  const courses = Array.isArray(perf?.coursesCourues) ? perf.coursesCourues.slice(0, 5) : [];
+  if (courses.length) return courses.map((c) => {
+    const moi = (c.participants || []).find((x) => x.itsHim);
+    return { place: moi?.place?.place ?? null, statut: moi?.place?.statusArrivee ?? "", chrono: Number(moi?.reductionKilometrique) || null };
+  });
+  // Repli sur la musique PMU : les chiffres sont les places, les lettres les spécialités.
+  const tokens = String(musique || "").match(/\d{1,2}|Da|Dai|T|Tb|A|0/gi) || [];
+  return tokens.slice(0, 5).map((t) => ({ place: /^\d+$/.test(t) ? Number(t) : null, statut: /^\d+$/.test(t) ? "" : t }));
+}
+function scoreForme(historique) {
+  if (!historique.length) return { score: 45, regularite: 45 };
+  const poids = [1, 0.8, 0.62, 0.48, 0.36];
+  let somme = 0, total = 0, top4 = 0;
+  historique.forEach((h, i) => {
+    const s = scorePlace(h.place, h.statut);
+    const w = poids[i] || 0.25;
+    somme += s * w; total += w;
+    if (Number(h.place) > 0 && Number(h.place) <= 4) top4++;
+  });
+  return { score: total ? somme / total : 45, regularite: (top4 / historique.length) * 100 };
+}
+function classerValeurs(participants, getter, basMeilleur = false) {
+  const vals = participants.map((p) => ({ numero: p.numPmu, valeur: Number(getter(p)) })).filter((x) => Number.isFinite(x.valeur) && x.valeur > 0);
+  vals.sort((a, b) => basMeilleur ? a.valeur - b.valeur : b.valeur - a.valeur);
+  const out = new Map();
+  vals.forEach((x, i) => out.set(x.numero, vals.length <= 1 ? 65 : 100 - (i / (vals.length - 1)) * 65));
+  return out;
+}
+function scoreHistoriqueArchive(row) {
+  const n = Number(row?.starts) || 0;
+  if (!n) return 50;
+  const taux = Number(row.top4) / n;
+  // Lissage vers 25% tant que l'échantillon est petit (évite de survaloriser 1 bon résultat).
+  const fiabilite = n / (n + 8);
+  return bornerScore(50 + (taux - 0.25) * 100 * fiabilite);
+}
+function scoreDriverArchive(row) {
+  const n = Number(row?.starts) || 0;
+  if (!n) return 50;
+  const taux = Number(row.top4) / n;
+  const fiabilite = n / (n + 20);
+  return bornerScore(50 + (taux - 0.25) * 100 * fiabilite);
+}
+
+let tableMoteurPrete = false;
+async function assurerTableMoteur(env) {
+  if (!env.DB || tableMoteurPrete) return;
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS predictions_moteur (
+      date TEXT NOT NULL, reunion TEXT NOT NULL, course TEXT NOT NULL,
+      version TEXT NOT NULL, classement_json TEXT NOT NULL, discipline TEXT,
+      echantillon_historique INTEGER DEFAULT 0, created_at INTEGER NOT NULL,
+      PRIMARY KEY (date, reunion, course, version)
+    )`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_predictions_moteur_date ON predictions_moteur(date)`),
+  ]);
+  tableMoteurPrete = true;
+}
+
+async function chargerStatsHistoriques(env, participants, courseInfo, date) {
+  const historiqueChevaux = new Map();
+  const historiqueDrivers = new Map();
+  const historiqueEntraineurs = new Map();
+  const historiqueCordes = new Map();
+  if (!env.DB || !participants.length) return { chevaux: historiqueChevaux, drivers: historiqueDrivers, entraineurs: historiqueEntraineurs, cordes: historiqueCordes, echantillon: 0 };
+  try {
+    await assurerTablesArchive(env);
+    const discipline = String(courseInfo.discipline || "").toUpperCase();
+    const distance = Number(courseInfo.distance) || 0;
+    if (!discipline) return { chevaux: historiqueChevaux, drivers: historiqueDrivers, entraineurs: historiqueEntraineurs, cordes: historiqueCordes, echantillon: 0 };
+    const dateISO = dateISODepuisParam(date);
+    const hippodrome = String(courseInfo.hippodrome || "").trim();
+    const noms = [...new Set(participants.map((p) => String(p.nom || "").trim()).filter(Boolean))].slice(0, 40);
+    if (noms.length) {
+      const marks = noms.map(() => "?").join(",");
+      const rows = await env.DB.prepare(
+        `SELECT ap.cheval, COUNT(*) AS starts,
+                SUM(CASE WHEN ap.place_arrivee BETWEEN 1 AND 4 THEN 1 ELSE 0 END) AS top4
+         FROM archive_partants ap JOIN archive_courses ac
+           ON ac.date = ap.date AND ac.reunion = ap.reunion AND ac.course = ap.course
+         WHERE ap.non_partant = 0 AND ac.termine = 1
+           AND ac.date_iso < ? AND ap.cheval IN (${marks})
+           AND (? = '' OR ac.hippodrome = ?)
+           AND (? = '' OR UPPER(ac.discipline) LIKE ?)
+           AND (? = 0 OR ac.distance BETWEEN ? AND ?)
+         GROUP BY ap.cheval`
+      ).bind(dateISO, ...noms, hippodrome, hippodrome, discipline, `%${discipline}%`, distance, Math.max(0, distance - 300), distance + 300).all();
+      for (const r of rows.results || []) historiqueChevaux.set(r.cheval, r);
+    }
+    const rowsCordes = await env.DB.prepare(
+      `SELECT ap.corde, COUNT(*) AS starts,
+              SUM(CASE WHEN ap.place_arrivee BETWEEN 1 AND 4 THEN 1 ELSE 0 END) AS top4
+       FROM archive_partants ap JOIN archive_courses ac
+         ON ac.date = ap.date AND ac.reunion = ap.reunion AND ac.course = ap.course
+       WHERE ap.non_partant = 0 AND ap.corde IS NOT NULL
+         AND ac.termine = 1 AND ac.date_iso < ?
+         AND (? = '' OR ac.hippodrome = ?)
+         AND (? = '' OR UPPER(ac.discipline) LIKE ?)
+         AND (? = 0 OR ac.distance BETWEEN ? AND ?)
+       GROUP BY ap.corde`
+    ).bind(dateISO, hippodrome, hippodrome, discipline, `%${discipline}%`, distance, Math.max(0, distance - 300), distance + 300).all();
+    for (const r of rowsCordes.results || []) historiqueCordes.set(Number(r.corde), r);
+    const drivers = [...new Set(participants.map((p) => String(p.driver?.nom || "").trim()).filter(Boolean))].slice(0, 30);
+    if (drivers.length) {
+      const marks = drivers.map(() => "?").join(",");
+      const rows = await env.DB.prepare(
+        `SELECT ap.driver, COUNT(*) AS starts,
+                SUM(CASE WHEN ap.place_arrivee BETWEEN 1 AND 4 THEN 1 ELSE 0 END) AS top4
+         FROM archive_partants ap JOIN archive_courses ac
+           ON ac.date = ap.date AND ac.reunion = ap.reunion AND ac.course = ap.course
+         WHERE ap.non_partant = 0 AND ac.date_iso < ?
+           AND ac.termine = 1 AND ap.driver IN (${marks})
+           AND (? = '' OR UPPER(ac.discipline) LIKE ?)
+         GROUP BY ap.driver`
+      ).bind(dateISO, ...drivers, discipline, `%${discipline}%`).all();
+      for (const r of rows.results || []) historiqueDrivers.set(r.driver, r);
+    }
+    const entraineurs = [...new Set(participants.map((p) => String(p.entraineur?.nom || "").trim()).filter(Boolean))].slice(0, 30);
+    if (entraineurs.length) {
+      const marks = entraineurs.map(() => "?").join(",");
+      const rows = await env.DB.prepare(
+        `SELECT ap.entraineur, COUNT(*) AS starts,
+                SUM(CASE WHEN ap.place_arrivee BETWEEN 1 AND 4 THEN 1 ELSE 0 END) AS top4
+         FROM archive_partants ap JOIN archive_courses ac
+           ON ac.date = ap.date AND ac.reunion = ap.reunion AND ac.course = ap.course
+         WHERE ap.non_partant = 0 AND ac.date_iso < ? AND ac.termine = 1
+           AND ap.entraineur IN (${marks})
+           AND (? = '' OR UPPER(ac.discipline) LIKE ?)
+         GROUP BY ap.entraineur`
+      ).bind(dateISO, ...entraineurs, discipline, `%${discipline}%`).all();
+      for (const r of rows.results || []) historiqueEntraineurs.set(r.entraineur, r);
+    }
+  } catch (e) {
+    console.warn("[moteur-stats] historique indisponible, score courant utilisé :", e.message);
+  }
+  const echantillon = [...historiqueChevaux.values()].reduce((n, r) => n + (Number(r.starts) || 0), 0);
+  return { chevaux: historiqueChevaux, drivers: historiqueDrivers, entraineurs: historiqueEntraineurs, cordes: historiqueCordes, echantillon };
+}
+
+async function calculerMoteurStatistique(env, date, reunion, course, participants, courseInfo, performancesParNumero, options = {}) {
+  const actifs = participants.filter((p) => !p.nonPartant && Number(p.numPmu) > 0);
+  if (!actifs.length) return null;
+  const famille = classifierDiscipline(courseInfo.discipline, courseInfo.categorieParticularite);
+  const poids = POIDS_MOTEUR[famille] || POIDS_MOTEUR.INCONNUE;
+  const archives = await chargerStatsHistoriques(env, actifs, courseInfo, date);
+  const cotes = classerValeurs(actifs, (p) => p.dernierRapportDirect?.rapport, true);
+  const chronos = classerValeurs(actifs, (p) => {
+    const h = extraireHistorique(performancesParNumero[p.numPmu], p.musique);
+    return h.find((x) => Number(x.chrono) > 0)?.chrono;
+  }, true);
+  const masses = classerValeurs(actifs, (p) => p.handicapPoids, true);
+  const details = actifs.map((p) => {
+    const hist = extraireHistorique(performancesParNumero[p.numPmu], p.musique);
+    const forme = scoreForme(hist);
+    const driver = String(p.driver?.nom || "").trim();
+    const entraineur = String(p.entraineur?.nom || "").trim();
+    const histCheval = archives.chevaux.get(String(p.nom || "").trim());
+    const histDriver = archives.drivers.get(driver);
+    const histEntraineur = archives.entraineurs.get(entraineur);
+    const composants = {
+      forme: forme.score,
+      historique: scoreHistoriqueArchive(histCheval),
+      driver: scoreDriverArchive(histDriver),
+      entraineur: scoreDriverArchive(histEntraineur),
+      poids: masses.get(p.numPmu) ?? 50,
+      marche: cotes.get(p.numPmu) ?? 50,
+      regularite: forme.regularite,
+      corde: archives.cordes.has(Number(p.placeCorde)) ? scoreHistoriqueArchive(archives.cordes.get(Number(p.placeCorde))) : 50,
+      chrono: chronos.get(p.numPmu) ?? 50,
+      polyvalence: 50,
+    };
+    let total = 0;
+    for (const [cle, pct] of Object.entries(poids)) total += (composants[cle] ?? 50) * pct / 100;
+    return {
+      numero: p.numPmu, cheval: p.nom || `N°${p.numPmu}`, score: Math.round(bornerScore(total) * 10) / 10,
+      composants, historiqueCheval: Number(histCheval?.starts) || 0,
+      historiqueDriver: Number(histDriver?.starts) || 0,
+      historiqueEntraineur: Number(histEntraineur?.starts) || 0,
+    };
+  });
+  details.sort((a, b) => b.score - a.score || a.numero - b.numero);
+  const classement = details.map((x, i) => ({ ...x, position: i + 1 }));
+  const resultat = { version: MOTEUR_VERSION, famille, poids, classement, echantillon: archives.echantillon };
+  if (env.DB && options.enregistrer !== false) {
+    try {
+      await assurerTableMoteur(env);
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO predictions_moteur(date,reunion,course,version,classement_json,discipline,echantillon_historique,created_at)
+         VALUES(?,?,?,?,?,?,?,?)`
+      ).bind(date, reunion, course, MOTEUR_VERSION, JSON.stringify(classement), famille, archives.echantillon, Date.now()).run();
+    } catch (e) { console.warn("[moteur-stats] archivage du score impossible :", e.message); }
+  }
+  return resultat;
+}
+
+// Backtest rétrospectif « walk-forward » : pour chaque course passée, le moteur
+// ne reçoit que les informations pré-course archivées et ne consulte que les
+// résultats historiques strictement antérieurs à la date testée.
+let tableBacktestMoteurPrete = false;
+async function assurerTableBacktestMoteur(env) {
+  if (!env.DB || tableBacktestMoteurPrete) return;
+  await env.DB.batch([
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS backtest_moteur (
+      date TEXT NOT NULL, date_iso TEXT NOT NULL, reunion TEXT NOT NULL, course TEXT NOT NULL,
+      version TEXT NOT NULL, selection_json TEXT NOT NULL, corrects INTEGER NOT NULL,
+      tierce INTEGER NOT NULL, quarte INTEGER NOT NULL, premier_top4 INTEGER NOT NULL,
+      marche_corrects INTEGER DEFAULT 0, marche_tierce INTEGER DEFAULT 0,
+      marche_quarte INTEGER DEFAULT 0, marche_premier_top4 INTEGER DEFAULT 0,
+      echantillon_historique INTEGER DEFAULT 0, created_at INTEGER NOT NULL,
+      PRIMARY KEY(date,reunion,course,version)
+    )`),
+    env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_backtest_moteur_date ON backtest_moteur(date_iso)`),
+  ]);
+  tableBacktestMoteurPrete = true;
+}
+
+function reconstruirePerfsArchive(historiqueJson) {
+  try {
+    const lignes = JSON.parse(historiqueJson || "[]");
+    if (!Array.isArray(lignes)) return {};
+    return { coursesCourues: lignes.map((c) => ({
+      participants: [{ itsHim: true, place: { place: c.place ?? null, statusArrivee: c.statut || "" }, reductionKilometrique: c.rk ?? null }],
+    })) };
+  } catch { return {}; }
+}
+
+async function statsBacktestMoteur(env, jours) {
+  await assurerTablesArchive(env);
+  await assurerTableBacktestMoteur(env);
+  const depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);
+  const [totaux, perf] = await Promise.all([
+    env.DB.prepare(`SELECT COUNT(*) AS total FROM archive_courses WHERE termine=1 AND date_iso>=?`).bind(depuis).first(),
+    env.DB.prepare(`SELECT COUNT(*) AS traitees,
+      SUM(CASE WHEN selection_json <> '[]' THEN 1 ELSE 0 END) AS courses_evaluees,
+      AVG(CASE WHEN selection_json <> '[]' THEN corrects END) AS corrects_moy,
+      AVG(CASE WHEN selection_json <> '[]' THEN tierce END) * 100 AS pct_tierce,
+      AVG(CASE WHEN selection_json <> '[]' THEN quarte END) * 100 AS pct_quarte,
+      AVG(CASE WHEN selection_json <> '[]' THEN premier_top4 END) * 100 AS pct_premier_top4,
+      AVG(CASE WHEN selection_json <> '[]' THEN marche_corrects END) AS marche_corrects_moy,
+      AVG(CASE WHEN selection_json <> '[]' THEN marche_tierce END) * 100 AS marche_pct_tierce,
+      AVG(CASE WHEN selection_json <> '[]' THEN marche_quarte END) * 100 AS marche_pct_quarte
+      FROM backtest_moteur WHERE version=? AND date_iso>=?`).bind(MOTEUR_VERSION, depuis).first(),
+  ]);
+  const total = Number(totaux?.total) || 0;
+  const traitees = Number(perf?.traitees) || 0;
+  return {
+    periode: { jours, depuis }, total_courses_archivees: total, courses_backtestees: traitees,
+    courses_evaluees: Number(perf?.courses_evaluees) || 0,
+    restantes: Math.max(0, total - traitees),
+    resultats: {
+      chevaux_corrects_moy_sur_4: perf?.corrects_moy == null ? null : Math.round(Number(perf.corrects_moy) * 100) / 100,
+      tierce_desordre_pct: perf?.pct_tierce == null ? null : Math.round(Number(perf.pct_tierce) * 10) / 10,
+      quarte_desordre_pct: perf?.pct_quarte == null ? null : Math.round(Number(perf.pct_quarte) * 10) / 10,
+      premier_choix_top4_pct: perf?.pct_premier_top4 == null ? null : Math.round(Number(perf.pct_premier_top4) * 10) / 10,
+    },
+    reference_marche: {
+      chevaux_corrects_moy_sur_4: perf?.marche_corrects_moy == null ? null : Math.round(Number(perf.marche_corrects_moy) * 100) / 100,
+      tierce_desordre_pct: perf?.marche_pct_tierce == null ? null : Math.round(Number(perf.marche_pct_tierce) * 10) / 10,
+      quarte_desordre_pct: perf?.marche_pct_quarte == null ? null : Math.round(Number(perf.marche_pct_quarte) * 10) / 10,
+    },
+  };
+}
+
+async function executerLotBacktestMoteur(env, jours = 30, budget = 10) {
+  await assurerTablesArchive(env);
+  await assurerTableBacktestMoteur(env);
+  const depuis = new Date(Date.now() - jours * 86400000).toISOString().slice(0, 10);
+  const courses = await env.DB.prepare(
+    `SELECT ac.date, ac.date_iso, ac.reunion, ac.course, ac.hippodrome, ac.discipline, ac.distance, ac.arrivee_json
+     FROM archive_courses ac
+     WHERE ac.termine=1 AND ac.date_iso>=?
+       AND NOT EXISTS (SELECT 1 FROM backtest_moteur bm
+         WHERE bm.date=ac.date AND bm.reunion=ac.reunion AND bm.course=ac.course AND bm.version=?)
+     ORDER BY ac.date_iso ASC, ac.reunion ASC, ac.course ASC LIMIT ?`
+  ).bind(depuis, MOTEUR_VERSION, budget).all();
+  let traitees = 0, erreurs = 0;
+  for (const c of courses.results || []) {
+    try {
+      const partants = await env.DB.prepare(
+        `SELECT num_pmu, cheval, driver, entraineur, musique, cote, corde, poids, non_partant, historique_json
+         FROM archive_partants WHERE date=? AND reunion=? AND course=? ORDER BY num_pmu`
+      ).bind(c.date, c.reunion, c.course).all();
+      const participants = (partants.results || []).map((p) => ({
+        numPmu: p.num_pmu, nom: p.cheval, driver: { nom: p.driver || "" }, entraineur: { nom: p.entraineur || "" }, musique: p.musique || "",
+        dernierRapportDirect: { rapport: p.cote }, placeCorde: p.corde, handicapPoids: p.poids,
+        nonPartant: !!p.non_partant,
+      }));
+      const performances = {};
+      for (const p of partants.results || []) performances[p.num_pmu] = reconstruirePerfsArchive(p.historique_json);
+      const moteur = await calculerMoteurStatistique(env, c.date, c.reunion, c.course, participants,
+        { hippodrome: c.hippodrome || "", discipline: c.discipline || "", distance: c.distance || 0 },
+        performances, { enregistrer: false });
+      if (!moteur?.classement?.length) {
+        await env.DB.prepare(
+          `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
+           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?)`
+        ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, Date.now()).run();
+        traitees++;
+        continue;
+      }
+      const selection = moteur.classement.slice(0, 8).map((h) => h.numero);
+      const marche = participants.filter((p) => !p.nonPartant && Number(p.dernierRapportDirect?.rapport) > 0)
+        .sort((a, b) => Number(a.dernierRapportDirect.rapport) - Number(b.dernierRapportDirect.rapport))
+        .slice(0, 8).map((p) => p.numPmu);
+      const arrivee = lireArrivee(c.arrivee_json);
+      const e = evaluerSelection(selection, [], arrivee);
+      const em = evaluerSelection(marche, [], arrivee);
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, JSON.stringify(selection),
+        e.corrects, e.tierce ? 1 : 0, e.quarte ? 1 : 0, e.premierTop4 ? 1 : 0,
+        em.corrects, em.tierce ? 1 : 0, em.quarte ? 1 : 0, em.premierTop4 ? 1 : 0,
+        moteur.echantillon, Date.now()).run();
+      traitees++;
+    } catch (e) {
+      erreurs++;
+      try {
+        await env.DB.prepare(
+          `INSERT OR IGNORE INTO backtest_moteur(date,date_iso,reunion,course,version,selection_json,corrects,tierce,quarte,premier_top4,marche_corrects,marche_tierce,marche_quarte,marche_premier_top4,echantillon_historique,created_at)
+           VALUES(?,?,?,?,?,'[]',0,0,0,0,0,0,0,0,0,?)`
+        ).bind(c.date, c.date_iso, c.reunion, c.course, MOTEUR_VERSION, Date.now()).run();
+        traitees++;
+      } catch {}
+      console.warn(`[backtest-moteur] ${c.reunion}${c.course} ${c.date} :`, e.message);
+    }
+  }
+  return { traitees, erreurs, stats: await statsBacktestMoteur(env, jours) };
+}
+
+async function handleAdminBacktestMoteur(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  if (!env.DB) return new Response(JSON.stringify({ error: "Base D1 indisponible" }), { status: 503, headers: corsHeaders });
+  try {
+    const url = new URL(request.url);
+    let jours = Math.max(1, Math.min(1095, parseInt(url.searchParams.get("jours"), 10) || 30));
+    if (request.method === "POST") {
+      let body = {}; try { body = await request.json(); } catch {}
+      jours = Math.max(1, Math.min(1095, parseInt(body.jours, 10) || jours));
+      const budget = Math.max(1, Math.min(20, parseInt(body.budget, 10) || 10));
+      return new Response(JSON.stringify(await executerLotBacktestMoteur(env, jours, budget)), { headers: corsHeaders });
+    }
+    return new Response(JSON.stringify(await statsBacktestMoteur(env, jours)), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  }
+}
+
+function ajouterMoteurAuPrompt(prompt, moteur) {
+  if (!moteur?.classement?.length) return prompt;
+  const lignes = moteur.classement.slice(0, 12).map((h) =>
+    `N°${h.numero} ${h.cheval} : score ${h.score}/100 (forme ${Math.round(h.composants.forme)}, historique parcours ${Math.round(h.composants.historique)}, driver ${Math.round(h.composants.driver)}, entraîneur ${Math.round(h.composants.entraineur)}, régularité ${Math.round(h.composants.regularite)})`
+  ).join("\n");
+  return `${prompt}\n\n=== CLASSEMENT INDÉPENDANT DU MOTEUR STATISTIQUE TURF NOVA ===\nDiscipline classée : ${moteur.famille}. Échantillon historique retrouvé : ${moteur.echantillon} départs chevaux comparables. Le score /100 est un indice de classement, PAS une probabilité. Les scores historiques sont lissés et les données manquantes restent neutres. Utilise ce classement comme troisième avis indépendant, sans inventer de données :\n${lignes}\nLe classement statistique ne doit pas être écrasé par la seule popularité des favoris. Les outsiders statistiquement solides doivent rester considérés.`;
+}
+
+async function obtenirPoidsFiabiliteIA(env) {
+  const poids = { "DeepSeek": 1, "GPT Sol": 1 };
+  const cacheKey = "moteur:poids-ia:v1";
+  if (env.CACHE_KV) {
+    const cache = await env.CACHE_KV.get(cacheKey, { type: "json" });
+    if (cache) return { ...poids, ...cache };
+  }
+  if (!env.DB) return poids;
+  try {
+    await assurerTablesArchive(env);
+    await assurerTablePredictionsIA(env);
+    const rows = await env.DB.prepare(
+      `SELECT pia.ia, pia.quarte8, ac.arrivee_json
+       FROM predictions_ia pia JOIN archive_courses ac
+         ON ac.date = pia.date AND ac.reunion = pia.reunion AND ac.course = pia.course
+       WHERE ac.termine = 1 AND ac.date_iso >= date('now','-180 day')`
+    ).all();
+    const stats = new Map();
+    for (const r of rows.results || []) {
+      const selection = lireNumeros(r.quarte8);
+      const arrivee = lireArrivee(r.arrivee_json);
+      if (!selection.length || !arrivee.length) continue;
+      const e = evaluerSelection(selection, [], arrivee);
+      const x = stats.get(r.ia) || { n: 0, corrects: 0 };
+      x.n++; x.corrects += e.corrects; stats.set(r.ia, x);
+    }
+    for (const [ia, x] of stats) {
+      if (x.n >= 30) {
+        const taux = x.corrects / (x.n * 4);
+        poids[ia] = Math.max(0.8, Math.min(1.2, 0.8 + taux * 0.4));
+      }
+    }
+    if (env.CACHE_KV) await env.CACHE_KV.put(cacheKey, JSON.stringify(poids), { expirationTtl: 21600 });
+  } catch (e) { console.warn("[moteur-stats] pondération IA indisponible :", e.message); }
+  return poids;
+}
+
+function nettoyerPredictionPourPartants(prediction, participants) {
+  if (!prediction) return null;
+  const valides = new Map(participants.filter((p) => !p.nonPartant).map((p) => [Number(p.numPmu), p.nom || ""]));
+  const vus = new Set();
+  const quarte8 = (prediction.quarte8 || []).filter((h) => {
+    const n = Number(h.numero);
+    if (!valides.has(n) || vus.has(n)) return false;
+    vus.add(n); h.numero = n; h.cheval = valides.get(n) || h.cheval;
+    return true;
+  }).slice(0, 8);
+  if (quarte8.length < 4) return null;
+  return { ...prediction, quarte8 };
+}
+
+function buildPrompt(participants, courseInfo, date, performancesParNumero = {}, reunion = "", course = "", moteurStats = null) {
   const chiffreJour = chiffreDuJour(date);
   const liste = participants
     .filter((p) => !p.nonPartant)
@@ -913,6 +1361,8 @@ function buildPrompt(participants, courseInfo, date, performancesParNumero = {},
 
   const dateAffichee = date && String(date).length === 8 ? `${String(date).slice(0, 2)}/${String(date).slice(2, 4)}/${String(date).slice(4)}` : String(date || "");
   const hippodrome = courseInfo.hippodrome || "hippodrome inconnu";
+  const famille = classifierDiscipline(courseInfo.discipline, courseInfo.categorieParticularite);
+  const grilleDiscipline = POIDS_MOTEUR[famille] || POIDS_MOTEUR.INCONNUE;
   const contexte = [
     `Discipline (fournie par le PMU) : ${courseInfo.discipline || "inconnue"}`,
     `Hippodrome : ${hippodrome}`,
@@ -930,13 +1380,13 @@ function buildPrompt(participants, courseInfo, date, performancesParNumero = {},
   // Le texte ci-dessous (jusqu'à « …pour me permettre de jouer ou pas ») est le prompt de l'exploitant, repris tel quel.
   // Seuls les éléments entre ${…} sont renseignés automatiquement. Les blocs « DONNÉES » et « FORMAT DE RÉPONSE »
   // qui suivent sont techniques : données officielles de la course et sortie lisible par le site.
-  return `Tu es un expert turf spécialisé sur les pistes hippiques françaises, adaptable à toutes les réunions (ParisTurf, PMU, etc.), couvrant les courses de plat, de trot (attelé ou monté) et d'obstacles (haies, steeple-chase).
+  const promptFinal = `Tu es un expert turf spécialisé sur les pistes hippiques françaises, adaptable à toutes les réunions (ParisTurf, PMU, etc.), couvrant les courses de plat, de trot (attelé ou monté) et d'obstacles (haies, steeple-chase).
 
 Pour la course ${reunion} ${course} à ${hippodrome} du ${dateAffichee}, effectue les étapes suivantes de manière structurée et approfondie, en adaptant les facteurs à la discipline (plat : vitesse et positions ; trot : déferrage, drivers et allures ; obstacles : aptitude aux sauts et endurance) :
 
 Analyse Globale et Approfondie : Décris le contexte : type d'épreuve (handicap, claiming, Groupe, etc.), discipline (plat, trot attelé/monté, haies/steeple), distance, surface (herbe, PSF, sable, etc.), corde (gauche/droite), conditions météo prévues, prize money, heure de départ. Analyse les facteurs clés : forme récente (musiques des 5 dernières courses), aptitude à la piste/surface/discipline, positions à la corde (avantage intérieur/extérieur), jockeys/drivers (taux de réussite), entraîneurs (spécialistes), poids/âge, équipements (œillères, déferrage pour trot, etc.), historique sur le parcours. Pour trot : focus sur allures et départs ; pour obstacles : sauts et terrain lourd ; pour plat : pointe de vitesse. Synthétise les pronostics externes (Turfoo, PMU, Zeturf) et cotes approximatives. Identifie favoris, outsiders dangereux, et chevaux à écarter.
 
-Sélection Expert Personnelle en 8 Numéros Très Fiable : Applique une pondération : 40% forme récente, 20% jockey/driver/entraîneur, 15% corde, 10% poids, 10% aptitude piste/discipline, 5% cotes/valeur. Fournis la sélection en 8 numéros, avec explications brèves par cheval. Conseils de jeu : quinté+, couplé, etc.
+Sélection Expert Personnelle en 8 numéros : adapte strictement les critères à la discipline. Pondérations statistiques Turf Nova pour cette course : ${JSON.stringify(grilleDiscipline)}. Ne prétends pas que les critères sont mesurés si les données sont absentes. Fournis la sélection en 8 numéros, avec explications brèves par cheval. Conseils de jeu : quinté+, couplé, etc.
 
 Validation avec Filtre Numérologique : Calcule le chiffre du jour (jour + mois + année réduite à un chiffre unique). Pour chaque cheval de la sélection : réduit le numéro à un chiffre, et la valeur numérologique du nom (A=1, B=2... Z=26, réduit à 1-9). Vérifie compatibilité avec le chiffre du jour (favorise harmonie : ex. 1-9 compatibles spécifiques comme équilibre pour 2). Confirme ou ajuste légèrement la sélection si conflits majeur
 
@@ -955,7 +1405,8 @@ Fais toute ton analyse, ta pondération et ton filtre numérologique en interne 
 Réponds UNIQUEMENT avec un objet JSON strict, sans texte ni markdown autour, exactement sous cette forme :
 {"quarte8": [{"numero": N, "cheval": "Nom", "explication": "1 phrase courte (140 caractères max) justifiant ce choix"}, … 8 chevaux, du plus probable au moins probable pour une place dans les 4 premiers …], "coupsSurs": [n1, n2], "confiance": <entier de 1 à 100>, "conseilsJeu": "1 à 2 phrases : quelle combinaison jouer (quinté+, couplé, etc.) ou pourquoi s'abstenir"}
 - "coupsSurs" : 2 numéros parmi les 8, ceux qui cumulent la majorité des critères favorables (pas seulement la cote la plus basse).
-- "confiance" : ton indice pour décider de jouer ou non. Il doit refléter la CONCORDANCE entre forme, cote et jockey/driver : signaux qui convergent clairement = élevé ; signaux contradictoires ou peloton très homogène = bas. Ne le gonfle pas parce que la cote du favori est basse.`;
+- "confiance" : indice de convergence des signaux, pas une probabilité statistique. Ne le gonfle pas parce que la cote du favori est basse.`;
+  return ajouterMoteurAuPrompt(promptFinal, moteurStats);
 }
 
 function parseQuarteJSON(text) {
@@ -1520,64 +1971,50 @@ async function handleChatIA(request, env) {
 // Les "coups sûrs" désignés par plusieurs IA remontent en tête.
 // Les noms des IA (source) restent internes, jamais renvoyés au site public.
 function combinerQuarte8(predictions) {
-  const valid = predictions.filter(Boolean);
+  const valid = predictions.filter((p) => p && Array.isArray(p.quarte8) && p.quarte8.length);
   if (valid.length === 0) return null;
-
   const scores = {};
   const coupSurVotes = {};
-
   for (const p of valid) {
+    const poids = Number(p.poidsConsensus) || (p.source === "Moteur statistique" ? 1.25 : 1);
     p.quarte8.forEach((cheval, idx) => {
-      const pts = 8 - idx;
+      const pts = p.source === "Moteur statistique" ? Math.max(1, 10 - idx) : Math.max(1, 8 - idx);
       const key = String(cheval.numero);
-      if (!scores[key]) scores[key] = { numero: cheval.numero, nom: cheval.cheval, score: 0, explication: "", meilleurRang: 99 };
-      scores[key].score += pts;
-      // Explication retenue : celle de l'IA qui classe ce cheval le plus haut.
+      if (!scores[key]) scores[key] = { numero: Number(cheval.numero), nom: cheval.cheval, score: 0, explication: "", meilleurRang: 99, sources: [] };
+      scores[key].score += pts * poids;
+      scores[key].sources.push(p.source);
       if (cheval.explication && idx < scores[key].meilleurRang) {
         scores[key].explication = cheval.explication;
         scores[key].meilleurRang = idx;
       }
     });
-    (p.coupsSurs || []).forEach((numero) => {
-      const key = String(numero);
-      coupSurVotes[key] = (coupSurVotes[key] || 0) + 1;
-      if (scores[key]) scores[key].score += 3;
-    });
+    if (p.source !== "Moteur statistique") {
+      (p.coupsSurs || []).forEach((numero) => {
+        const key = String(numero);
+        coupSurVotes[key] = (coupSurVotes[key] || 0) + 1;
+        if (scores[key]) scores[key].score += 2 * poids;
+      });
+    }
   }
-
-  const classement = Object.values(scores)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
-
+  const classement = Object.values(scores).sort((a, b) => b.score - a.score).slice(0, 8);
   const coupsSurs = classement
     .map((c) => ({ ...c, votes: coupSurVotes[String(c.numero)] || 0 }))
-    .sort((a, b) => b.votes - a.votes || b.score - a.score)
-    .slice(0, 2)
-    .map((c) => c.numero);
-
-  const confianceMoyenne = Math.round(valid.reduce((s, p) => s + p.confiance, 0) / valid.length);
-  const bonusAccord = valid.length > 1 ? (valid.length - 1) * 4 : 0;
-
-  // Conseils de jeu : ceux de l'IA dont le top 4 recoupe le plus le classement final.
+    .sort((a, b) => b.votes - a.votes || b.score - a.score).slice(0, 2).map((c) => c.numero);
+  const ia = valid.filter((p) => p.source !== "Moteur statistique");
+  const confianceMoyenne = ia.length ? Math.round(ia.reduce((s, p) => s + (Number(p.confiance) || 50), 0) / ia.length) : 35;
+  const accords = classement.length ? classement.reduce((s, c) => s + Math.min(2, new Set(c.sources).size), 0) / classement.length : 0;
+  const bonusAccord = Math.round(Math.max(0, accords - 1) * 4);
   const top4 = new Set(classement.slice(0, 4).map((c) => c.numero));
-  const conseilsJeu =
-    valid
-      .filter((p) => p.conseilsJeu)
-      .sort((a, b) => b.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length - a.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length)[0]?.conseilsJeu || "";
-
+  const conseilsJeu = ia.filter((p) => p.conseilsJeu)
+    .sort((a, b) => b.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length - a.quarte8.slice(0, 4).filter((c) => top4.has(c.numero)).length)[0]?.conseilsJeu || "";
   return {
-    // `conseilsJeu` est rangé sur le 1er cheval : il voyage ainsi avec le classement déjà stocké en base,
-    // sans nouvelle colonne (aucune migration, aucun risque pour le verrouillage des pronostics).
     quarte8: classement.map((c, i) => ({
-      position: i + 1,
-      numero: c.numero,
-      cheval: c.nom,
-      coupSur: coupsSurs.includes(c.numero),
+      position: i + 1, numero: c.numero, cheval: c.nom, coupSur: coupsSurs.includes(c.numero),
       ...(c.explication ? { explication: c.explication } : {}),
       ...(i === 0 && conseilsJeu ? { conseilsJeu } : {}),
     })),
-    confiance: Math.min(99, confianceMoyenne + bonusAccord),
-    sources: valid.map((p) => p.source), // interne uniquement — jamais exposé au client
+    confiance: Math.max(1, Math.min(95, confianceMoyenne + bonusAccord)),
+    sources: valid.map((p) => p.source),
   };
 }
 
@@ -1635,7 +2072,9 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
   ]);
   const participants = data.participants || [];
 
-  const prompt = buildPrompt(participants, courseInfo, date, performancesParNumero, reunion, course);
+  const moteurStats = await calculerMoteurStatistique(env, date, reunion, course, participants, courseInfo, performancesParNumero);
+  const prompt = buildPrompt(participants, courseInfo, date, performancesParNumero, reunion, course, moteurStats);
+  const poidsIA = await obtenirPoidsFiabiliteIA(env);
 
   const results = await Promise.allSettled([
     callDeepSeek(prompt, env.DEEPSEEK_API_KEY),
@@ -1655,11 +2094,20 @@ async function obtenirPronosticConsensus(date, reunion, course, env) {
     }
   });
 
-  const predictions = results
+  const predictionsIA = results
     .filter((r) => r.status === "fulfilled")
     .map((r) => r.value)
-    .filter(Boolean);
-
+    .map((p) => nettoyerPredictionPourPartants(p, participants))
+    .filter(Boolean)
+    .map((p) => ({ ...p, poidsConsensus: poidsIA[p.source] || 1 }));
+  const predictionMoteur = moteurStats ? {
+    source: "Moteur statistique", poidsConsensus: 1.25, confiance: 50,
+    quarte8: moteurStats.classement.slice(0, 8).map((h) => ({
+      numero: h.numero, cheval: h.cheval,
+      explication: `Score statistique ${h.score}/100 ; forme ${Math.round(h.composants.forme)}/100`,
+    })), coupsSurs: [],
+  } : null;
+  const predictions = [...predictionsIA, predictionMoteur].filter(Boolean);
   const consensus = combinerQuarte8(predictions);
   if (!consensus) return { consensus: null, updatedAt: null, source: "live" };
 
@@ -1920,7 +2368,7 @@ async function handlePronosticIA(request, env) {
   if (!resultat.consensus) {
     await rendreLaPlace();
     return new Response(
-      JSON.stringify({ error: "Aucune prédiction IA disponible" }),
+      JSON.stringify({ error: "Aucune prédiction disponible" }),
       { status: 502, headers: corsHeaders }
     );
   }
@@ -1929,7 +2377,7 @@ async function handlePronosticIA(request, env) {
   if (reserve && resultat.source !== "live") await rendreLaPlace();
 
   // Sigles publics des IA (pas les noms complets des fournisseurs).
-  const SIGLES_IA = { Gemini: "GM", Groq: "GQ", DeepSeek: "DS", Claude: "CL", "GPT Sol": "GS" };
+  const SIGLES_IA = { Gemini: "GM", Groq: "GQ", DeepSeek: "DS", Claude: "CL", "GPT Sol": "GS", "Moteur statistique": "TN" };
   const { sources, ...consensusPublic } = resultat.consensus;
   consensusPublic.sources = (sources || []).map((s) => SIGLES_IA[s] || s);
   return new Response(
@@ -3641,6 +4089,141 @@ async function handleImagePublique(env, nom) {
 }
 
 // GET /api/articles — liste publique des articles publiés (pour blog.html).
+// ============================================================================
+// SEO — génération de mots-clés par IA (admin)
+// ----------------------------------------------------------------------------
+// Les moteurs de recherche IGNORENT la balise <meta name="keywords"> depuis des années : ces mots-clés
+// n'améliorent pas le classement à eux seuls. Ils servent à (1) te guider sur les expressions réellement
+// recherchées — à placer dans le titre, le premier paragraphe et les sous-titres — et (2) alimenter les
+// données structurées de l'article. Le vrai levier SEO reste le contenu de l'article lui-même.
+// ============================================================================
+function htmlVersTexte(html) {
+  return String(html || "")
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Nettoie la liste renvoyée par l'IA : minuscules, 1 à 6 mots, sans doublon, 12 maximum.
+function nettoyerMotsCles(liste) {
+  const vus = new Set();
+  const propres = [];
+  for (const brut of Array.isArray(liste) ? liste : []) {
+    if (typeof brut !== "string" || /[<>]|https?:|www\./i.test(brut)) continue; // balises HTML ou adresses : on écarte
+    const mot = String(brut || "").toLowerCase().replace(/[<>"“”«»\\]/g, "").replace(/\s+/g, " ").replace(/^[\s,;.\-–]+|[\s,;.\-–]+$/g, "").trim();
+    if (mot.length < 3 || mot.length > 70 || mot.split(" ").length > 6 || vus.has(mot)) continue;
+    vus.add(mot);
+    propres.push(mot);
+    if (propres.length >= 12) break;
+  }
+  return propres;
+}
+
+async function genererMotsCles(env, { titre, extrait, contenu }) {
+  const texte = htmlVersTexte(contenu).slice(0, 6000);
+  const prompt = `Tu es un expert SEO francophone spécialisé dans les pronostics hippiques (PMU, quinté+, trot, plat, obstacles).
+À partir de l'article ci-dessous, propose 8 à 12 expressions de recherche, en français, que des parieurs taperaient dans Google pour trouver CET article.
+Mélange : 2 ou 3 expressions principales ; des expressions longue traîne précises tirées du texte (date, hippodrome, nom du Prix, type de course, discipline) ; quelques termes connexes.
+Règles : minuscules ; 1 à 6 mots chacune ; aucun doublon ; uniquement des termes réellement liés au contenu ; n'invente aucun fait absent du texte.
+Réponds UNIQUEMENT avec un tableau JSON de chaînes, sans texte autour.
+
+Titre : ${titre || "(sans titre)"}
+Extrait : ${extrait || "(aucun)"}
+Contenu : ${texte || "(vide)"}`;
+
+  const brut = await callDeepSeekTexte(prompt, env.DEEPSEEK_API_KEY);
+  const debut = brut.indexOf("[");
+  const fin = brut.lastIndexOf("]");
+  if (debut === -1 || fin <= debut) throw new Error("Réponse de l'IA illisible");
+  let liste;
+  try {
+    liste = JSON.parse(brut.slice(debut, fin + 1));
+  } catch {
+    throw new Error("Réponse de l'IA illisible");
+  }
+  const motsCles = nettoyerMotsCles(liste);
+  if (!motsCles.length) throw new Error("Aucun mot-clé exploitable n'a été généré");
+  return motsCles;
+}
+
+// POST /api/admin/mots-cles — { titre, extrait, contenu } → { motsCles: "a, b, c" } (sans rien enregistrer)
+async function handleAdminMotsCles(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  if (!env.DEEPSEEK_API_KEY) return new Response(JSON.stringify({ error: "Clé DeepSeek non configurée" }), { status: 503, headers: corsHeaders });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Requête invalide" }), { status: 400, headers: corsHeaders });
+  }
+  const titre = String(body.titre || "").trim();
+  if (!titre && !htmlVersTexte(body.contenu)) {
+    return new Response(JSON.stringify({ error: "Écris d'abord un titre ou un contenu." }), { status: 400, headers: corsHeaders });
+  }
+  try {
+    const liste = await genererMotsCles(env, { titre, extrait: String(body.extrait || ""), contenu: String(body.contenu || "") });
+    return new Response(JSON.stringify({ ok: true, motsCles: liste.join(", "), liste }), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: `Génération impossible : ${e.message}` }), { status: 502, headers: corsHeaders });
+  }
+}
+
+// POST /api/admin/articles/:id/mots-cles — génère ET enregistre pour un article existant (bouton de la liste)
+async function handleAdminArticleMotsCles(request, env, id) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  if (!env.DB) return new Response(JSON.stringify({ error: "Base de données non configurée" }), { status: 503, headers: corsHeaders });
+  if (!env.DEEPSEEK_API_KEY) return new Response(JSON.stringify({ error: "Clé DeepSeek non configurée" }), { status: 503, headers: corsHeaders });
+  const article = await env.DB.prepare(`SELECT id, titre, extrait, contenu FROM articles WHERE id = ?`).bind(id).first();
+  if (!article) return new Response(JSON.stringify({ error: "Article introuvable" }), { status: 404, headers: corsHeaders });
+  try {
+    const liste = await genererMotsCles(env, article);
+    const motsCles = liste.join(", ");
+    await env.DB.prepare(`UPDATE articles SET mots_cles = ?, updated_at = ? WHERE id = ?`).bind(motsCles, Date.now(), id).run();
+    return new Response(JSON.stringify({ ok: true, motsCles, liste }), { headers: corsHeaders });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: `Génération impossible : ${e.message}` }), { status: 502, headers: corsHeaders });
+  }
+}
+
+// GET /robots.txt — si un robots.txt statique existe dans public/, il est servi tel quel ; sinon version par défaut.
+async function handleRobots(request, env) {
+  try {
+    const statique = await env.ASSETS.fetch(request);
+    if (statique.status === 200) return statique;
+  } catch {
+    /* pas de fichier statique : on génère le fichier par défaut */
+  }
+  const domaine = env.SITE_DOMAIN || new URL(request.url).host;
+  const texte = [
+    "User-agent: *",
+    "Allow: /",
+    "Allow: /api/images/",
+    "Disallow: /admin.html",
+    "Disallow: /api/",
+    "",
+    `Sitemap: https://${domaine}/sitemap.xml`,
+    "",
+  ].join("\n");
+  return new Response(texte, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
+}
+
+// Pages statiques : si SITE_DOMAIN est défini, les adresses « workers.dev » écrites en dur dans le HTML
+// (canonical, og:url, og:image, données structurées) sont remplacées par le vrai domaine du site.
+const HOTE_PAR_DEFAUT = "turf-nova-ai-2.kambourodrigue.workers.dev";
+async function servirPageAvecDomaine(request, env) {
+  const reponse = await env.ASSETS.fetch(request);
+  const type = reponse.headers.get("Content-Type") || "";
+  if (!env.SITE_DOMAIN || env.SITE_DOMAIN === HOTE_PAR_DEFAUT || !type.includes("text/html")) return reponse;
+  const html = (await reponse.text()).split(`https://${HOTE_PAR_DEFAUT}`).join(`https://${env.SITE_DOMAIN}`);
+  return new Response(html, { status: reponse.status, headers: reponse.headers });
+}
+
 // GET /sitemap.xml — généré dynamiquement (inclut chaque article publié).
 // Remplace le fichier statique public/sitemap.xml, désormais inutilisé.
 async function handleSitemap(env) {
@@ -3860,7 +4443,7 @@ async function handleArticlePage(request, env, url) {
   let article;
   try {
     article = await env.DB.prepare(
-      `SELECT titre, extrait, mots_cles, image_url, published_at, updated_at FROM articles WHERE slug = ? AND statut = 'publie'`
+      `SELECT titre, extrait, contenu, mots_cles, image_url, published_at, updated_at FROM articles WHERE slug = ? AND statut = 'publie'`
     )
       .bind(slug)
       .first();
@@ -3871,9 +4454,13 @@ async function handleArticlePage(request, env, url) {
 
   const domaine = env.SITE_DOMAIN || "turf-nova-ai-2.kambourodrigue.workers.dev";
   const titrePage = `${article.titre} — Turf Nova AI`;
+  // Description (extrait Google) : l'extrait rédigé, sinon le début du texte de l'article — jamais la même phrase
+  // générique sur toutes les pages (les moteurs pénalisent les descriptions dupliquées).
+  const debutTexte = htmlVersTexte(article.contenu).slice(0, 156).replace(/\s+\S*$/, "");
   const description =
-    article.extrait || "Turf Nova AI — pronostics hippiques PMU assistés par intelligence artificielle.";
-  const image = article.image_url ? (article.image_url.startsWith("/") ? `https://${domaine}${article.image_url}` : article.image_url) : `https://${domaine}/favicon.svg`;
+    article.extrait || (debutTexte ? `${debutTexte}…` : "Turf Nova AI — pronostics hippiques PMU assistés par intelligence artificielle.");
+  // Image de partage : la couverture, sinon une icône PNG (les aperçus WhatsApp/Facebook n'acceptent pas le SVG).
+  const image = article.image_url ? (article.image_url.startsWith("/") ? `https://${domaine}${article.image_url}` : article.image_url) : `https://${domaine}/img/icon-512.png`;
   const pageUrl = `https://${domaine}/article.html?slug=${encodeURIComponent(slug)}`;
 
   const jsonLd = JSON.stringify({
@@ -3886,7 +4473,9 @@ async function handleArticlePage(request, env, url) {
     dateModified: new Date(article.updated_at || article.published_at || Date.now()).toISOString(),
     url: pageUrl,
     author: { "@type": "Organization", name: "Turf Nova AI" },
-    publisher: { "@type": "Organization", name: "Turf Nova AI", logo: { "@type": "ImageObject", url: `https://${domaine}/favicon.svg` } },
+    publisher: { "@type": "Organization", name: "Turf Nova AI", logo: { "@type": "ImageObject", url: `https://${domaine}/img/icon-512.png` } },
+    keywords: article.mots_cles || undefined,
+    inLanguage: "fr-FR",
     mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
   });
 
@@ -4162,6 +4751,19 @@ export default {
       return handleSitemap(env);
     }
 
+    if (url.pathname === "/robots.txt") {
+      return handleRobots(request, env);
+    }
+
+    if (url.pathname === "/api/admin/mots-cles" && request.method === "POST") {
+      return handleAdminMotsCles(request, env);
+    }
+
+    {
+      const m = /^\/api\/admin\/articles\/(\d+)\/mots-cles$/.exec(url.pathname);
+      if (m && request.method === "POST") return handleAdminArticleMotsCles(request, env, parseInt(m[1], 10));
+    }
+
     if (url.pathname === "/article.html") {
       return handleArticlePage(request, env, url);
     }
@@ -4283,6 +4885,9 @@ export default {
     if (url.pathname === "/api/admin/performance-ia") {
       return handleAdminPerformanceIA(request, env);
     }
+    if (url.pathname === "/api/admin/backtest-moteur") {
+      return handleAdminBacktestMoteur(request, env);
+    }
 
     if (url.pathname === "/api/admin/pregenerer" && request.method === "POST") {
       return handleAdminPregen(request, env);
@@ -4309,6 +4914,11 @@ export default {
     const PAGES_SUIVIES = new Set(["/", "/index.html", "/blog.html", "/article.html", "/cgu.html", "/confidentialite.html"]);
     if (request.method === "GET" && PAGES_SUIVIES.has(url.pathname)) {
       ctx.waitUntil(enregistrerVisite(request, env, url.pathname));
+    }
+
+    // Pages publiques statiques : adresses canoniques alignées sur SITE_DOMAIN (si défini).
+    if (request.method === "GET" && ["/", "/index.html", "/blog.html", "/cgu.html", "/confidentialite.html"].includes(url.pathname)) {
+      return servirPageAvecDomaine(request, env);
     }
 
     // Toute autre requête : on sert le site statique (dossier public/)
