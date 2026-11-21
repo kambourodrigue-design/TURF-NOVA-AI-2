@@ -36,7 +36,7 @@ async function getFavori(date, numReunion, numCourse) {
     const participants = data.participants || [];
     let favori = null;
     for (const p of participants) {
-      const cote = p.dernierRapportDirect?.rapport;
+      const cote = coteMarche(p);
       if (cote == null) continue;
       if (!favori || cote < favori.cote) {
         favori = {
@@ -70,7 +70,7 @@ async function getArrivee(date, numReunion, numCourse) {
       numero: p.numPmu,
       nom: p.nom,
       jockey: p.driver?.nom || p.entraineur?.nom || "",
-      cote: p.dernierRapportDirect?.rapport ?? null,
+      cote: coteMarche(p),
     }));
   } catch {
     return null;
@@ -268,6 +268,27 @@ async function assurerTablesArchive(env) {
 }
 
 // Version compacte et stable de l'historique PMU d'un cheval (5 dernières courses).
+// ---------------------------------------------------------------------------
+// COTE d'un partant — extraction unique (prompt IA, moteur, fiches, sélection gratuite, archive…)
+// ---------------------------------------------------------------------------
+// Le PMU fournit deux rapports : « direct » (marché en cours) et « de référence » (cote du programme).
+// Tôt le matin, quand peu de paris sont placés, le direct peut être absurde (ex. 284 alors que le programme
+// affiche 15) : il fausse l'affichage ET l'analyse du moteur et des IA. Règle : si les deux existent et
+// s'écartent de plus de 2,5 fois, le marché n'est pas formé → on garde la cote de référence.
+// Une fois la course courue (archive), le direct est la cote finale : on le garde tel quel.
+function coteMarche(p, termine = false) {
+  const lire = (o) => {
+    const v = Number(o?.rapport);
+    return Number.isFinite(v) && v > 1 ? v : null;
+  };
+  const direct = lire(p?.dernierRapportDirect);
+  const reference = lire(p?.dernierRapportReference);
+  if (direct == null) return reference;
+  if (reference == null || termine) return direct;
+  const ratio = direct / reference;
+  return ratio > 2.5 || ratio < 0.4 ? reference : direct;
+}
+
 function compacterHistorique(perf) {
   if (!perf || !Array.isArray(perf.coursesCourues)) return null;
   const lignes = perf.coursesCourues.slice(0, 5).map((c) => {
@@ -342,7 +363,7 @@ async function archiverCourse(env, dateParam, numReunion, infoCourse, hippodrome
       ).bind(
         dateParam, dateISO, reunionCode, courseCode, p.numPmu, p.nom || "",
         p.driver?.nom || "", p.entraineur?.nom || "", p.age ?? null, p.sexe || "", p.musique || "",
-        p.dernierRapportDirect?.rapport ?? null, p.placeCorde ?? null, p.handicapPoids ?? null,
+        coteMarche(p, termine > 0), p.placeCorde ?? null, p.handicapPoids ?? null,
         p.oeilleres || "", p.gainsParticipant?.gainsCarriere ?? null, p.nonPartant ? 1 : 0,
         p.ordreArrivee > 0 ? p.ordreArrivee : null, compacterHistorique(perfs[p.numPmu]), now
       )
@@ -1124,7 +1145,7 @@ async function calculerMoteurStatistique(env, date, reunion, course, participant
   const famille = classifierDiscipline(courseInfo.discipline, courseInfo.categorieParticularite);
   const poids = options.poids || await chargerPoidsAppris(env, famille);
   const archives = await chargerStatsHistoriques(env, actifs, courseInfo, date);
-  const cotes = classerValeurs(actifs, (p) => p.dernierRapportDirect?.rapport, true);
+  const cotes = classerValeurs(actifs, (p) => coteMarche(p), true);
   const chronos = classerValeurs(actifs, (p) => {
     const h = extraireHistorique(performancesParNumero[p.numPmu], p.musique);
     return h.find((x) => Number(x.chrono) > 0)?.chrono;
@@ -1515,7 +1536,7 @@ function buildPrompt(participants, courseInfo, date, performancesParNumero = {},
   const liste = participants
     .filter((p) => !p.nonPartant)
     .map((p) => {
-      const cote = p.dernierRapportDirect?.rapport;
+      const cote = coteMarche(p);
       const jockey = p.driver?.nom || p.entraineur?.nom || "inconnu";
       const musique = p.musique || "non renseignée";
       const age = p.age != null ? `${p.age} ans` : "âge inconnu";
@@ -2359,7 +2380,7 @@ async function enregistrerFeatures(env, date, reunion, course, participants, cou
           courseInfo.hippodrome || "",
           courseInfo.discipline || "",
           courseInfo.distance || null,
-          p.dernierRapportDirect?.rapport ?? null,
+          coteMarche(p),
           p.musique || "",
           p.placeCorde ?? null,
           p.handicapPoids ?? null,
@@ -3873,7 +3894,7 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
   const partants = (participants || []).filter((p) => !p.nonPartant);
   if (!partants.length) return null;
 
-  const cote = (p) => p?.dernierRapportDirect?.rapport ?? Infinity;
+  const cote = (p) => coteMarche(p) ?? Infinity;
   // Favoris du marché : cotes croissantes (les chevaux sans cote connue passent en dernier).
   const favoris = partants.slice().sort((a, b) => cote(a) - cote(b) || a.numPmu - b.numPmu).slice(0, GRATUIT_NB_CHEVAUX);
 
@@ -3883,7 +3904,7 @@ function construireSelectionGratuite(participants, quarte8, jockeysEnForme) {
       numero: p.numPmu,
       cheval: p.nom,
       jockey,
-      cote: p.dernierRapportDirect?.rapport ?? null,
+      cote: coteMarche(p),
       enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
     };
   };
@@ -3944,7 +3965,7 @@ async function genererCourseDuJour(env, date, reunion, course) {
             coupSur: c.coupSur,
             explication: c.explication || "",
             jockey,
-            cote: p?.dernierRapportDirect?.rapport ?? null,
+            cote: coteMarche(p),
             enForme: jockey ? jockeysEnForme.has(jockey.trim().toLowerCase()) : false,
           };
         })
@@ -4040,12 +4061,73 @@ async function pregenererCourseDuJour(env, { forcer = false } = {}) {
   return { statut: reussi ? "genere" : "echec", tentatives: etat.tentatives };
 }
 
+// Admin : montre, pour chaque partant, les cotes brutes envoyées par le PMU et celle retenue par le site.
+// À ouvrir dans le navigateur (connecté en admin) : /api/admin/diagnostic-cotes?reunion=R1&course=C3
+async function handleAdminDiagnosticCotes(request, env) {
+  const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
+  const admin = await requireAdmin(request, env);
+  if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
+  const url = new URL(request.url);
+  const date = todayParam();
+  const config = await getCourseDuJourConfig(env);
+  const reunion = (url.searchParams.get("reunion") || config.reunion).toUpperCase();
+  const course = (url.searchParams.get("course") || config.course).toUpperCase();
+  try {
+    const data = await fetchJSON(`${PMU_BASE}/programme/${date}/${reunion}/${course}/participants`);
+    const resume = (o) => (o ? { rapport: o.rapport ?? null, typePari: o.typePari ?? null, dateRapport: o.dateRapport ?? null } : null);
+    const partants = (data.participants || []).map((p) => ({
+      numero: p.numPmu,
+      nom: p.nom,
+      nonPartant: !!p.nonPartant,
+      direct: resume(p.dernierRapportDirect),
+      reference: resume(p.dernierRapportReference),
+      coteRetenue: coteMarche(p),
+      champsLiesAuxCotes: Object.keys(p).filter((k) => /rapport|cote|tendance|pari/i.test(k)),
+    }));
+    const ecarts = partants.filter((p) => p.direct?.rapport && p.reference?.rapport && (p.direct.rapport / p.reference.rapport > 2.5 || p.direct.rapport / p.reference.rapport < 0.4));
+    return new Response(
+      JSON.stringify({ date, reunion, course, referenceDisponible: partants.some((p) => p.reference?.rapport), ecartsCorriges: ecarts.map((p) => p.numero), partants }, null, 1),
+      { headers: corsHeaders }
+    );
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 502, headers: corsHeaders });
+  }
+}
+
+// Efface le pronostic VERROUILLÉ de la course du jour (et ses caches) pour le refaire avec des données corrigées.
+async function reinitialiserPronosticCourseDuJour(env) {
+  const date = todayParam();
+  const { reunion, course } = await getCourseDuJourConfig(env);
+  const depart = await heureDepartMs(date, reunion, course);
+  if (depart && Date.now() > depart) {
+    return { statut: "course_partie", message: "La course est déjà partie : on ne régénère plus le pronostic." };
+  }
+  if (env.DB) {
+    for (const table of ["predictions", "predictions_ia", "predictions_moteur", "courses_features"]) {
+      try {
+        await env.DB.prepare(`DELETE FROM ${table} WHERE date = ? AND reunion = ? AND course = ?`).bind(date, reunion, course).run();
+      } catch (e) {
+        console.warn(`[regeneration] ${table} :`, e.message); // table absente : sans importance
+      }
+    }
+  }
+  await Promise.all([
+    env.CACHE_KV.delete(`pronostic:${date}:${reunion}:${course}`),
+    env.CACHE_KV.delete(`course-du-jour-full-v3:${date}:${reunion}:${course}`),
+    env.CACHE_KV.delete(`pregen:${date}:${reunion}:${course}`),
+  ]);
+  return pregenererCourseDuJour(env, { forcer: true });
+}
+
 async function handleAdminPregen(request, env) {
   const corsHeaders = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
   const admin = await requireAdmin(request, env);
   if (!admin) return new Response(JSON.stringify({ error: "Accès refusé" }), { status: 403, headers: corsHeaders });
   try {
-    return new Response(JSON.stringify(await pregenererCourseDuJour(env, { forcer: true })), { headers: corsHeaders });
+    let body = {};
+    try { body = await request.json(); } catch { /* corps facultatif */ }
+    const resultat = body.regenerer === true ? await reinitialiserPronosticCourseDuJour(env) : await pregenererCourseDuJour(env, { forcer: true });
+    return new Response(JSON.stringify(resultat), { headers: corsHeaders });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
@@ -5078,6 +5160,10 @@ export default {
     }
     if (url.pathname === "/api/admin/calibrer-moteur" && request.method === "POST") {
       return handleAdminCalibrerMoteur(request, env);
+    }
+
+    if (url.pathname === "/api/admin/diagnostic-cotes") {
+      return handleAdminDiagnosticCotes(request, env);
     }
 
     if (url.pathname === "/api/admin/pregenerer" && request.method === "POST") {
