@@ -185,6 +185,13 @@
   .art-upload-note{font-size:11.5px; line-height:1.45; color:var(--text-dim); margin-bottom:10px;}
   .art-upload-note.erreur{color:#ef4444;}
   .art-cover.survol{border-color:var(--gold); background:rgba(201,162,39,.08);}
+  .art-seo-score{float:right; font-size:11px; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:999px; border:1px solid var(--border-strong); color:var(--text-dim);}
+  .art-seo-score.bon{color:#22c55e; border-color:rgba(34,197,94,.5);} .art-seo-score.moyen{color:#f59e0b; border-color:rgba(245,158,11,.5);} .art-seo-score.faible{color:#ef4444; border-color:rgba(239,68,68,.5);}
+  .art-seo-liste{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px;}
+  .art-seo-liste li{display:flex; gap:9px; align-items:flex-start; font-size:12.5px; line-height:1.4; color:var(--text-dim);}
+  .art-seo-liste li::before{content:'○'; flex:none; width:16px; text-align:center; color:var(--text-dim);}
+  .art-seo-liste li.ok{color:var(--text);} .art-seo-liste li.ok::before{content:'✓'; color:#22c55e; font-weight:700;}
+  .art-seo-liste li.ko::before{content:'✕'; color:#ef4444; font-weight:700;}
   .art-list-title{font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin:0 0 12px;}
   #articlesPanel table th{font-family:var(--ed-sans); font-weight:600; letter-spacing:.06em;}
   #articlesPanel table td{font-family:var(--ed-sans); font-size:13.5px;}
@@ -464,7 +471,7 @@
               <div class="art-layout">
                 <div class="art-main">
                   <textarea class="art-title" id="artTitreInput" rows="1" placeholder="Titre de l'article" autocomplete="off" spellcheck="true"></textarea>
-                  <input type="text" class="art-excerpt" id="artExtraitInput" placeholder="Extrait / résumé (optionnel, affiché dans la liste)" autocomplete="off">
+                  <input type="text" class="art-excerpt" id="artExtraitInput" placeholder="Extrait (110 à 160 caractères) : c'est la description affichée dans Google" autocomplete="off">
                   <div class="editor-shell"><div id="artContenuEditor"></div></div>
                   <div class="art-stats" id="artStats">0 mot</div>
                 </div>
@@ -490,13 +497,20 @@
                     <div class="art-upload-note" id="artUploadStatus">JPEG, PNG, WebP ou GIF — redimensionnée automatiquement.</div>
                     <input type="text" id="artImageInput" placeholder="…ou colle l'adresse (URL) d'une image" autocomplete="off">
                   </div>
+                  <div class="art-card" id="artSeoCard">
+                    <h4>Contrôle SEO <span id="artSeoScore" class="art-seo-score">0/7</span></h4>
+                    <ul class="art-seo-liste" id="artSeoListe"></ul>
+                  </div>
                   <div class="art-card">
                     <h4>Mots-clés</h4>
-                    <input type="text" id="artMotsClesInput" placeholder="ex. quinté, trot, analyse" autocomplete="off">
+                    <button type="button" class="action-btn" id="artMotsClesGenBtn" style="margin:0 0 8px;">✨ Générer avec l'IA</button>
+                    <input type="text" id="artMotsClesInput" placeholder="ex. pronostic quinté jeudi, prix de windsor" autocomplete="off">
+                    <div class="art-upload-note" id="artMotsClesNote" style="margin:8px 0 0;">L'IA lit le titre et le texte (même non enregistré). Place ensuite ces expressions dans le titre, le 1er paragraphe et les sous-titres : c'est là que ça compte pour Google.</div>
                   </div>
                 </aside>
               </div>
               <h4 class="art-list-title">Articles existants</h4>
+              <div id="artListStatus" class="form-status" style="margin-bottom:10px; min-height:16px;"></div>
               <div class="table-scroll">
               <table id="articlesTable">
                 <thead>
@@ -564,15 +578,18 @@
           <div class="panel">
             <div id="perfIaBtnRow" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px;">
               <select id="perfIaJours" style="padding:6px 8px;">
-                <option value="30">30 jours</option><option value="60" selected>60 jours</option><option value="180">180 jours</option>
+                <option value="30">30 jours</option><option value="60" selected>60 jours</option><option value="180">180 jours</option><option value="365">1 an</option><option value="1095">3 ans</option>
               </select>
               <button type="button" class="btn-primary" id="perfIaBtn">Calculer</button>
               <button type="button" class="btn-outline" id="archiveLotBtn" title="Archive un lot de courses (arrivées, cotes, historiques)">Archiver un lot de courses</button>
               <button type="button" class="btn-outline" id="archiveAutoBtn" title="Enchaîne les lots automatiquement jusqu'à ce que tout soit archivé (garde cette page ouverte)">Tout archiver (auto)</button>
+              <button type="button" class="btn-outline" id="backtestMoteurBtn" title="Rejoue le moteur statistique sur les courses historiques archivées, sans appeler les IA">Backtest moteur (lot)</button>
+              <button type="button" class="btn-outline" id="backtestMoteurAutoBtn" title="Enchaîne les lots de backtest sur la période sélectionnée">Backtest moteur (auto)</button>
               <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
               <span id="perfIaStatus" class="form-status"></span>
             </div>
             <div id="archiveEtat" style="font-size:13px; line-height:1.5; margin:-2px 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025);">État de la base : chargement…</div>
+            <div id="backtestMoteurEtat" style="font-size:13px; line-height:1.5; margin:-4px 0 14px; opacity:.85;">Backtest du moteur : pas encore calculé.</div>
             <div class="table-scroll">
               <table id="perfIaTable">
                 <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
@@ -1118,6 +1135,7 @@
       : '0 mot';
     document.getElementById('artMode').textContent = articleEnEdition ? 'Modification' : 'Nouvel article';
     ajusterTitreArticle();
+    majControleSeo();
     const cover = document.getElementById('artCover');
     const url = artImageInput.value.trim();
     document.getElementById('artImageRetirer').style.display = url ? '' : 'none';
@@ -1140,6 +1158,87 @@
   window.addEventListener('resize', ajusterTitreArticle);
   artQuill.on('text-change', majApercuArticle);
   artImageInput.addEventListener('input', majApercuArticle);
+
+  // --- SEO : contrôle en direct + génération de mots-clés par IA ---
+  const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  function majControleSeo(){
+    const liste = document.getElementById('artSeoListe');
+    if(!liste) return;
+    const titre = artTitreInput.value.trim();
+    const extrait = document.getElementById('artExtraitInput').value.trim();
+    const motsTexte = artQuill.getText().trim();
+    const nbMots = motsTexte ? motsTexte.split(/\s+/).length : 0;
+    const nbH2 = artQuill.root.querySelectorAll('h2').length;
+    const motsCles = artMotsClesInput.value.split(',').map(m => m.trim()).filter(Boolean);
+    const principal = sansAccents(motsCles[0]).split(/\s+/).filter(m => m.length >= 4);
+    const titreNorm = sansAccents(titre);
+    const principalDansTitre = principal.length > 0 && principal.filter(m => titreNorm.includes(m)).length / principal.length >= 0.6;
+    const controles = [
+      [titre.length >= 30 && titre.length <= 65, `Titre de 30 à 65 caractères (${titre.length}) : au-delà, Google le coupe`],
+      [extrait.length >= 110 && extrait.length <= 160, `Extrait de 110 à 160 caractères (${extrait.length}) : c'est la description affichée dans Google`],
+      [nbMots >= 500, `Au moins 500 mots (${nbMots}) : les textes courts se classent rarement`],
+      [nbH2 >= 2, `Au moins 2 sous-titres « Titre » (${nbH2}) pour structurer le texte`],
+      [!!artImageInput.value.trim(), 'Image de couverture (aperçu de partage et Google Images)'],
+      [motsCles.length >= 5, `Au moins 5 mots-clés (${motsCles.length})`],
+      [principalDansTitre, 'Le 1er mot-clé figure dans le titre'],
+    ];
+    liste.innerHTML = '';
+    let bons = 0;
+    controles.forEach(([ok, texte]) => {
+      const li = document.createElement('li');
+      li.className = ok ? 'ok' : 'ko';
+      li.textContent = texte;
+      if(ok) bons++;
+      liste.appendChild(li);
+    });
+    const score = document.getElementById('artSeoScore');
+    score.textContent = bons + '/' + controles.length;
+    score.className = 'art-seo-score ' + (bons >= 6 ? 'bon' : bons >= 4 ? 'moyen' : 'faible');
+  }
+  artTitreInput.addEventListener('input', majControleSeo);
+  document.getElementById('artExtraitInput').addEventListener('input', majControleSeo);
+  artMotsClesInput.addEventListener('input', majControleSeo);
+
+  async function appelerMotsCles(chemin, corps){
+    const res = await fetch(`${API_BASE}${chemin}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps || {}) });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || ('Erreur ' + res.status));
+    return data;
+  }
+  document.getElementById('artMotsClesGenBtn').addEventListener('click', async () => {
+    const bouton = document.getElementById('artMotsClesGenBtn');
+    const note = document.getElementById('artMotsClesNote');
+    if(!note.dataset.defaut) note.dataset.defaut = note.textContent;
+    bouton.disabled = true; bouton.textContent = '⏳ Génération…'; note.classList.remove('erreur');
+    try {
+      const d = await appelerMotsCles('/api/admin/mots-cles', {
+        titre: artTitreInput.value.trim(),
+        extrait: document.getElementById('artExtraitInput').value.trim(),
+        contenu: artQuill.root.innerHTML,
+      });
+      artMotsClesInput.value = d.motsCles;
+      majControleSeo();
+      note.textContent = d.liste.length + ' mots-clés générés ✓ — relis-les, retire ceux qui ne conviennent pas, puis enregistre l\u2019article.';
+    } catch(e){
+      note.textContent = e.message; note.classList.add('erreur');
+    }
+    bouton.disabled = false; bouton.textContent = '✨ Générer avec l\u2019IA';
+  });
+
+  // Bouton de la liste : génère ET enregistre les mots-clés d'un article existant.
+  async function genererMotsClesArticle(btn){
+    const id = btn.closest('tr').dataset.id;
+    const statutListe = document.getElementById('artListStatus');
+    btn.disabled = true; const ancien = btn.textContent; btn.textContent = '⏳…'; statutListe.style.color = ''; statutListe.textContent = 'Génération des mots-clés…';
+    try {
+      const d = await appelerMotsCles(`/api/admin/articles/${id}/mots-cles`);
+      statutListe.textContent = 'Mots-clés enregistrés : ' + d.motsCles;
+      if(articleEnEdition === Number(id)) { artMotsClesInput.value = d.motsCles; majControleSeo(); }
+    } catch(e){
+      statutListe.style.color = '#ef4444'; statutListe.textContent = e.message;
+    }
+    btn.disabled = false; btn.textContent = ancien;
+  }
 
   function viderFormulaireArticle(){
     articleEnEdition = null;
@@ -1175,6 +1274,7 @@
         <td data-label="Mis à jour">${new Date(a.updated_at).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
         <td class="row-actions" data-label="Actions">
           <button class="action-btn" data-role="editer-article">Modifier</button>
+          <button class="action-btn" data-role="mots-cles-article" title="Génère et enregistre les mots-clés de cet article avec l'IA">Mots-clés IA</button>
           <button class="action-btn danger" data-role="supprimer-article">Supprimer</button>
         </td>
       </tr>
@@ -1182,6 +1282,9 @@
 
     body.querySelectorAll('[data-role="editer-article"]').forEach(btn => {
       btn.addEventListener('click', () => editerArticle(btn, articles));
+    });
+    body.querySelectorAll('[data-role="mots-cles-article"]').forEach(btn => {
+      btn.addEventListener('click', () => genererMotsClesArticle(btn));
     });
     body.querySelectorAll('[data-role="supprimer-article"]').forEach(btn => {
       btn.addEventListener('click', () => supprimerArticle(btn));
@@ -1315,7 +1418,7 @@
   // --- Archive des courses : état de la base (TOTAL) + lots ---
   const jourFr = (iso) => iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '?';
   function texteEtatArchive(st){
-    if(!st || !st.avec_arrivee) return 'Base : aucune course archivée pour le moment.';
+    if(!st || !st.avec_arrivee) return 'Base : aucune course archivée pour le moment. Le rattrapage historique peut couvrir jusqu’à 3 ans selon les données PMU disponibles.';
     return 'Base : ' + st.avec_arrivee + ' courses terminées, sur ' + (st.jours || 0) + ' jour(s) (du ' + jourFr(st.du) + ' au ' + jourFr(st.au) + ') · '
       + (st.chevaux || 0) + ' chevaux' + (st.sans_arrivee ? ' · ' + st.sans_arrivee + ' sans arrivée (annulées)' : '');
   }
@@ -1343,7 +1446,7 @@
     if(archiveAutoEnCours){ archiveAutoStop = true; btn.textContent = 'Arrêt en cours…'; return; }
     archiveAutoEnCours = true; archiveAutoStop = false; btn.textContent = '⏹ Arrêter';
     let ajoutees = 0, lotsVides = 0, fin = '';
-    for(let i = 0; i < 100 && !archiveAutoStop; i++){
+    for(let i = 0; i < 500 && !archiveAutoStop; i++){
       try {
         const d = await appeler('/api/admin/archive-historique', 'POST', {});
         ajoutees += d.bilan.traitees;
@@ -1358,6 +1461,45 @@
     statut(fin || ('Arrêté (+' + ajoutees + ' course(s))'));
   });
   rafraichirEtatArchive();
+
+  async function rafraichirBacktestMoteur() {
+    try {
+      const d = await appeler('/api/admin/backtest-moteur?jours=' + $('perfIaJours').value);
+      const r = d.resultats || {};
+      const m = d.reference_marche || {};
+      $('backtestMoteurEtat').textContent = 'Backtest ' + (d.periode?.jours || '?') + ' jours : ' + (d.courses_evaluees || 0) + ' courses évaluées / ' + (d.total_courses_archivees || 0) + ' archivées · reste ' + (d.restantes || 0) + ' · Moteur ' + (r.chevaux_corrects_moy_sur_4 == null ? '—' : r.chevaux_corrects_moy_sur_4 + '/4') + ' (tiercé ' + (r.tierce_desordre_pct == null ? '—' : r.tierce_desordre_pct + '%') + ', quarté ' + (r.quarte_desordre_pct == null ? '—' : r.quarte_desordre_pct + '%') + ') · Marché ' + (m.chevaux_corrects_moy_sur_4 == null ? '—' : m.chevaux_corrects_moy_sur_4 + '/4') + ' (tiercé ' + (m.tierce_desordre_pct == null ? '—' : m.tierce_desordre_pct + '%') + ', quarté ' + (m.quarte_desordre_pct == null ? '—' : m.quarte_desordre_pct + '%') + ')';
+    } catch(e) { $('backtestMoteurEtat').textContent = 'Backtest indisponible : ' + e.message; }
+  }
+  $('backtestMoteurBtn').addEventListener('click', async () => {
+    statut('Backtest statistique en cours…');
+    try {
+      const d = await appeler('/api/admin/backtest-moteur', 'POST', { jours: Number($('perfIaJours').value), budget: 10 });
+      $('backtestMoteurEtat').textContent = 'Lot : +' + d.traitees + ' courses traitées (' + d.erreurs + ' erreur(s)).';
+      await rafraichirBacktestMoteur();
+      statut('Lot de backtest terminé.');
+    } catch(e) { statut(e.message, false); }
+  });
+  let backtestAutoEnCours = false, backtestAutoStop = false;
+  $('backtestMoteurAutoBtn').addEventListener('click', async () => {
+    const btn = $('backtestMoteurAutoBtn');
+    if(backtestAutoEnCours){ backtestAutoStop = true; btn.textContent = 'Arrêt en cours…'; return; }
+    backtestAutoEnCours = true; backtestAutoStop = false; btn.textContent = '⏹ Arrêter';
+    let total = 0, fin = '';
+    for(let i = 0; i < 200 && !backtestAutoStop; i++){
+      try {
+        const d = await appeler('/api/admin/backtest-moteur', 'POST', { jours: Number($('perfIaJours').value), budget: 10 });
+        total += d.traitees || 0;
+        const st = d.stats || {};
+        $('backtestMoteurEtat').textContent = 'Backtest automatique : +' + total + ' courses traitées · ' + (st.courses_evaluees || 0) + ' évaluées · reste ' + (st.restantes || 0);
+        if((st.restantes || 0) === 0){ fin = 'Backtest terminé sur la période sélectionnée.'; break; }
+        if(!d.traitees){ fin = 'Aucune nouvelle course traitée ; vérifie les archives disponibles.'; break; }
+      } catch(e) { fin = 'Interrompu : ' + e.message; break; }
+    }
+    backtestAutoEnCours = false; btn.textContent = 'Backtest moteur (auto)';
+    await rafraichirBacktestMoteur();
+    statut(fin || ('Backtest arrêté après +' + total + ' courses.'));
+  });
+  rafraichirBacktestMoteur();
 
   $('pregenBtn').addEventListener('click', async () => {
     statut('Génération de l\u2019analyse (1 à 2 min)…');
