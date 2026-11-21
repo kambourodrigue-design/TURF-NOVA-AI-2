@@ -585,11 +585,13 @@
               <button type="button" class="btn-outline" id="archiveAutoBtn" title="Enchaîne les lots automatiquement jusqu'à ce que tout soit archivé (garde cette page ouverte)">Tout archiver (auto)</button>
               <button type="button" class="btn-outline" id="backtestMoteurBtn" title="Rejoue le moteur statistique sur les courses historiques archivées, sans appeler les IA">Backtest moteur (lot)</button>
               <button type="button" class="btn-outline" id="backtestMoteurAutoBtn" title="Enchaîne les lots de backtest sur la période sélectionnée">Backtest moteur (auto)</button>
+              <button type="button" class="btn-outline" id="calibrerMoteurBtn" title="Teste de nouvelles pondérations sur les prédictions réellement archivées, avec validation chronologique">Calibrer les poids</button>
               <button type="button" class="btn-outline" id="pregenBtn" title="Génère maintenant l'analyse de la course du jour">Pré-générer la course du jour</button>
               <span id="perfIaStatus" class="form-status"></span>
             </div>
             <div id="archiveEtat" style="font-size:13px; line-height:1.5; margin:-2px 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.025);">État de la base : chargement…</div>
             <div id="backtestMoteurEtat" style="font-size:13px; line-height:1.5; margin:-4px 0 14px; opacity:.85;">Backtest du moteur : pas encore calculé.</div>
+            <div id="calibrationMoteurEtat" style="font-size:13px; line-height:1.5; margin:-4px 0 14px; opacity:.85;">Pondérations : valeurs initiales tant qu'un apprentissage validé n'est pas disponible.</div>
             <div class="table-scroll">
               <table id="perfIaTable">
                 <thead><tr><th>Source</th><th>Courses</th><th>Corrects /4</th><th>Tiercé</th><th>Quarté</th><th>1er choix top 4</th><th>1er choix gagne</th><th>Coups sûrs top 4</th></tr></thead>
@@ -1500,6 +1502,25 @@
     statut(fin || ('Backtest arrêté après +' + total + ' courses.'));
   });
   rafraichirBacktestMoteur();
+
+  $('calibrerMoteurBtn').addEventListener('click', async () => {
+    const btn = $('calibrerMoteurBtn');
+    btn.disabled = true; btn.textContent = 'Apprentissage…';
+    $('calibrationMoteurEtat').textContent = 'Analyse des prédictions archivées et validation sur les courses les plus récentes…';
+    try {
+      const d = await appeler('/api/admin/calibrer-moteur', 'POST', { jours: Math.max(365, Number($('perfIaJours').value) || 365) });
+      const lignes = Object.entries(d.resultats || {}).map(([famille,r]) => {
+        if (r.statut === 'echantillon_insuffisant') return famille + ' : ' + r.courses + '/40 prédictions exploitables ; apprentissage différé.';
+        if (r.statut === 'validation_insuffisante') return famille + ' : validation insuffisante (' + r.courses + ' courses).';
+        return famille + ' : ' + (r.statut === 'poids_appris_actives' ? 'nouveaux poids activés' : 'poids actuels conservés') + ' · test ' + r.score_reference_pct + '% → ' + r.score_candidat_pct + '% (' + (r.gain_points > 0 ? '+' : '') + r.gain_points + ' points) · ' + r.courses + ' courses.';
+      });
+      $('calibrationMoteurEtat').textContent = 'Calibration terminée — ' + (d.nb_predictions_exploitables || 0) + ' prédictions exploitables. ' + (lignes.join(' | ') || 'Aucune discipline avec des données suffisantes.');
+      statut('Calibration terminée.');
+    } catch(e) {
+      $('calibrationMoteurEtat').textContent = 'Calibration impossible : ' + e.message;
+      statut(e.message, false);
+    } finally { btn.disabled = false; btn.textContent = 'Calibrer les poids'; }
+  });
 
   $('pregenBtn').addEventListener('click', async () => {
     statut('Génération de l\u2019analyse (1 à 2 min)…');
