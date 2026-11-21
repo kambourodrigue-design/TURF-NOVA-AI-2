@@ -417,12 +417,8 @@
   .fr-body{flex:1; min-width:0;}
   .fr-name{font-family:var(--font-sans); font-weight:800; font-size:12px; line-height:1.2; color:var(--text); overflow-wrap:anywhere;}
   .fr-expl{font-family:var(--font-sans); font-size:11.5px; line-height:1.4; color:var(--text-dim); margin-top:4px; font-style:italic;}
-  .cdj-conseils{border:1px solid rgba(201,162,39,.4); background:rgba(201,162,39,.07); border-radius:12px; padding:12px 14px;}
-  .cdj-conseils__titre{font-weight:700; font-size:13px; color:var(--gold-light); margin-bottom:4px;}
-  .cdj-conseils p{font-size:13px; line-height:1.55; margin:0;}
   .ia-result .quarte-expl{flex-basis:100%; font-size:12px; line-height:1.4; color:var(--text-dim); font-style:italic; margin:2px 0 0 28px;}
   .ia-result .quarte-item{flex-wrap:wrap;}
-  .ia-result .ia-conseils{margin-top:10px; padding:10px 12px; border:1px solid rgba(201,162,39,.4); background:rgba(201,162,39,.07); border-radius:10px; font-size:12.5px; line-height:1.5;}
   .fr-sub{font-family:var(--font-sans); font-size:10px; color:var(--text-dim); margin-top:1px; line-height:1.25;}
   .fr-rang{color:var(--gold-light); font-weight:800;}
   .cdj-premium-note{margin:-2px 0 12px; font-family:var(--font-body); font-size:12.5px; line-height:1.5; color:var(--text-dim);}
@@ -1108,7 +1104,6 @@
                   <div class="cdj-section-titre cdj-section-titre--premium">⭐ Pronostic Premium IA <span class="cdj-badge-premium">6 numéros · abonnés</span></div>
                 <p class="cdj-premium-note">Classés par l'IA, du meilleur choix au moins bon — pas selon les cotes : un cheval à cote moyenne ou élevée peut figurer parmi les meilleurs.</p>
                   <div id="cdjChevaux" style="margin-top:12px;"></div>
-                  <div id="cdjConseils" style="display:none; margin-top:14px;"></div>
                   <div id="cdjComplement" style="display:none;"></div>
                 </div>
               </div>
@@ -1518,7 +1513,7 @@
           </details>
           <details class="faq-item">
             <summary>Est-ce que le site est gratuit ?</summary>
-            <p>La sélection gratuite du jour (les 5 valeurs sûres, c'est-à-dire les favoris du marché) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec les coups sûrs, une explication par cheval, les conseils de jeu, les jockeys et les cotes détaillés) nécessite un abonnement Premium (mensuel ou annuel). Le bilan de performance public, lui, reste visible par tous sans compte.</p>
+            <p>La sélection gratuite du jour (les 5 valeurs sûres, c'est-à-dire les favoris du marché) est visible par tous, sans compte. Le Pronostic PREMIUM course du jour (6 chevaux : 3 bases, 2 outsiders et 1 tocard, avec les coups sûrs, une explication par cheval, les jockeys et les cotes détaillés) nécessite un abonnement Premium (mensuel ou annuel). Le bilan de performance public, lui, reste visible par tous sans compte.</p>
           </details>
           <details class="faq-item">
             <summary>Les pronostics sont-ils garantis gagnants ?</summary>
@@ -1934,8 +1929,7 @@
           <div class="ia-result">
             <div class="ia-conf">Pronostic IA — ${c.confiance}% de confiance</div>
             <div class="quarte-list">${itemsHTML}</div>
-            ${conseilsIAHTML(c)}
-            ${sourcesHTML}
+             ${sourcesHTML}
           </div>`;
       })
       .catch((err) => {
@@ -1967,11 +1961,6 @@
     return btn;
   }
 
-  // Conseils de jeu de l'IA, rangés sur le 1er cheval du classement.
-  function conseilsIAHTML(c){
-    const t = (c.quarte8 || []).find(h => h.conseilsJeu);
-    return t ? `<div class="ia-conseils">🎯 <b>Conseils de jeu</b> — ${escHtml(t.conseilsJeu)}</div>` : '';
-  }
 
   // Intitulé « Analyse en cours · temps estimé » avec compteur : s'arrête tout seul quand l'élément quitte la page.
   const ANALYSE_ESTIMEE_S = 60; // durée habituelle d'une analyse (2 IA + recherche web) — à ajuster
@@ -2059,7 +2048,6 @@
         box.innerHTML = `
           <div class="ia-conf">Pronostic IA — ${c.confiance}% de confiance</div>
           <div class="quarte-list">${itemsHTML}</div>
-          ${conseilsIAHTML(c)}
           ${sourcesHTML}
         `;
         skeleton.replaceWith(box);
@@ -2834,14 +2822,6 @@
     ], false) + (estPremium ? '' : `<p class="cdj-premium-note" style="margin-top:12px;">Ce sont les 5 favoris du marché (cotes les plus basses). Lesquels sont de <b>vraies bases</b> ?${autres} Passe à Premium pour le savoir.</p>`);
   }
 
-  // Premium : conseils de jeu de l'IA (quelle combinaison jouer, ou pourquoi s'abstenir).
-  function rendreConseilsJeu(texte){
-    const box = document.getElementById('cdjConseils');
-    if (!box) return;
-    if (!texte) { box.style.display = 'none'; box.innerHTML = ''; return; }
-    box.style.display = '';
-    box.innerHTML = `<div class="cdj-conseils"><div class="cdj-conseils__titre">🎯 Conseils de jeu</div><p>${escHtml(texte)}</p></div>`;
-  }
 
   // Rassemble les chevaux du gratuit + du Premium (avec cote connue) pour
   // peupler le calculateur de gains — pas besoin d'appel serveur supplémentaire,
@@ -2941,7 +2921,6 @@
           premiumBox.style.display = '';
           premiumContenu.style.display = '';
           rendreChevauxCourseDuJour(data.premium.quarte8);
-          rendreConseilsJeu(data.premium.conseilsJeu);
         } else {
           // Verrouillé (pas abonné) ou IA pas encore répondue pour cette course :
           // dans les deux cas la bannière d'accroche au-dessus suffit, pas besoin
